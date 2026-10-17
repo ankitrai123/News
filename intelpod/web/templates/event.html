@@ -11,6 +11,8 @@
     {% if score.review.rejected %}<p class="small warn">Rejected model text (names/numbers not found in the reports):
       {% for f, terms in score.review.rejected.items() %}{{ f }}: {{ terms|join(', ') }}; {% endfor %}</p>{% endif %}
     {% if score.review.outlier_article_ids %}<p class="small warn">Removed {{ score.review.outlier_article_ids|length }} report(s) judged to be about a different event.</p>{% endif %}
+    <table class="comp">{% for name, a in score.review.scores.items() %}<tr><td style="width:120px">{{ name }}</td><td style="width:60px">{{ '%.2f'|format(a.score) }}</td><td class="muted">{{ a.reason }}</td></tr>{% endfor %}</table>
+    {% if score.review.soft_news %}<p class="small warn">Judged to be soft news.</p>{% endif %}
   </div>{% endif %}
   <div class="small"><span class="pill">{{ ev.topic }}{% if ev.subtopic %} / {{ ev.subtopic }}{% endif %}</span>
   {% for c in ev.countries %}<span class="pill">{{ c }}</span>{% endfor %}</div>

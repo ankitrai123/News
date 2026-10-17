@@ -66,6 +66,7 @@ def full_settings(settings, monkeypatch):
     settings.ingestion.providers.newsdata.min_interval_seconds = 0
     settings.clustering.embeddings.enabled = True
     settings.llm.providers["nvidia"].requests_per_minute = 0
+    settings.llm.providers["nvidia"].backoff_base_seconds = 0
     settings.llm.event_review.max_events = 5
     return settings
 
@@ -88,7 +89,8 @@ def test_full_run_with_newsdata_and_nvidia(full_settings):
         assert ingest["providers"]["newsdata"]["ok"] == 1 and ingest["providers"]["newsdata"]["credits_remaining"] == 199
         assert "used (nvidia/" in stages["cluster"].output["embeddings"]
         review = stages["review"].output
-        assert review["status"] == "completed" and review["reviewed"] == 5 and chat.call_count == 5
+        assert review["status"] == "completed" and review["reviewed"] >= 5 and chat.call_count == review["reviewed"]
+        assert review["unreviewed_selected"] == []  # promoted events got follow-up reviews
         assert review["summaries_rejected"] >= 1  # invented "Atlantis" summary was rejected
 
         ranked = pipe.repo.scores_for_run(run_id)
@@ -105,7 +107,7 @@ def test_full_run_with_newsdata_and_nvidia(full_settings):
         assert emb.call_count == emb_calls and chat.call_count == chat_calls
         assert "0 new" in pipe.repo.stages(run2)["cluster"].output["embeddings"]
         usage = pipe.repo.llm_usage()
-        assert usage and usage[0]["cached"] >= 5
+        assert usage and usage[0]["cached"] >= review["reviewed"]
 
 
 def test_nvidia_down_degrades_to_keyword_ranking(full_settings):
@@ -138,3 +140,32 @@ def test_without_keys_everything_still_works(settings):
     assert "NVIDIA_API_KEY not set" in stages["cluster"].output["embeddings"]
     assert stages["review"].output["reason"] == "NVIDIA_API_KEY is not set"
     assert pipe.repo.scores_for_run(run_id, selected_only=True)
+
+
+def test_off_topic_reports_become_their_own_event(full_settings):
+    """The model flags the India import-bill piece in the OPEC cluster; it must not vanish."""
+    def handler(request):
+        body = json.loads(request.content)
+        user = body["messages"][-1]["content"]
+        reports = [ln for ln in user.splitlines() if ln.startswith("r") and " | " in ln]
+        outliers = [ln.split(" | ")[0] for ln in reports if "import bill" in ln] if len(reports) > 1 else []
+        answer = {"same_event": not outliers, "outlier_ids": outliers, "title": "", "summary": "", "soft_news": False,
+                  "scores": {d: {"score": 0.5, "reason": "t"} for d in ("geopolitical", "economic", "business", "india", "long_term")}}
+        return httpx.Response(200, json={"model": body["model"], "choices": [
+            {"index": 0, "message": {"role": "assistant", "content": json.dumps(answer)}, "finish_reason": "stop"}]})
+
+    full_settings.clustering.embeddings.enabled = False
+    with respx.mock as router:
+        mock_sources(router)
+        router.get(ND).respond(200, json=sn.newsdata_json())
+        router.post(NV + "/chat/completions").mock(side_effect=handler)
+        pipe = Phase1Pipeline(full_settings, stage_retry_delay=0)
+        run_id = pipe.run(now=sn.NOW)
+    review = pipe.repo.stages(run_id)["review"].output
+    ranked = pipe.repo.scores_for_run(run_id)
+    owner = [r for r in ranked if "import bill" in r.title.lower()]
+    assert review["outliers_removed"] == 1
+    assert review["regrouped_events"] and owner, "removed report must form its own event"
+    assert pipe.repo.event_articles(owner[0].event_id)
+    oil = next(r for r in ranked if "opec" in r.title.lower())
+    assert "India" not in oil.countries and oil.article_count == 3

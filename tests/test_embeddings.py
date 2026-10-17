@@ -31,7 +31,7 @@ def handler_factory(dead=(), dim=4, log=None):
 def emb(monkeypatch):
     monkeypatch.setenv("NVIDIA_API_KEY", "nvapi-x")
     cfg = EmbeddingsConfig(batch_size=2)
-    return NvidiaEmbedder(cfg, "https://integrate.api.nvidia.com/v1", "NVIDIA_API_KEY")
+    return NvidiaEmbedder(cfg, "https://integrate.api.nvidia.com/v1", "NVIDIA_API_KEY", sleep=lambda s: None)
 
 
 @respx.mock
@@ -54,10 +54,42 @@ def test_retired_model_falls_back(emb):
 
 
 @respx.mock
-def test_transient_failure_does_not_switch_model(emb):
+def test_transient_failure_is_retried_and_does_not_switch_model(emb):
     calls = []
-    respx.post(URL).mock(side_effect=lambda r: (calls.append(1), httpx.Response(503))[1])
-    assert emb(["a"]) is None and len(calls) == 1 and "503" in emb.last_error
+    respx.post(URL).mock(side_effect=lambda r: (calls.append(json.loads(r.content)["model"]), httpx.Response(503))[1])
+    assert emb(["a"]) is None and "503" in emb.last_error
+    assert calls == ["nvidia/nemotron-3-embed-1b"] * 4  # 3 retries, never the fallback model
+
+
+@respx.mock
+def test_rate_limit_midway_keeps_finished_batches(emb, tmp_path):
+    repo = Repository(Database(tmp_path / "p.db"))
+    n = {"i": 0}
+    good = handler_factory()
+
+    def flaky(request):
+        n["i"] += 1
+        return httpx.Response(429, json={"title": "Too Many Requests"}) if n["i"] >= 3 else good(request)
+
+    respx.post(URL).mock(side_effect=flaky)
+    cached = CachedEmbedder(emb, repo)
+    assert cached(["a", "b", "c", "d", "e", "f"]) is None   # batch 3 of 3 never succeeds
+    respx.post(URL).mock(side_effect=handler_factory())
+    out = cached(["a", "b", "c", "d", "e", "f"])
+    assert out and cached.hits == 4 and cached.misses == 2   # batches 1-2 were kept
+
+
+def test_too_few_vectors_disable_embeddings():
+    from intelpod.config import ClusteringConfig
+    from intelpod.pipeline.cluster import Clusterer, dense_baseline
+
+    class D:
+        def __init__(self, v):
+            self.dense = v
+    assert dense_baseline([D([1.0, 0.0]), D([0.9, 0.1]), D([0.8, 0.2])]) == 1.0
+    c = Clusterer(ClusteringConfig())
+    c.baseline = 1.0
+    assert c._lexical(0.2, 0.95) == 0.2
 
 
 def test_missing_key(monkeypatch):
@@ -84,6 +116,14 @@ def test_cache_hits_and_model_switch_reembeds_everything(emb, tmp_path):
     respx.post(URL).mock(side_effect=handler_factory(dead={"nvidia/nemotron-3-embed-1b"}, log=calls))
     emb.model = emb.models[0]
     out = cached(["a", "bb", "dddd"])
-    assert cached.model == "nvidia/nv-embedqa-e5-v5" and cached.misses == 3 and len(out) == 3
+    # "dddd" was embedded (and stored) by the fallback; "a" and "bb" are re-embedded with it.
+    assert cached.model == "nvidia/nv-embedqa-e5-v5" and cached.misses == 2 and len(out) == 3
+
+    # Next run: the fallback's cached vectors are found and reused; no request is needed.
+    calls.clear()
+    fresh = NvidiaEmbedder(EmbeddingsConfig(batch_size=2), "https://integrate.api.nvidia.com/v1", "NVIDIA_API_KEY",
+                           sleep=lambda s: None)
+    again = CachedEmbedder(fresh, repo)(["a", "bb", "dddd"])
+    assert again and calls == []
     # The fake e5 vectors have component0 == component3 (base 1.0); nemotron ones have 2:1.
     assert all(v[0] == pytest.approx(v[3]) for v in out)  # every vector from the e5 space

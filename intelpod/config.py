@@ -30,6 +30,7 @@ class AppConfig(BaseModel):
 class HttpConfig(BaseModel):
     timeout_seconds: float = 20
     max_retries: int = 3
+    retry_timeouts: bool = True                    # LLM calls set False: fail over instead of waiting again
     backoff_base_seconds: float = 2.0
     per_host_min_interval_seconds: float = 1.0
     respect_robots_txt: bool = True
@@ -77,7 +78,20 @@ class NewsdataProviderConfig(BaseModel):
     max_credits_per_run: int = Field(20, ge=1)     # stays under the 30-per-15-minute limit
     daily_credit_budget: int = Field(180, ge=1)    # leave headroom below the 200/day quota
     min_interval_seconds: float = 2.0
-    queries: list[NewsdataQuery] = Field(default_factory=list)
+    queries: list[NewsdataQuery] = Field(default_factory=lambda: [q.model_copy() for q in DEFAULT_NEWSDATA_QUERIES])
+
+
+DEFAULT_NEWSDATA_QUERIES = [
+    NewsdataQuery(topic="geopolitics", q='sanctions OR ceasefire OR invasion OR "peace talks"'),
+    NewsdataQuery(topic="trade_policy", q='tariff OR tariffs OR "export controls" OR "trade deal"'),
+    NewsdataQuery(topic="markets_monetary", q='"central bank" OR "interest rate" OR inflation', category="business"),
+    NewsdataQuery(topic="energy_commodities", q='OPEC OR "oil prices" OR LNG OR "natural gas"'),
+    NewsdataQuery(topic="semiconductors_minerals", q='semiconductor OR chipmaker OR "rare earth" OR "critical minerals"'),
+    NewsdataQuery(topic="technology_ai", q='"artificial intelligence" OR "AI regulation"', category="technology"),
+    NewsdataQuery(topic="india", category="business", country="in"),
+    NewsdataQuery(topic="india", category="politics", country="in"),
+    NewsdataQuery(topic="geopolitics", category="world"),
+]
 
 
 class ProvidersConfig(BaseModel):
@@ -204,7 +218,8 @@ DEFAULT_REVIEW_MODELS = [
 
 class EventReviewConfig(BaseModel):
     enabled: bool = True
-    max_events: int = Field(12, ge=0)               # model calls per run (one per event)
+    max_events: int = Field(12, ge=0)               # first pass: highest-ranked events reviewed
+    max_extra_reviews: int = Field(6, ge=0)         # follow-up reviews for events promoted into the briefing
     weight: float = Field(0.5, ge=0, le=1)          # share of each blended score taken from the model
 
 

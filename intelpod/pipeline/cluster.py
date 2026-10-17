@@ -29,6 +29,7 @@ from .embeddings import dense_cos
 
 Vector = dict[str, float]
 ENTITY_GATE_COS = 0.20  # lexical cosine at which entity overlap gets full credit
+DENSE_CANDIDATES = 20   # clusters per article compared with embeddings
 
 
 @dataclass
@@ -126,7 +127,7 @@ def dense_baseline(docs: list[Doc], max_pairs: int = 3000) -> float:
     dense = [d.dense for d in docs if d.dense]
     n = len(dense)
     if n < 4:
-        return 0.0
+        return 1.0  # too few pairs to estimate the floor: ignore embeddings (lexical only)
     sims = []
     step = max(1, (n * (n - 1) // 2) // max_pairs)
     k = 0
@@ -158,7 +159,7 @@ class Clusterer:
         worse than lexical clustering. mode "blend": weighted average; on a planted-event
         stress test it improved purity with a good model but split real events (completeness
         0.996 -> 0.866) when embeddings were uninformative."""
-        if dense_cos_value is None:
+        if dense_cos_value is None or self.baseline >= 1.0:
             return cos
         w = self.cfg.embeddings.weight
         blended = w * self.calibrated(dense_cos_value) + (1 - w) * cos
@@ -169,6 +170,10 @@ class Clusterer:
 
     def has_direct_match(self, doc: Doc, cl: Cluster) -> bool:
         floor = self.cfg.member_min_similarity
+        # Cheap lexical pass first; in boost mode embeddings can only raise a score, so the
+        # (expensive, high-dimensional) dense comparison is needed only when lexical fails.
+        if self.cfg.embeddings.mode == "boost" and any(cosine(doc.vec, m.vec) >= floor for m in cl.members):
+            return True
         return any(self._pair_lex(doc, m) >= floor for m in cl.members)
 
     def doc_to_cluster(self, doc: Doc, cl: Cluster) -> float:
@@ -205,10 +210,15 @@ class Clusterer:
             for t in doc.vec:
                 candidates |= index.get(t, set())
             best, best_sim = None, 0.0
-            for ci in candidates:
+            live = [ci for ci in candidates
+                    if not (clusters[ci].last and abs(doc.time - clusters[ci].last) > self.max_gap
+                            and abs(doc.time - clusters[ci].first) > self.max_gap)]
+            if doc.dense is not None and len(live) > DENSE_CANDIDATES:
+                # Embedding comparisons are costly (1-2k dims, pure Python): only the clusters
+                # with the strongest lexical overlap are compared semantically.
+                live = sorted(live, key=lambda ci: -cosine(doc.vec, clusters[ci].centroid()))[:DENSE_CANDIDATES]
+            for ci in live:
                 cl = clusters[ci]
-                if cl.last and abs(doc.time - cl.last) > self.max_gap and abs(doc.time - cl.first) > self.max_gap:
-                    continue
                 sim = self.doc_to_cluster(doc, cl)
                 if sim > best_sim:
                     best, best_sim = ci, sim

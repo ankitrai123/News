@@ -34,8 +34,9 @@
   `intelpod newsdata test`, `intelpod llm test` and `pytest -m live` once your keys are set.
 * **NVIDIA model ids are third-party-reported** (Oct 2026) and retire often; the failover list
   softens this but you may need to update it.
-* **NVIDIA trial terms:** personal/evaluation use only; do not publish model-written text from the
-  free tier (use Ollama or a paid plan for anything public).
+* **NVIDIA trial terms:** "internal testing and evaluation, not production"; personal use is not a
+  named category. Do not publish model-written text from the free tier; use Ollama or a paid plan
+  for ongoing or shared use.
 * **NewsData free plan is ~12 h delayed** and 200 credits/day.
 * **Headline-level analysis.** Clustering and ranking use titles plus feed summaries (GDELT gives
   titles only). Keyword heuristics miss nuance and can misjudge significance; weights and

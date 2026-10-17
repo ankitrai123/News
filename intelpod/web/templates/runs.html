@@ -5,7 +5,7 @@
 <form method="post" action="/runs/start"><button {% if running %}disabled{% endif %}>Start new run</button></form>
 <form method="post" action="/runs/start"><input type="hidden" name="resume" value="1"><button class="secondary" {% if running %}disabled{% endif %}>Resume latest</button></form></div>
 {% if usage %}<div class="card small"><b>Requests in the last 24h:</b>
-{% for u in usage %}<span class="pill">{{ u.provider }}: {{ u.requests }} ({{ u.ok }} ok, {{ u.items }} items)</span>{% endfor %}
+{% for u in usage %}<span class="pill">{{ u.provider }}: {{ u.requests }} ({{ u.ok }} ok, {{ u['items'] }} items)</span>{% endfor %}
 <div class="muted">GDELT and RSS have no hard quota, but GDELT asks for roughly one request every 5 seconds; IntelPod enforces this.</div></div>{% endif %}
 <div class="card small"><b>Free-tier quotas.</b> NewsData.io today (UTC): {{ newsdata_today }} of {{ newsdata_budget }} budgeted requests (free plan: 200 credits/day, 30 per 15 min).
 {% if llm_usage %}<br>Model calls, last 24h: {% for u in llm_usage %}<span class="pill">{{ u.provider }} · {{ u.model }}: {{ u.calls }} calls ({{ u.cached }} cached), {{ u.prompt_tokens }}+{{ u.completion_tokens }} tokens</span>{% endfor %}{% endif %}

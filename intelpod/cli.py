@@ -25,7 +25,8 @@ import sys
 from . import __version__
 from .config import PROJECT_ROOT, Settings, load_settings
 from .db import Database
-from .logging_setup import setup_logging
+from .logging_setup import read_secret, setup_logging
+from .pipeline.runner import API_USER_AGENT
 from .repository import Repository
 
 
@@ -104,14 +105,14 @@ def cmd_doctor(args) -> int:
         except Exception as e:  # noqa: BLE001
             report["network"][name] = f"FAILED: {type(e).__name__}: {str(e)[:120]}"
     report["api_keys"] = {
-        "NEWSDATA_API_KEY": "set" if os.environ.get(s.ingestion.providers.newsdata.api_key_env) else "not set",
-        "NVIDIA_API_KEY": "set" if os.environ.get("NVIDIA_API_KEY") else "not set",
+        "NEWSDATA_API_KEY": "set" if read_secret(s.ingestion.providers.newsdata.api_key_env) else "not set (or malformed)",
+        "NVIDIA_API_KEY": "set" if read_secret("NVIDIA_API_KEY") else "not set (or malformed)",
     }
     repo = Repository(Database(s.db_file))
     report["newsdata_requests_today_utc"] = repo.requests_today("newsdata")
     from .llm.client import LLMClient, LLMError
     try:
-        client = LLMClient(s.llm, repo=repo, user_agent=s.app.user_agent)
+        client = LLMClient(s.llm, repo=repo, user_agent=API_USER_AGENT)
         ok, why = client.availability()
         if ok:
             models = client.list_models()
@@ -212,13 +213,27 @@ def cmd_runs(args) -> int:
         stages = repo.stages(run.run_id)
         st = " ".join(f"{k}:{v.status}" for k, v in stages.items())
         print(f"{run.run_id}  {run.status:9}  {run.started_at:%Y-%m-%d %H:%M}  {st}" + (f"  ERROR: {run.error}" if run.error else ""))
+        notes = []
+        cl = stages.get("cluster")
+        if cl and cl.output and cl.output.get("embeddings"):
+            notes.append(f"embeddings: {cl.output['embeddings']}")
+        rv = stages.get("review")
+        if rv and rv.output:
+            notes.append(f"review: {rv.output.get('status')}" + (f" ({rv.output['reason']})" if rv.output.get("reason") else
+                                                                  f" ({rv.output.get('reviewed')} events, {', '.join(rv.output.get('models') or [])})"))
+        ing = stages.get("ingest")
+        for name, v in ((ing.output or {}).get("providers", {}) if ing else {}).items():
+            if v.get("note"):
+                notes.append(f"{name}: {v['note']}")
+        for n in notes:
+            print(f"    {n}")
     usage = repo.provider_usage()
     if usage:
         print("\nrequests in the last 24h: " + ", ".join(f"{u['provider']}={u['requests']} ({u['ok']} ok)" for u in usage))
     print(f"NewsData.io requests today (UTC): {repo.requests_today('newsdata')} "
           f"of budget {s.ingestion.providers.newsdata.daily_credit_budget}")
     for u in repo.llm_usage():
-        print(f"LLM last 24h: {u['provider']}/{u['model']}: {u['calls']} calls ({u['cached']} cached, {u['ok']} ok), "
+        print(f"LLM last 24h: {u['provider']} · {u['model']}: {u['calls']} calls ({u['cached']} cached, {u['ok']} ok), "
               f"{u['prompt_tokens']}+{u['completion_tokens']} tokens")
     return 0
 
@@ -228,7 +243,7 @@ def cmd_llm_models(args) -> int:
 
     s = _settings(args)
     try:
-        models = LLMClient(s.llm, user_agent=s.app.user_agent).list_models()
+        models = LLMClient(s.llm, user_agent=API_USER_AGENT).list_models()
     except LLMError as e:
         print(f"cannot list models: {e}", file=sys.stderr)
         return 2
@@ -257,7 +272,7 @@ def cmd_llm_test(args) -> int:
         current = {m.id: m for m in s.llm.tasks["event_review"].models}
         s.llm.tasks["event_review"].models = [current.get(args.model) or LLMModelChoice(id=args.model)]
     s.llm.cache = False
-    client = LLMClient(s.llm, repo=Repository(Database(s.db_file)), user_agent=s.app.user_agent)
+    client = LLMClient(s.llm, repo=Repository(Database(s.db_file)), user_agent=API_USER_AGENT)
     t0 = _time.monotonic()
     try:
         obj, model = client.chat_json("event_review", [
@@ -279,7 +294,7 @@ def cmd_newsdata_test(args) -> int:
         print("no newsdata queries configured", file=sys.stderr)
         return 2
     repo = Repository(Database(s.db_file))
-    with HttpClient(s.http, s.app.user_agent) as http:
+    with HttpClient(s.http, API_USER_AGENT) as http:
         p = NewsdataProvider(http, cfg, credits_used_today=lambda: repo.requests_today("newsdata"))
         if not p.api_key:
             print(f"{cfg.api_key_env} is not set", file=sys.stderr)
@@ -300,7 +315,12 @@ def cmd_serve(args) -> int:
 
     s = _settings(args)
     from .web.app import create_app
-    uvicorn.run(create_app(s), host=args.host, port=args.port, log_level="info")
+    extra_hosts = list(args.allow_host or [])
+    if args.host not in ("127.0.0.1", "localhost", "::1"):
+        extra_hosts.append(args.host)
+        print(f"warning: serving on {args.host}; the dashboard has no login. Add the name you browse to with "
+              f"--allow-host.", file=sys.stderr)
+    uvicorn.run(create_app(s, allowed_hosts=extra_hosts), host=args.host, port=args.port, log_level="info")
     return 0
 
 
@@ -356,6 +376,7 @@ def build_parser() -> argparse.ArgumentParser:
     srv = sub.add_parser("serve", help="start the local dashboard")
     srv.add_argument("--host", default="127.0.0.1")
     srv.add_argument("--port", type=int, default=8000)
+    srv.add_argument("--allow-host", action="append", help="extra host name allowed in requests (repeatable)")
     srv.set_defaults(fn=cmd_serve)
     return p
 

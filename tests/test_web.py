@@ -25,6 +25,8 @@ def test_dashboard_and_api(settings):
         assert r.status_code == 200, path
     assert latest["events"][0]["title"] in client.get("/").text
     assert len(client.get("/api/feeds").json()) == 3
+    runs_html = client.get("/runs").text
+    assert "built-in method" not in runs_html and "items)" in runs_html
 
 
 def test_trigger_run_endpoint_uses_background_thread(settings):
@@ -40,3 +42,18 @@ def test_trigger_run_endpoint_uses_background_thread(settings):
             break
         time.sleep(0.01)
     assert calls == [{"resume": False, "run_id": None}]
+
+
+def test_cross_site_and_rebinding_requests_refused(settings):
+    calls = []
+
+    class FakePipe:
+        def run(self, **kw):
+            calls.append(kw)
+
+    client = TestClient(create_app(settings, pipeline_factory=FakePipe))
+    assert client.post("/api/runs", headers={"Origin": "https://evil.example"}).status_code == 403
+    assert client.post("/runs/start", headers={"Sec-Fetch-Site": "cross-site"}, follow_redirects=False).status_code == 403
+    assert client.get("/api/health", headers={"Host": "rebind.evil.example"}).status_code == 400
+    assert client.post("/api/runs", headers={"Origin": "http://127.0.0.1:8000"}).status_code == 202
+    assert len(calls) <= 1

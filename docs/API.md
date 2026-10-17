@@ -1,6 +1,9 @@
 # Local HTTP API
 
 Start with `intelpod serve` (default `http://127.0.0.1:8000`, bound to localhost only).
+Requests must use a local Host name (127.0.0.1 / localhost; add others with `--allow-host`), and
+POST requests from other websites (cross-origin `Origin`/`Referer` or `Sec-Fetch-Site`) are
+refused with 403, because starting a run spends NewsData credits and NVIDIA requests.
 Interactive OpenAPI docs are served at `/docs`. All responses are JSON; times are UTC ISO-8601.
 No endpoint returns secrets.
 

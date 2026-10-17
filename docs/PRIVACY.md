@@ -21,14 +21,16 @@ Later phases will store short factual extracts and IntelPod's own notes, not ful
 
 ## What it sends, and to whom
 
-* **Feeds and GDELT:** plain HTTP requests identified by your `user_agent`; publishers see your
-  IP address, as with any browser visit.
+* **Feeds and GDELT:** plain HTTP requests identified by your `user_agent` (which may include the
+  contact you configured); publishers see your IP address, as with any browser visit.
 * **NewsData.io** (if `NEWSDATA_API_KEY` is set): your search queries and your key (in a header).
+  API requests carry only the User-Agent `IntelPod/<version>`, never your contact details.
 * **NVIDIA** (if `NVIDIA_API_KEY` is set): article headlines and the feeds' short summaries, for
   embeddings and for the event review. Under NVIDIA's trial terms requests are logged for abuse
   monitoring and NVIDIA may use prompts and outputs to improve its services. IntelPod sends only
-  public news text, never personal data. Use `--no-llm`, `llm.enabled: false` and
-  `clustering.embeddings.enabled: false` (or the Ollama provider) to keep everything local.
+  public news text, never personal data. `--no-llm` (or `llm.enabled: false`) stops all NVIDIA
+  traffic: no model review and no NVIDIA embeddings. To keep model features but stay local, set
+  both `llm.provider: ollama` and `clustering.embeddings.provider: ollama`.
 * **Ollama** runs on your machine; nothing leaves it.
 
 API keys live only in your environment or `.env` (git-ignored). They are never written to the

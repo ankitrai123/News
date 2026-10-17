@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Callable
 
+from .. import __version__
 from ..config import Settings
 from ..db import Database
 from ..http import HttpClient
@@ -30,13 +31,14 @@ from .dedup import deduplicate
 from .embeddings import CachedEmbedder, NvidiaEmbedder, OllamaEmbedder
 from .normalize import normalize_item
 from .rank import Ranker
-from .review import drop_outliers, pick_events_to_review, run_reviews
+from .review import drop_outliers, pick_events_to_review, regroup_outliers, run_reviews
 from .report import write_report
 
 log = logging.getLogger(__name__)
 
 PHASE1_STAGES = ("ingest", "cluster", "rank", "review", "report")
 DEDUP_MEMORY = timedelta(days=4)
+API_USER_AGENT = f"IntelPod/{__version__}"  # keyed APIs get no contact details (privacy)
 _run_lock = threading.Lock()
 
 
@@ -70,6 +72,8 @@ class Phase1Pipeline:
         self.taxonomy = taxonomy or load_taxonomy(settings.resolve(settings.taxonomy_file))
         self.stage_retry_delay = stage_retry_delay
         self._llm_client_factory = llm_client_factory
+        self._extra_clients: list[HttpClient] = []
+        self._provider_notes: dict[str, str] = {}
         self.stage_fns: dict[str, Callable[[RunContext], dict]] = {
             "ingest": self.stage_ingest, "cluster": self.stage_cluster,
             "rank": self.stage_rank, "review": self.stage_review, "report": self.stage_report,
@@ -164,9 +168,13 @@ class Phase1Pipeline:
             providers.append(GdeltProvider(http, cfg.providers.gdelt, domain_publishers))
         nd = cfg.providers.newsdata
         if nd.enabled and nd.queries:
-            providers.append(NewsdataProvider(http, nd, credits_used_today=lambda: self.repo.requests_today("newsdata"),
+            api_http = HttpClient(self.settings.http, API_USER_AGENT)
+            self._extra_clients.append(api_http)
+            providers.append(NewsdataProvider(api_http, nd, credits_used_today=lambda: self.repo.requests_today("newsdata"),
                                               domain_publishers=domain_publishers,
                                               max_description_chars=cfg.max_description_chars))
+        elif nd.enabled:
+            self._provider_notes["newsdata"] = "enabled but no queries configured (ingestion.providers.newsdata.queries)"
         return providers
 
     # -- stages ---------------------------------------------------------------------
@@ -212,6 +220,11 @@ class Phase1Pipeline:
         finally:
             if http:
                 http.close()
+            for c in self._extra_clients:
+                c.close()
+            self._extra_clients.clear()
+        for name, note in self._provider_notes.items():
+            stats.setdefault(name, {"requests": 0, "ok": 0, "items": 0, "normalized": 0, "errors": []})["note"] = note
 
         existing = self.repo.recent_articles(ctx.now - DEDUP_MEMORY)
         kept, dstats = deduplicate(all_new, existing)
@@ -239,8 +252,11 @@ class Phase1Pipeline:
             raise StageError("no articles in the lookback window; run ingestion first")
         embedder = self._embedder
         embed_note = "disabled"
+        self._embed_skip_reason = None
         if embedder is None and ccfg.embeddings.enabled:
             embedder = self._make_embedder()
+            if embedder is None and self._embed_skip_reason:
+                embed_note = self._embed_skip_reason
         docs = build_docs(articles, self.taxonomy, embedder)
         if embedder is not None:
             if any(d.dense for d in docs):
@@ -263,19 +279,29 @@ class Phase1Pipeline:
         ecfg = self.settings.clustering.embeddings
         if ecfg.provider == "ollama":
             return CachedEmbedder(OllamaEmbedder(ecfg), self.repo)
+        if not self.settings.llm.enabled:
+            # llm.enabled=false / --no-llm means "nothing sent to a hosted model", embeddings included.
+            self._embed_skip_reason = "NVIDIA embeddings off because llm.enabled is false (--no-llm)"
+            return None
         prov = self.settings.llm.providers.get("nvidia")
         if prov is None or not prov.api_key_env:
             return None
         return CachedEmbedder(NvidiaEmbedder(ecfg, prov.base_url, prov.api_key_env,
-                                             requests_per_minute=prov.requests_per_minute), self.repo)
+                                             requests_per_minute=prov.requests_per_minute,
+                                             backoff_base_seconds=prov.backoff_base_seconds), self.repo)
 
     def _make_llm(self, run_id: str):
         if self._llm_client_factory is not None:
             return self._llm_client_factory(run_id)
-        return LLMClient(self.settings.llm, repo=self.repo, run_id=run_id, user_agent=self.settings.app.user_agent)
+        return LLMClient(self.settings.llm, repo=self.repo, run_id=run_id, user_agent=API_USER_AGENT)
 
     def stage_review(self, ctx: RunContext) -> dict:
-        """Optional model review of top events; never fails the run for provider problems."""
+        """Optional model review of top events; never fails the run for provider problems.
+
+        Pass 1 reviews the highest-ranked events. Re-ranking with blended scores can promote
+        events that were not reviewed into the briefing; those get follow-up reviews (bounded
+        by `max_extra_reviews`), and any still unreviewed are flagged. Reports the model calls
+        off-topic are removed from their event and regrouped into events of their own."""
         rcfg = self.settings.llm.event_review
         candidates = {c["event_id"]: EventCandidate.model_validate(c) for c in ctx.outputs["cluster"]["candidates"]}
         out: dict = {"status": "skipped", "reviewed": 0, "candidates": None}
@@ -288,29 +314,63 @@ class Phase1Pipeline:
             out["reason"] = why
             log.info("review skipped: %s", why)
             return out
+        ranker = Ranker(self.settings.ranking, self.taxonomy)
         ranked = self.repo.scores_for_run(ctx.run_id)
-        targets = pick_events_to_review(ranked, rcfg.max_events)
         articles = self.repo.get_articles(sorted({a for c in candidates.values() for a in c.article_ids}))
-        reviews, errors = run_reviews(client, targets, candidates, articles)
-        for eid, rev in reviews.items():
-            if rev.outlier_article_ids:
-                candidates[eid] = drop_outliers(candidates[eid], rev, articles)
+        reviews: dict = {}
+        errors: list[dict] = []
+        attempted: set[str] = set()
+        regrouped: list[str] = []
+        targets = pick_events_to_review(ranked, rcfg.max_events)
+        extra_left = rcfg.max_extra_reviews
+        passes = 0
+        while targets:
+            passes += 1
+            attempted.update(targets)
+            new_reviews, new_errors = run_reviews(client, targets, candidates, articles)
+            reviews.update(new_reviews)
+            errors.extend(new_errors)
+            for eid, rev in new_reviews.items():
+                if not rev.outlier_article_ids:
+                    continue
+                removed = [articles[a] for a in rev.outlier_article_ids if a in articles]
+                candidates[eid] = drop_outliers(candidates[eid], rev, articles, self.taxonomy)
                 self.repo.unlink_articles(eid, rev.outlier_article_ids)
+                fresh = regroup_outliers(removed, self.taxonomy, self.settings.clustering)
+                fresh = [c for c in fresh if c.event_id not in candidates]
+                if fresh:
+                    self.repo.upsert_events(ctx.run_id, fresh, ctx.now)
+                    for c in fresh:
+                        candidates[c.event_id] = c
+                        regrouped.append(c.event_id)
+            if any(e.get("fatal") for e in new_errors) or not reviews:
+                break
+            ranked = ranker.rank(list(candidates.values()), articles, reviews, rcfg.weight)
+            pending = [r.event_id for r in ranked if r.selected and r.event_id not in attempted
+                       and "soft_news" not in r.flags]
+            targets = pending[:extra_left]
+            extra_left -= len(targets)
         if reviews:
-            reranked = Ranker(self.settings.ranking, self.taxonomy).rank(
-                list(candidates.values()), articles, reviews, rcfg.weight)
-            self.repo.save_scores(ctx.run_id, reranked)
-            selected = [r for r in reranked if r.selected]
+            final = ranker.rank(list(candidates.values()), articles, reviews, rcfg.weight)
+            for r in final:
+                if r.selected and r.review is None:
+                    r.flags.append("not_model_reviewed")
+                    r.rationale += " Not reviewed by the model (review budget or provider limit reached)."
+            self.repo.save_scores(ctx.run_id, final)
+            selected = [r for r in final if r.selected]
         else:
             selected = [r for r in ranked if r.selected]
         out.update({
             "status": "completed" if reviews else "failed_all",
             "provider": client.provider, "model": next((r.model for r in reviews.values()), None),
-            "requested": len(targets), "reviewed": len(reviews), "errors": errors[:20],
+            "models": sorted({r.model for r in reviews.values()}),
+            "requested": len(attempted), "reviewed": len(reviews), "passes": passes, "errors": errors[:20],
             "outliers_removed": sum(len(r.outlier_article_ids) for r in reviews.values()),
+            "regrouped_events": regrouped,
             "titles_rejected": sum(1 for r in reviews.values() if "title" in r.rejected),
             "summaries_rejected": sum(1 for r in reviews.values() if "summary" in r.rejected),
             "selected_event_ids": [r.event_id for r in selected],
+            "unreviewed_selected": [r.event_id for r in selected if r.review is None] if reviews else [],
             "candidates": [c.model_dump(mode="json") for c in candidates.values()] if reviews else None,
         })
         if not reviews:

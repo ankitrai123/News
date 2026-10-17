@@ -7,7 +7,8 @@ app:
   db_path: data/intelpod.db
   log_level: INFO
   log_json: false                # true = JSON lines in data/logs/intelpod.log
-  # Identify yourself politely to publishers. Put a real contact (email or URL).
+  # Identify yourself politely to publishers (RSS + GDELT only; keyed APIs such as NVIDIA and
+  # NewsData get just "IntelPod/<version>"). Put a real contact (email or URL).
   user_agent: "IntelPod/0.1 (personal news research; contact: set-your-email@example.com)"
 
 http:
@@ -66,7 +67,7 @@ ingestion:
         - {topic: geopolitics, category: world}
 
 clustering:
-  # Lexical TF-IDF + entity overlap. Optional local embeddings via Ollama.
+  # Lexical TF-IDF + entity overlap, boosted by embeddings (NVIDIA or Ollama) when available.
   similarity_threshold: 0.30     # article joins a cluster at/above this...
   member_min_similarity: 0.25    # ...and only if it directly matches one member this well
   merge_threshold: 0.42          # clusters merge at/above this
@@ -146,4 +147,5 @@ llm:
   event_review:
     enabled: true
     max_events: 12               # one model call per event, highest-ranked first
+    max_extra_reviews: 6         # follow-up reviews for events promoted into the briefing
     weight: 0.5                  # share of each blended score taken from the model

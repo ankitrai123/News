@@ -81,7 +81,7 @@ newsdata.io before relying on them.
   resets the daily quota is not documented.
 * Free keys reportedly become inactive after ~30 days without use (then: 401; regenerate it).
 * **Terms:** NewsData's pages contradict each other on whether the free plan allows
-  commercial use; treat it as personal/evaluation use. Its FAQ permits displaying title,
+  commercial use; treat it as personal, non-commercial use unless NewsData confirms otherwise. Its FAQ permits displaying title,
   short description, publisher, author and date with credit to the publisher — which is all
   IntelPod stores or shows.
 * Get a key: sign up at <https://newsdata.io> (no card); the key is on the dashboard.
@@ -99,19 +99,26 @@ build.nvidia.com.
 * **Cost: $0** with free NVIDIA Developer Program membership. The old credit system was replaced
   by **per-account rate limits** ("up to" ~40 requests/minute, varying by model and load; users
   report 429s from ~12–24/min; no `Retry-After` header; no published daily quota). IntelPod paces
-  requests at 20/minute (shared by chat and embeddings), backs off 5→10→20 s on 429, caches every
-  answer and embedding, and makes about 12 chat calls plus a few embedding calls per run.
-* **Terms (important):** the free tier is a *trial* "for internal testing and evaluation purposes,
-  not in production" (§1.2/§1.4), and you may not "make available to others any portion of … Generated
-  Content" (§4.2). IntelPod as a private, personal briefing fits this; **publishing its model-written
-  text (e.g. a public podcast) would need a paid NVIDIA subscription or a different model provider**
-  (local Ollama has no such restriction beyond each model's licence). NVIDIA may log requests and use
-  prompts and outputs to improve its services (§3.3): IntelPod sends only public headlines and short
-  feed summaries, never personal data. The service and individual models can change or end at any time.
+  chat and embedding requests at 20/minute each, backs off 5→10→20 s on 429/5xx (embeddings
+  keep every batch that already succeeded), caches every validated answer and every embedding,
+  and makes about 12–18 chat calls plus a few embedding calls per run.
+* **Terms (important — read them yourself):** the free tier is a *trial* "for limited trial purposes
+  only and without use of the API Service or Generated Content in production" (§1.2) and, without a
+  subscription, "for internal testing and evaluation purposes, not in production" (§1.4); NVIDIA's
+  developer FAQ says "prototyping, research, development and testing purposes only". You may not
+  "make available to others any portion of … Generated Content" (§4.2). The terms do **not** name
+  personal use as a permitted category, so whether a regular daily briefing counts as "testing and
+  evaluation" is for you to judge. Use it to evaluate IntelPod; for ongoing use, or anything you
+  share or publish (e.g. a public podcast), use local Ollama (no such terms, only each model's
+  licence) or a paid NVIDIA plan. NVIDIA may log requests and use prompts and outputs to improve its
+  services (§3.3): IntelPod sends only public headlines and short feed summaries (no personal data,
+  and no contact details: API requests use the User-Agent `IntelPod/<version>`). The service and
+  individual models can change or end at any time.
 * **Models are retired often.** Between August and October 2026 most well-known free ids
   (`meta/llama-3.3-70b-instruct`, `meta/llama-3.1-8b-instruct`, `nvidia/nemotron-3-nano-30b-a3b`,
   `deepseek-ai/deepseek-v4-flash`, `openai/gpt-oss-120b`, …) were reported returning **410 Gone**.
-  IntelPod therefore keeps an ordered model list per task and skips any model answering 404/410.
+  IntelPod therefore keeps an ordered model list per task and moves to the next model when one
+  answers 404/410, keeps failing with 5xx, or times out (for the rest of that run).
   The defaults (`nvidia/nemotron-3.5-lightning-30b-a3b`, `openai/gpt-oss-20b`, `google/gemma-4-31b-it`,
   `nvidia/nemotron-3-ultra-550b-a55b`; embeddings `nvidia/nemotron-3-embed-1b` then
   `nvidia/nv-embedqa-e5-v5`) were reported live in Oct 2026 **by third parties** — confirm with

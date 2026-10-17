@@ -27,10 +27,13 @@ def render_markdown(ctx: "RunContext", selected: list[RankedEvent], ranked: list
                                                  f"{v.get('normalized', 0)} articles" for k, v in provs.items()))
     lines.append(f"**Articles considered:** {cluster.get('articles', '?')} → **events:** {cluster.get('events', '?')} "
                  f"({cluster.get('multi_article_events', '?')} with 2+ reports) → **selected:** {len(selected)}")
+    if cluster.get("embeddings"):
+        lines.append(f"**Embeddings:** {cluster['embeddings']}")
     review = ctx.outputs.get("review") or {}
     if review.get("status") == "completed":
         lines.append(f"**Model review:** {review.get('reviewed')} of {review.get('requested')} top events reviewed by "
-                     f"`{review.get('model')}` ({review.get('provider')}); scores blend keyword analysis and the model. "
+                     f"`{', '.join(review.get('models') or [review.get('model')])}` ({review.get('provider')}); "
+                     f"scores blend keyword analysis and the model. "
                      f"{review.get('outliers_removed', 0)} off-topic reports removed; "
                      f"{review.get('titles_rejected', 0) + review.get('summaries_rejected', 0)} model texts rejected "
                      f"for naming facts absent from the reports.")

@@ -73,6 +73,13 @@ intelpod serve                     # dashboard at http://127.0.0.1:8000
 
 The report is written to `data/runs/<run_id>/phase1_events.md` (and `.json`).
 
+### Upgrading an existing `config/config.yaml`
+
+`intelpod init` never overwrites your config. New sections (`ingestion.providers.newsdata`,
+`clustering.embeddings`, `llm`) have working defaults when absent, but a Phase-1 config that sets
+`clustering.embeddings.enabled: false` keeps embeddings off — compare with
+`config/config.example.yaml` and copy what you want.
+
 ### Running each stage on its own
 
 ```bash
@@ -80,7 +87,7 @@ intelpod run --stop-after ingest               # fetch + normalize + dedup + sto
 intelpod run --resume                          # continue the latest run (cluster, rank, report)
 intelpod run --resume --run-id run_2026...     # continue a specific run
 intelpod run --no-gdelt                        # skip a source (also --no-rss, --no-newsdata)
-intelpod run --no-llm                          # keyword ranking only, nothing sent to NVIDIA
+intelpod run --no-llm                          # no model review and no NVIDIA embeddings: nothing sent to NVIDIA
 intelpod run --lookback-hours 24
 intelpod events --all                          # every scored event, selected or not
 intelpod runs                                  # run history, stage status, request counts
@@ -90,7 +97,7 @@ intelpod runs                                  # run history, stage status, requ
 
 ```bash
 pip install -e ".[dev]"
-pytest                 # 114 offline tests (HTTP mocked with respx, synthetic fixtures; real keys ignored)
+pytest                 # 142 offline tests (HTTP mocked with respx, synthetic fixtures; real keys ignored)
 pytest -m live -v      # 5 real-network tests: GDELT, a feed, NewsData (1 credit), NVIDIA chat + embeddings
 ```
 
@@ -110,7 +117,8 @@ separated from the real-network tests in `tests/test_live.py`.
 
 * [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — design, data flow, schemas, database, decisions
 * [docs/PROVIDERS.md](docs/PROVIDERS.md) — every external dependency, free-tier limits, licences,
-  and the NVIDIA trial terms (personal/evaluation use; don't publish model-written text from it)
+  and the NVIDIA trial terms ("internal testing and evaluation, not production"; don't publish
+  model-written text from it — use Ollama for ongoing or shared use)
 * [docs/API.md](docs/API.md) — local HTTP API
 * [docs/OLLAMA.md](docs/OLLAMA.md) — installing Ollama and choosing models for your hardware
 * [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)

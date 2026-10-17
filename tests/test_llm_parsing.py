@@ -28,3 +28,19 @@ def test_unsupported_terms_catches_invented_numbers_and_names():
 def test_lone_closing_think_and_special_tokens():
     assert strip_reasoning("reasoning text</think>{\"a\": 1}<|return|>") == '{"a": 1}'
     assert extract_json('analysis...</think> {"ok": true}<|end|>') == {"ok": True}
+
+
+@pytest.mark.parametrize("generated,source", [
+    ("Modi announces export curbs", "Commodities slump as exporters face curbs"),
+    ("RBI hikes rates", "Turbine maker raises prices"),
+    ("UN and EU condemn strike", "Reuters: talks under way after strike"),
+    ("Putin backs Oman talks", "Computing firm and a woman hold talks"),
+    ("Niger coup leaders meet", "Nigeria coup leaders meet"),
+])
+def test_names_must_match_whole_words(generated, source):
+    assert unsupported_terms(generated, source), (generated, source)
+
+
+def test_whole_word_forms_still_accepted():
+    src = "Indians vote as India's opposition gains; China-made EVs face EU duties (Reuters)"
+    assert unsupported_terms("Indian voters back opposition as India's EU duties on China-made EVs bite", src) == []

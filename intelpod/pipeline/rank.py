@@ -164,7 +164,7 @@ class Ranker:
             flags.append("some_dates_approximate")
 
         title, headline = ev.title, None
-        if review is not None and review.title:
+        if review is not None and review.title and review.title.strip() != ev.title.strip():
             title, headline = review.title, ev.title
         return RankedEvent(
             rank=None, selected=False, event_id=ev.event_id, title=title, headline=headline,

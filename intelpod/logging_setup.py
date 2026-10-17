@@ -16,14 +16,43 @@ def _secret_values() -> list[str]:
     return [v for k, v in os.environ.items() if _SECRET_ENV.search(k) and v and len(v) >= 6]
 
 
+def redact(text: str) -> str:
+    """Remove API keys (known secret env values and key-like URL params) from arbitrary text."""
+    out = _SECRET_PARAM.sub(r"\1***", text or "")
+    for secret in _secret_values():
+        out = out.replace(secret, "***")
+        stripped = secret.strip()
+        if stripped and len(stripped) >= 6:
+            out = out.replace(stripped, "***")
+    return out
+
+
+def read_secret(env_name: str | None) -> str | None:
+    """Read an API key from the environment, stripping surrounding whitespace.
+
+    Keys with embedded whitespace/control characters are refused (returning None) with a
+    message that never echoes the value: putting them in an HTTP header would raise an
+    error whose text contains the key."""
+    if not env_name:
+        return None
+    raw = os.environ.get(env_name)
+    if raw is None:
+        return None
+    value = raw.strip().strip('"').strip("'").strip()
+    if not value:
+        return None
+    if any(ord(c) < 33 or ord(c) == 127 for c in value):
+        logging.getLogger(__name__).error("%s contains spaces or control characters; ignoring it", env_name)
+        return None
+    return value
+
+
 class RedactingFilter(logging.Filter):
     """Removes API keys / tokens from log messages."""
 
     def filter(self, record: logging.LogRecord) -> bool:
         msg = record.getMessage()
-        redacted = _SECRET_PARAM.sub(r"\1***", msg)
-        for secret in _secret_values():
-            redacted = redacted.replace(secret, "***")
+        redacted = redact(msg)
         if redacted != msg:
             record.msg, record.args = redacted, ()
         return True

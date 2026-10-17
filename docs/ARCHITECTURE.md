@@ -4,7 +4,9 @@
 
 1. **Zero recurring cost.** Keyless public sources, open-source libraries, SQLite, local models.
 2. **Deterministic before expensive.** Normalization, de-duplication, clustering and ranking
-   run without any model. LLMs (Phase 2+) are used only where rules cannot do the job.
+   work without any model. Optional models add value on top — embeddings for paraphrase-aware
+   clustering and a review of the top events — and are always checked, cached and bounded;
+   without them the run produces the same pipeline on rules alone.
 3. **Every stage is a module with typed input/output** (`intelpod/schemas.py`), persisted so a
    failed run resumes where it stopped.
 4. **Degrade, don't fabricate.** A dead feed is logged and skipped; if every source fails the
@@ -84,7 +86,10 @@ A run in progress blocks a second run (`--force` overrides a stale lock).
 * `similarity = cosine + entity_weight × entity_overlap × gate`, where `gate = min(1, cosine/0.2)`.
   Shared entities are a bonus scaled by lexical agreement, so two unrelated stories that both
   mention "United States" do not merge.
-* Optional embeddings (NVIDIA `nemotron-3-embed-1b` by default, or Ollama), cached per text.
+* Optional embeddings (NVIDIA `nemotron-3-embed-1b` by default, or Ollama), cached per text and
+  model; the model that already covers most of the window is reused, and finished batches are
+  kept even if a later batch hits a rate limit. Fewer than 4 vectors → embeddings ignored.
+  Only the 20 lexically closest clusters per article are compared semantically (speed).
   Embedding models have very different cosine "floors" (unrelated headlines often score 0.6–0.8),
   so raw embedding cosine is **calibrated**: the 90th percentile of sampled pairs in the batch
   maps to 0. Clusters compare against the *average* member embedding similarity, not a dense
@@ -135,16 +140,22 @@ not a judgement of truth.
 ## Model review safeguards
 
 * The model sees only the retrieved reports (publisher, date, headline, feed summary) with short
-  ids (`r1`…); the system prompt tells it to treat report text as data. Unknown ids are ignored;
-  if it rejects every report, the cluster is kept as is.
+  ids (`r1`…): the lead report plus the newest ones (max 12), so evolving stories are judged on the
+  latest development. The system prompt tells it to treat report text as data. Unknown ids are
+  ignored, and it may remove only a **minority** of reports: a verdict removing half or more is
+  ignored and recorded (defence against instructions injected into a headline).
 * The answer must validate against a pydantic schema with five explicit score fields (requested
   via `response_format: json_schema`); invalid JSON gets one repair round-trip.
 * **Grounding check:** a model title or summary is rejected if it contains any number or
-  capitalised name that appears in none of the reports; the publisher headline is kept instead.
-  Rejections are recorded and shown.
-* Outliers are unlinked from the event (they remain stored as articles).
-* Every call is logged (`llm_calls`: model, tokens, latency, error) and cached (`llm_cache`);
-  only complete answers (`finish_reason: stop`) are cached.
+  capitalised name that appears, as a whole word, in none of the reports that stay in the event
+  (outliers excluded); the publisher headline is kept instead. Rejections are recorded and shown.
+* Outliers are unlinked from the event, its countries/topic/entities are recomputed, and the
+  removed reports are regrouped into event(s) of their own so they are still ranked.
+* Re-ranking with blended scores can promote events that were not reviewed into the briefing;
+  those get follow-up reviews (`llm.event_review.max_extra_reviews`, default 6) and any still
+  unreviewed are flagged `not_model_reviewed`.
+* Every call is logged (`llm_calls`: model, tokens, latency, error). Only answers that are
+  complete (`finish_reason: stop`) **and validated** are cached (`llm_cache`).
 
 ## LLM client behaviour (NVIDIA specifics from NVIDIA's client source and forum staff)
 
@@ -152,10 +163,11 @@ not a judgement of truth.
 |---|---|
 | No key / disabled | stage `skipped`, reason recorded |
 | 401/402/403 | provider unusable for this run; 403 message explains the "Public API Endpoints" entitlement |
-| 404 "not found for account" / 410 Gone | that model is skipped for the run; next model in `llm.tasks.<task>.models` |
+| 404 "not found for account" / 410 Gone | that model is skipped for the run; next model in `llm.tasks.<task>.models`; if all answer 404 the error points at the key's entitlement |
+| 5xx after retries, timeout | that model is skipped for the run (timeouts are not retried); next model |
 | 422 "body -> field … extra_forbidden" | field dropped for that model, retried once |
 | 400/422 on structured output | retried with prompt-only JSON for that model |
-| 429 (no Retry-After) | backoff 5 → 10 → 20 s, then stop calling for this run |
+| 429 (no Retry-After) | backoff 5 → 10 → 20 s, then stop calling for this run (the limit is per account) |
 | 202 + `NVCF-REQID` | polled at `api.nvcf.nvidia.com/v2/nvcf/pexec/status/{id}` |
 | reasoning only, empty content | error telling you to raise `max_tokens` or disable thinking |
 | `<think>…</think>`, lone `</think>`, `<|return|>` in content | stripped |
@@ -185,7 +197,7 @@ event relationships, forecasts and episodes arrive with the phases that fill the
 | Decision | Why |
 |---|---|
 | RSS + GDELT first | both free and keyless; RSS gives publisher timestamps and descriptions, GDELT gives breadth across thousands of outlets |
-| Lexical clustering by default | runs anywhere in milliseconds, no model download; embeddings optional |
+| Lexical clustering as the base | works anywhere with no model; embeddings (NVIDIA by default when a key is set, or Ollama) only boost it |
 | Server-rendered dashboard | no Node toolchain to install; one process |
 | SQLite + SQLAlchemy, `create_all` + version table | zero setup; Alembic would be overkill for a single-user DB at this stage |
 | APScheduler / n8n deferred to Phase 7 | the CLI already runs on demand; scheduling belongs with the full pipeline |
@@ -193,4 +205,6 @@ event relationships, forecasts and episodes arrive with the phases that fill the
 | One model call per event (top ~12) | small, cacheable, isolated failures; well inside NVIDIA's free rate limit |
 | Model scores blended, not substituted | keeps the ranking explainable and stable if the model is wrong or unavailable |
 | Ordered model lists | NVIDIA retires free models frequently; a retired default must not break the run |
+| Dashboard refuses cross-site writes and unknown Host headers | starting a run spends NewsData credits and NVIDIA requests; blocks CSRF and DNS rebinding |
+| API keys read via `read_secret` (stripped; malformed refused) and all error text redacted | a key with a trailing newline used to surface inside an HTTP error message |
 | Raw httpx instead of an SDK | one small OpenAI-compatible client covers NVIDIA and Ollama; no telemetry, no extra dependency |

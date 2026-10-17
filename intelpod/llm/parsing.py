@@ -71,7 +71,7 @@ def _first_balanced_object(text: str) -> dict | None:
 
 
 _NUMBER = re.compile(r"\d[\d,.]*%?")
-_CAPWORD = re.compile(r"\b[A-Z][a-zA-Z\-']+\b")
+_CAPWORD = re.compile(r"\b[A-Z][a-zA-Z\-'’]*[a-zA-Z]\b")
 _ALLOWED_CAPS = {"The", "A", "An", "In", "On", "At", "As", "And", "Or", "But", "For", "With", "To", "Of", "By",
                  "After", "Amid", "Over", "From", "New", "This", "That", "Its", "It", "Is", "Are", "Will", "May",
                  "Could", "Says", "Report", "Reports", "Officials", "Government", "Talks", "Deal", "Plan"}
@@ -81,13 +81,29 @@ def _norm_number(n: str) -> str:
     return n.replace(",", "").rstrip(".")
 
 
+_WORD = re.compile(r"[a-z0-9]+(?:['’][a-z]+)?")
+
+
+def _word_forms(word: str) -> set[str]:
+    w = word.lower().replace("’", "'")
+    base = w.removesuffix("'s")
+    forms = {w, base}
+    if base.endswith("s") and len(base) > 3:
+        forms.add(base[:-1])            # plural -> singular ("Indians" -> "indian")
+    return forms
+
+
 def unsupported_terms(generated: str, sources: str) -> list[str]:
     """Numbers and capitalised names in model output that never appear in the source text.
 
     Used to reject model-written titles/summaries that introduce facts the retrieved
-    reports do not contain. Deliberately strict: a false rejection only means we keep
-    the publisher's own headline."""
-    src_lower = sources.lower()
+    reports do not contain. Names are matched as WHOLE words (with possessive and simple
+    plural folding), never as substrings, so "Modi" is not "supported" by "commodities"
+    nor "EU" by "Reuters". Deliberately strict: a false rejection only means we keep the
+    publisher's own headline."""
+    src_words: set[str] = set()
+    for tok in _WORD.findall(sources.lower().replace("’", "'")):
+        src_words |= _word_forms(tok)
     src_numbers = {_norm_number(n) for n in _NUMBER.findall(sources)}
     issues: list[str] = []
     for n in _NUMBER.findall(generated):
@@ -96,8 +112,8 @@ def unsupported_terms(generated: str, sources: str) -> list[str]:
     for w in _CAPWORD.findall(generated):
         if w in _ALLOWED_CAPS:
             continue
-        stem = w.lower().removesuffix("'s").removesuffix("’s")
-        if stem not in src_lower and stem.rstrip("s") not in src_lower:
+        parts = [p for p in w.lower().replace("’", "'").split("-") if p]  # "China-made" -> china, made
+        if not all(_word_forms(p) & src_words for p in parts if not p.isdigit()):
             issues.append(w)
     seen: dict[str, None] = {}
     for i in issues:

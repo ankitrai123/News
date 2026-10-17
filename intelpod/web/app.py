@@ -7,7 +7,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from urllib.parse import urlsplit
+
+from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.templating import Jinja2Templates
 
 from .. import __version__
@@ -22,12 +25,34 @@ TEMPLATES = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 TEMPLATES.env.filters["dt"] = lambda d: d.strftime("%Y-%m-%d %H:%M") if d else "—"
 
 
-def create_app(settings: Settings | None = None, pipeline_factory=None) -> FastAPI:
+LOCAL_HOSTS = ["127.0.0.1", "localhost", "::1", "[::1]", "testserver"]
+
+
+def create_app(settings: Settings | None = None, pipeline_factory=None,
+               allowed_hosts: list[str] | None = None) -> FastAPI:
     settings = settings or get_settings()
     db = Database(settings.db_file)
     repo = Repository(db)
     app = FastAPI(title="IntelPod", version=__version__,
                   description="Local API for the geopolitical & business intelligence podcast agent (Phase 1).")
+    hosts = list(allowed_hosts or []) + LOCAL_HOSTS
+    # Block DNS-rebinding: only answer requests addressed to this machine's local names.
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=hosts)
+
+    @app.middleware("http")
+    async def same_origin_writes(request: Request, call_next):
+        """Runs cost NewsData credits and NVIDIA requests: refuse state-changing requests
+        sent by other websites (cross-site form posts / fetches)."""
+        if request.method not in ("GET", "HEAD", "OPTIONS"):
+            site = request.headers.get("sec-fetch-site")
+            origin = request.headers.get("origin") or request.headers.get("referer")
+            if site and site not in ("same-origin", "none"):
+                return PlainTextResponse("cross-site request refused", status_code=403)
+            if origin:
+                host = urlsplit(origin).hostname or ""
+                if host not in hosts:
+                    return PlainTextResponse("cross-origin request refused", status_code=403)
+        return await call_next(request)
     state = {"thread": None, "last_error": None}
     make_pipeline = pipeline_factory or (lambda: Phase1Pipeline(settings, db=db))
 

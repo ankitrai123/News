@@ -232,3 +232,47 @@ def test_per_model_settings_applied(client):
         return httpx.Response(200, json=completion('{"verdict": "o", "score": 0.1}', model=b["model"]))
     respx.post(CHAT).mock(side_effect=handler)
     assert client.chat_json("event_review", MSGS, Answer)[1] == "openai/gpt-oss-20b"
+
+
+@respx.mock
+def test_server_errors_and_timeouts_fail_over(client):
+    seen = []
+
+    def handler(request):
+        model = json.loads(request.content)["model"]
+        seen.append(model)
+        if model == FIRST:
+            return httpx.Response(503, json={"title": "Service Unavailable"})
+        if model == "openai/gpt-oss-20b":
+            raise httpx.ReadTimeout("slow")
+        return httpx.Response(200, json=completion('{"verdict": "ok", "score": 1}', model=model))
+
+    respx.post(CHAT).mock(side_effect=handler)
+    obj, model = client.chat_json("event_review", MSGS, Answer)
+    assert model == "google/gemma-4-31b-it"
+    assert seen.count(FIRST) == 2 and seen.count("openai/gpt-oss-20b") == 1  # 503 retried once; timeout not retried
+
+
+@respx.mock
+def test_all_models_failing_is_unavailable(client):
+    respx.post(CHAT).respond(500, json={"title": "boom"})
+    with pytest.raises(LLMUnavailable, match="no configured model"):
+        client.chat("event_review", MSGS)
+
+
+@respx.mock
+def test_invalid_answers_are_never_cached(client, repo):
+    route = respx.post(CHAT).respond(200, json=completion("not json at all"))
+    for _ in range(2):
+        with pytest.raises(Exception):
+            client.chat_json("event_review", MSGS, Answer)
+    assert route.call_count == 4  # each run asks the model again (original + repair)
+    route.respond(200, json=completion('{"verdict": "fixed", "score": 0.3}'))
+    assert client.chat_json("event_review", MSGS, Answer)[0].verdict == "fixed"
+
+
+@respx.mock
+def test_all_404_points_at_entitlement(client):
+    respx.post(CHAT).respond(404, json={"detail": "Function 'x': Not found for account 'y'"})
+    with pytest.raises(LLMUnavailable, match="Public API Endpoints"):
+        client.chat("event_review", MSGS)

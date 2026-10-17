@@ -9,7 +9,6 @@ from __future__ import annotations
 import hashlib
 import logging
 import math
-import os
 import struct
 import time
 from datetime import datetime, timedelta, timezone
@@ -17,6 +16,7 @@ from datetime import datetime, timedelta, timezone
 import httpx
 
 from ..config import EmbeddingsConfig
+from ..logging_setup import read_secret
 
 log = logging.getLogger(__name__)
 
@@ -53,8 +53,12 @@ def _l2(v: list[float]) -> list[float]:
     return [x / n for x in v]
 
 
-def dense_cos(a: list[float], b: list[float]) -> float:
-    return sum(x * y for x, y in zip(a, b))
+if hasattr(math, "sumprod"):  # Python 3.12+: ~5x faster than a generator for 1-2k dims
+    def dense_cos(a: list[float], b: list[float]) -> float:
+        return math.sumprod(a, b)
+else:  # pragma: no cover - Python 3.11
+    def dense_cos(a: list[float], b: list[float]) -> float:
+        return sum(x * y for x, y in zip(a, b))
 
 
 class NvidiaEmbedder:
@@ -65,18 +69,22 @@ class NvidiaEmbedder:
     falls back to lexical similarity; the reason is kept in `last_error`."""
 
     def __init__(self, cfg: EmbeddingsConfig, base_url: str, api_key_env: str,
-                 transport: httpx.BaseTransport | None = None, requests_per_minute: float = 0, sleep=time.sleep):
+                 transport: httpx.BaseTransport | None = None, requests_per_minute: float = 0, sleep=time.sleep,
+                 max_retries: int = 3, backoff_base_seconds: float = 5.0):
         self.cfg = cfg
         self.models = [cfg.nvidia_model] + [m for m in cfg.nvidia_fallback_models if m != cfg.nvidia_model]
         self.model = self.models[0]
         self._interval = 60.0 / requests_per_minute if requests_per_minute else 0.0
         self._sleep = sleep
-        self.api_key = os.environ.get(api_key_env)
+        self.api_key = read_secret(api_key_env)
         self.api_key_env = api_key_env
         self._client = httpx.Client(base_url=base_url.rstrip("/"), timeout=cfg.timeout_seconds, transport=transport)
         self.last_error: str | None = None
         self.requests = 0
         self._model_gone = False
+        self.max_retries = max_retries
+        self.backoff = backoff_base_seconds
+        self.on_batch = None  # callback(model, texts, vectors): lets a cache keep finished batches
 
     def __call__(self, texts: list[str]) -> list[list[float]] | None:
         """Embed with the first model that works. A model that is missing or retired
@@ -108,8 +116,13 @@ class NvidiaEmbedder:
                 batch = [t[:2000] for t in texts[i: i + self.cfg.batch_size]]
                 body = {"model": model, "input": batch, "input_type": self.cfg.input_type,
                         "truncate": self.cfg.truncate, "encoding_format": "float"}
-                r = self._client.post("/embeddings", json=body, headers=headers)
-                self.requests += 1
+                for attempt in range(self.max_retries + 1):
+                    r = self._client.post("/embeddings", json=body, headers=headers)
+                    self.requests += 1
+                    if (r.status_code == 429 or r.status_code >= 500) and attempt < self.max_retries:
+                        self._sleep(self.backoff * (2 ** attempt))  # NVIDIA sends no Retry-After
+                        continue
+                    break
                 if r.status_code in (404, 410) and i == 0:
                     self._model_gone = True
                 if r.status_code >= 400:
@@ -118,7 +131,10 @@ class NvidiaEmbedder:
                 if not isinstance(data, list) or len(data) != len(batch):
                     raise ValueError("unexpected embeddings payload")
                 data = sorted(data, key=lambda d: d.get("index", 0))
-                vectors.extend(_l2(d["embedding"]) for d in data)
+                batch_vectors = [_l2(d["embedding"]) for d in data]
+                vectors.extend(batch_vectors)
+                if self.on_batch is not None:
+                    self.on_batch(model, texts[i: i + self.cfg.batch_size], batch_vectors)
         except (httpx.HTTPError, ValueError, KeyError, TypeError) as e:
             self.last_error = f"{type(e).__name__}: {str(e)[:300]}"
             log.warning("NVIDIA embeddings unavailable (%s); using lexical similarity only", self.last_error)
@@ -130,8 +146,14 @@ class CachedEmbedder:
     """Wraps an embedder with a SQLite cache keyed by sha256(model, text).
 
     Runs overlap (a 36 h window run several times a day), so most headlines were
-    already embedded; only new ones cost API requests. All-or-nothing: if any missing
-    text cannot be embedded, returns None so clustering stays on one similarity scale."""
+    already embedded; only new ones cost API requests.
+      * The cache is looked up under every candidate model and the model that already
+        covers the most texts is tried first, so a fallback model chosen on an earlier
+        run keeps being reused instead of re-embedding the window every run.
+      * Finished batches are stored as they arrive, so a rate limit halfway through
+        keeps the work already done.
+      * All-or-nothing result: if any text cannot be embedded, returns None so
+        clustering stays on one similarity scale."""
 
     def __init__(self, inner, repo, retention_days: int = 14):
         self.inner = inner
@@ -140,17 +162,33 @@ class CachedEmbedder:
         self.retention = timedelta(days=retention_days)
         self.hits = 0
         self.misses = 0
+        if hasattr(inner, "on_batch"):
+            inner.on_batch = self._store_batch
 
     @property
     def last_error(self):
         return getattr(self.inner, "last_error", None)
 
-    def _key(self, text: str) -> str:
-        return hashlib.sha256(f"{self.model}\x1f{text}".encode()).hexdigest()
+    def _key(self, text: str, model: str | None = None) -> str:
+        return hashlib.sha256(f"{model or self.model}\x1f{text}".encode()).hexdigest()
+
+    def _store_batch(self, model: str, texts: list[str], vectors: list[list[float]]) -> None:
+        self.repo.embeddings_put(model, {self._key(t, model): _pack(v) for t, v in zip(texts, vectors)})
+
+    def _choose_model(self, texts: list[str]) -> tuple[str, dict[str, bytes]]:
+        candidates = list(getattr(self.inner, "models", None) or [self.model])
+        best, best_cached = candidates[0], {}
+        for m in candidates:
+            cached = self.repo.embeddings_get(sorted({self._key(t, m) for t in texts}))
+            if len(cached) > len(best_cached):
+                best, best_cached = m, cached
+        if hasattr(self.inner, "models") and best != candidates[0]:
+            self.inner.models = [best] + [m for m in candidates if m != best]
+        return best, best_cached
 
     def __call__(self, texts: list[str]) -> list[list[float]] | None:
+        self.model, cached = self._choose_model(texts)
         keys = [self._key(t) for t in texts]
-        cached = self.repo.embeddings_get(sorted(set(keys)))
         missing = [i for i, k in enumerate(keys) if k not in cached]
         self.hits, self.misses = len(texts) - len(missing), len(missing)
         if missing:
@@ -159,19 +197,20 @@ class CachedEmbedder:
                 return None
             used = getattr(self.inner, "model", self.model)
             if used != self.model:
-                # The inner embedder fell back to another model: vectors from different models
-                # are not comparable, so embed everything with the new model.
+                # The preferred model failed and the inner embedder fell back: vectors from
+                # different models are not comparable, so everything must come from `used`.
                 self.model = used
                 keys = [self._key(t) for t in texts]
-                new = self.inner(texts) if len(missing) != len(texts) else new
-                if new is None:
-                    return None
-                missing = list(range(len(texts)))
-                self.hits, self.misses = 0, len(texts)
-                cached = {}
-            fresh = {keys[i]: _pack(v) for i, v in zip(missing, new)}
-            self.repo.embeddings_put(self.model, fresh)
-            cached.update(fresh)
+                cached = self.repo.embeddings_get(sorted(set(keys)))
+                missing = [i for i, k in enumerate(keys) if k not in cached]
+                self.hits, self.misses = len(texts) - len(missing), len(missing)
+                if missing:
+                    new = self.inner([texts[i] for i in missing])
+                    if new is None or getattr(self.inner, "model", used) != used:
+                        return None
+            if not hasattr(self.inner, "on_batch"):
+                self.repo.embeddings_put(self.model, {keys[i]: _pack(v) for i, v in zip(missing, new)})
+            cached.update({keys[i]: _pack(v) for i, v in zip(missing, new)})
         try:
             self.repo.embeddings_prune(datetime.now(timezone.utc) - self.retention)
         except Exception:  # noqa: BLE001 - pruning is housekeeping only

@@ -16,7 +16,6 @@ see docs/PROVIDERS.md; re-check if NewsData changes its plans):
 from __future__ import annotations
 
 import logging
-import os
 import re
 import time
 from datetime import datetime, timezone
@@ -25,6 +24,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from ..config import NewsdataProviderConfig
 from ..http import FetchError, HttpClient
+from ..logging_setup import read_secret
 from ..schemas import RawItem
 from .base import FetchRecord, NewsProvider, ProviderResult
 
@@ -111,7 +111,7 @@ class NewsdataProvider(NewsProvider):
 
     @property
     def api_key(self) -> str | None:
-        return os.environ.get(self.cfg.api_key_env)
+        return read_secret(self.cfg.api_key_env)
 
     def endpoint(self) -> str:
         return f"{self.cfg.base_url.rstrip('/')}/{self.cfg.endpoint.strip('/')}"
@@ -186,8 +186,12 @@ class NewsdataProvider(NewsProvider):
             try:
                 body = resp.json()
             except ValueError:
-                return [], record(ok=False, status_code=resp.status_code,
-                                  error=f"non-JSON response: {resp.text[:120]!r}"), None, False
+                # e.g. an HTML error page from a CDN/WAF: the status code still decides.
+                stop = resp.status_code == 429 or resp.status_code in FATAL_HTTP
+                err = f"HTTP {resp.status_code}, non-JSON response: {resp.text[:120]!r}"
+                if stop:
+                    err = f"stopping NewsData for this run ({err})"
+                return [], record(ok=False, status_code=resp.status_code, error=err), None, stop
             code, msg = error_info(body) if resp.status_code >= 400 else (None, "")
             if resp.status_code == 429 and (code or "").strip().lower() in BURST_CODES and attempt < BURST_RETRIES:
                 self.http._sleep(2.0 * (2 ** attempt))
@@ -234,7 +238,8 @@ class NewsdataProvider(NewsProvider):
             return None
         source_url = clean(row.get("source_url")) or ""
         domain = source_url.split("//", 1)[-1].split("/", 1)[0].lower().removeprefix("www.") or None
-        publisher = clean(row.get("source_name")) or self._publisher_for(domain) or clean(row.get("source_id"))
+        # Curated names first (same as RSS/GDELT), so one outlet is never counted as two sources.
+        publisher = self._publisher_for(domain) or clean(row.get("source_name")) or clean(row.get("source_id"))
         published = parse_pubdate(clean(row.get("pubDate")), clean(row.get("pubDateTZ")))
         desc = clean(row.get("description"))
         if desc:

@@ -26,11 +26,13 @@ to `data/logs/intelpod.log` (set `app.log_json: true` for JSON lines).
 | NewsData articles look a day old | free plan delays articles ~12 h | expected; RSS/GDELT supply the fresh news |
 | Review `NVIDIA_API_KEY is not set` | no key | add it to `.env`, or set `llm.provider: ollama`, or run with `--no-llm` |
 | NVIDIA 403 "Authorization failed" but `intelpod llm models` works | key lacks the "Public API Endpoints" entitlement | create a key with that scope at build.nvidia.com/settings/api-keys; if it isn't offered, ask help@build.nvidia.com |
-| `no configured model … is available` | every model in `llm.tasks.event_review.models` returned 404/410 (retired) | `intelpod llm models --filter nemotron`, try one with `intelpod llm test --model <id>`, update the list |
+| `no configured model … is available` | every model in `llm.tasks.event_review.models` failed: 410 = retired; 404 "not found for account" = retired **or** your key lacks the "Public API Endpoints" entitlement; 5xx/timeouts = service trouble | if `intelpod llm models` still lists them and all answered 404, it is the entitlement (help@build.nvidia.com); otherwise try ids with `intelpod llm test --model <id>` and update the list, or rerun later |
 | `rate limited by nvidia after retries` | free trial rate limit (varies; can be below 40/min) | lower `llm.providers.nvidia.requests_per_minute` or `llm.event_review.max_events`; rerun later — cached answers are reused |
 | `spent its output on reasoning` | a reasoning model used `max_tokens` on thinking | disable thinking for that model (`extra_body`) or raise its `max_tokens` |
 | Model titles often "rejected" | model adds names/numbers not in the headlines | expected safety behaviour; the publisher headline is used instead |
 | Embeddings `unavailable` | key missing, model retired, or rate limit | clustering falls back to lexical similarity automatically; see the reason in `intelpod runs` / the run's cluster output |
+| Dashboard says "cross-origin request refused" / "Invalid host header" | request came from another site, or you browse via a name other than 127.0.0.1/localhost | open it at http://127.0.0.1:8000; when serving on another host add `--allow-host <name>` |
+| Model "outlier" verdict ignored (`rejected.outlier_ids`) | model tried to remove half or more of an event's reports | safety cap against manipulated headlines; the event is kept whole |
 | `database is locked` | two processes writing at once | let the running job finish; SQLite WAL mode and a 5 s busy timeout are already set |
 
 ## Resetting

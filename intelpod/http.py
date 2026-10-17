@@ -12,6 +12,7 @@ from urllib.robotparser import RobotFileParser
 import httpx
 
 from .config import HttpConfig
+from .logging_setup import redact
 
 log = logging.getLogger(__name__)
 
@@ -20,7 +21,7 @@ RETRY_STATUS = {429, 500, 502, 503, 504}
 
 class FetchError(Exception):
     def __init__(self, message: str, status_code: int | None = None):
-        super().__init__(message)
+        super().__init__(redact(message))  # never carry an API key into logs, DB or reports
         self.status_code = status_code
         self.response: httpx.Response | None = None
 
@@ -128,9 +129,14 @@ class HttpClient:
             except (httpx.ProxyError, httpx.UnsupportedProtocol) as e:
                 # A proxy/policy denial or bad scheme will not fix itself on retry.
                 raise FetchError(f"{type(e).__name__}: {e}") from e
+            except httpx.LocalProtocolError as e:
+                # e.g. an illegal header value: the message would contain the header (an API key).
+                raise FetchError(f"{type(e).__name__}: invalid request (check API key formatting)") from e
             except (httpx.TimeoutException, httpx.TransportError) as e:
                 last_exc = e
                 log.warning("%s %s failed (%s) attempt %d/%d", method, host, type(e).__name__, attempt, attempts)
+                if isinstance(e, httpx.TimeoutException) and not self.cfg.retry_timeouts:
+                    raise FetchError(f"{type(e).__name__}: timed out") from e
             else:
                 if resp.status_code not in retry_on:
                     return resp

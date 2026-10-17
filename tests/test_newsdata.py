@@ -166,3 +166,21 @@ def test_description_truncation_marker_cleaned(monkeypatch):
     item = p._to_item({"link": "https://x.test/a", "title": "Some headline here", "pubDate": "2026-10-16 10:00:00",
                        "description": "Ministers met   today and agreed [...]"}, None)
     assert item.description == "Ministers met today and agreed…"
+
+
+@respx.mock
+@pytest.mark.parametrize("status", [429, 401, 403])
+def test_non_json_stopping_errors_still_stop(monkeypatch, status):
+    route = respx.get(URL).respond(status, text="<html>Blocked</html>")
+    p = provider(monkeypatch)
+    p.fetch()
+    assert route.call_count == 1 and "stopping" in p.skipped_reason
+
+
+@respx.mock
+def test_curated_publisher_name_wins(monkeypatch):
+    respx.get(URL).respond(200, json=sn.newsdata_json())
+    p = provider(monkeypatch)
+    p.domain_publishers = {"nd-sample.test": "ND Sample (curated)"}
+    items = p.fetch().items
+    assert items[0].source_name == "ND Sample (curated)"

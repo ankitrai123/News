@@ -27,7 +27,8 @@ from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from ..llm.parsing import unsupported_terms
 from ..schemas import REVIEW_DIMENSIONS, Article, DimensionAssessment, EventCandidate, EventReview, RankedEvent
-from .cluster import independent_sources
+from ..textutil import Taxonomy
+from .cluster import Cluster, Clusterer, build_candidates, build_docs, cohesion, independent_sources, summarize_cluster
 
 log = logging.getLogger(__name__)
 
@@ -100,28 +101,54 @@ class ChatJSON(Protocol):
         """Return (validated object, model id). Raises on failure."""
 
 
-def build_messages(articles: list[Article], max_reports: int = 12, max_desc: int = 220) -> tuple[list[dict], dict[str, str], str]:
-    """Return (messages, short_id -> article_id, source text used for grounding)."""
+def select_reports(articles: list[Article], representative_id: str | None, max_reports: int) -> list[Article]:
+    """The representative report plus the most recent ones (so evolving stories are judged on
+    their latest development), returned in chronological order."""
+    ordered = sorted(articles, key=lambda x: (x.effective_time, x.article_id))
+    if len(ordered) <= max_reports:
+        return ordered
+    rep = [a for a in ordered if a.article_id == representative_id][:1]
+    newest = [a for a in reversed(ordered) if not rep or a.article_id != rep[0].article_id][: max_reports - len(rep)]
+    return sorted(rep + newest, key=lambda x: (x.effective_time, x.article_id))
+
+
+def build_messages(articles: list[Article], representative_id: str | None = None, max_reports: int = 12,
+                   max_desc: int = 220) -> tuple[list[dict], dict[str, str], dict[str, str]]:
+    """Return (messages, short_id -> article_id, short_id -> source text used for grounding)."""
     ids: dict[str, str] = {}
-    lines, source_parts = [], []
-    for i, a in enumerate(sorted(articles, key=lambda x: x.effective_time)[:max_reports], 1):
+    sources: dict[str, str] = {}
+    lines = []
+    for i, a in enumerate(select_reports(articles, representative_id, max_reports), 1):
         sid = f"r{i}"
         ids[sid] = a.article_id
         when = a.effective_time.strftime("%Y-%m-%d")
         desc = (a.description or "").replace("\n", " ")[:max_desc]
         lines.append(f"{sid} | {a.source_name} | {when} | {a.title}" + (f" — {desc}" if desc else ""))
-        source_parts.append(f"{a.title}. {a.source_name}. {desc}")
+        sources[sid] = f"{a.title}. {a.source_name}. {desc}"
     messages = [{"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": USER_TEMPLATE.format(reports="\n".join(lines))}]
-    return messages, ids, " ".join(source_parts)
+    return messages, ids, sources
 
 
-def to_review(resp: ReviewResponse, ids: dict[str, str], source_text: str, provider: str, model: str) -> EventReview:
+def to_review(resp: ReviewResponse, ids: dict[str, str], sources: dict[str, str] | str, provider: str,
+              model: str) -> EventReview:
     """Apply IntelPod's checks to a validated model response."""
-    outliers = [ids[o] for o in dict.fromkeys(o.strip().lower() for o in resp.outlier_ids) if o in ids]
-    if len(outliers) >= len(ids):  # model rejected every report: keep the cluster as is
-        outliers = []
+    outlier_sids = [o for o in dict.fromkeys(o.strip().lower() for o in resp.outlier_ids) if o in ids]
+    ignored_outliers = False
+    if outlier_sids and len(outlier_sids) * 2 >= len(ids):
+        # The model may only remove a minority of the reports. Removing half or more would let
+        # one report (possibly with injected instructions in its headline) take over the event,
+        # so such a verdict is ignored and recorded instead.
+        outlier_sids, ignored_outliers = [], True
+    outliers = [ids[o] for o in outlier_sids]
+    # Ground the title/summary only in the reports that stay in the event.
+    if isinstance(sources, dict):
+        source_text = " ".join(t for sid, t in sources.items() if sid not in outlier_sids)
+    else:
+        source_text = sources
     rejected: dict[str, list[str]] = {}
+    if ignored_outliers:
+        rejected["outlier_ids"] = [o.strip() for o in resp.outlier_ids][:20]
     title, summary = resp.title.strip() or None, resp.summary.strip() or None
     if title and len(title.split()) > 20:
         rejected["title"], title = ["too long"], None
@@ -143,10 +170,10 @@ def to_review(resp: ReviewResponse, ids: dict[str, str], source_text: str, provi
     )
 
 
-def review_event(client: ChatJSON, articles: list[Article]) -> EventReview:
-    messages, ids, source_text = build_messages(articles)
+def review_event(client: ChatJSON, articles: list[Article], representative_id: str | None = None) -> EventReview:
+    messages, ids, sources = build_messages(articles, representative_id)
     resp, model = client.chat_json("event_review", messages, ReviewResponse)
-    return to_review(resp, ids, source_text, client.provider, model)
+    return to_review(resp, ids, sources, client.provider, model)
 
 
 def pick_events_to_review(ranked: list[RankedEvent], limit: int) -> list[str]:
@@ -155,26 +182,46 @@ def pick_events_to_review(ranked: list[RankedEvent], limit: int) -> list[str]:
     return [r.event_id for r in ordered[:limit]]
 
 
-def drop_outliers(cand: EventCandidate, review: EventReview, articles_by_id: dict[str, Article]) -> EventCandidate:
-    """Remove model-identified outliers and recompute the fields that depend on membership."""
+def drop_outliers(cand: EventCandidate, review: EventReview, articles_by_id: dict[str, Article],
+                  taxonomy: Taxonomy | None = None) -> EventCandidate:
+    """Remove model-identified outliers and recompute every field that depends on membership
+    (sources, times, and - when a taxonomy is given - countries, entities, topic, centroid)."""
     if not review.outlier_article_ids:
         return cand
-    keep = [a for a in cand.article_ids if a not in set(review.outlier_article_ids)]
-    if not keep:
-        return cand
+    drop = set(review.outlier_article_ids)
+    keep = [a for a in cand.article_ids if a not in drop]
     arts = [articles_by_id[a] for a in keep if a in articles_by_id]
+    if not arts:
+        return cand
     times = sorted(a.effective_time for a in arts)
-    rep = cand.representative_article_id
-    title, desc = cand.title, cand.description
-    if rep not in keep and arts:
-        rep, title, desc = arts[0].article_id, arts[0].title, arts[0].description or cand.description
-    return cand.model_copy(update={
-        "article_ids": keep, "representative_article_id": rep, "title": title, "description": desc,
-        "publishers": sorted({a.source_name for a in arts}), "independent_sources": independent_sources(arts),
-        "first_article_at": times[0] if times else cand.first_article_at,
-        "latest_article_at": times[-1] if times else cand.latest_article_at,
+    update: dict = {
+        "article_ids": keep, "publishers": sorted({a.source_name for a in arts}),
+        "independent_sources": independent_sources(arts),
+        "first_article_at": times[0], "latest_article_at": times[-1],
         "new_article_count": min(cand.new_article_count, len(keep)),
-    })
+    }
+    if taxonomy is not None:
+        cl = Cluster()
+        for d in build_docs(arts, taxonomy):
+            cl.add(d)
+        summ = summarize_cluster(cl, taxonomy)
+        update.update({"topic": summ["topic"], "subtopic": summ["subtopic"], "topics": summ["topics"],
+                       "countries": summ["countries"], "entities": summ["entities"], "centroid": summ["centroid"],
+                       "cluster_confidence": cohesion(cl)})
+    if cand.representative_article_id not in keep:
+        rep = max(arts, key=lambda a: (bool(a.description), a.effective_time))
+        update.update({"representative_article_id": rep.article_id, "title": rep.title,
+                       "description": rep.description or cand.description})
+    return cand.model_copy(update=update)
+
+
+def regroup_outliers(removed: list[Article], taxonomy: Taxonomy, ccfg) -> list[EventCandidate]:
+    """Reports the model said belong to a different event become event(s) of their own,
+    clustered among themselves, instead of silently disappearing from the briefing."""
+    if not removed:
+        return []
+    clusters = Clusterer(ccfg).cluster(build_docs(removed, taxonomy))
+    return build_candidates(clusters, taxonomy, ccfg)
 
 
 def run_reviews(client: ChatJSON, event_ids: list[str], candidates: dict[str, EventCandidate],
@@ -186,13 +233,14 @@ def run_reviews(client: ChatJSON, event_ids: list[str], candidates: dict[str, Ev
         cand = candidates[eid]
         arts = [articles_by_id[a] for a in cand.article_ids if a in articles_by_id]
         try:
-            reviews[eid] = review_event(client, arts)
+            reviews[eid] = review_event(client, arts, cand.representative_article_id)
         except (ValidationError, ValueError) as e:
             errors.append({"event_id": eid, "error": f"invalid model output: {str(e)[:300]}"})
             log.warning("review of %s: invalid model output (%s)", eid, str(e)[:200])
         except Exception as e:  # noqa: BLE001 - provider errors are recorded per event
-            errors.append({"event_id": eid, "error": f"{type(e).__name__}: {str(e)[:300]}"})
+            fatal = bool(getattr(e, "fatal", False))
+            errors.append({"event_id": eid, "error": f"{type(e).__name__}: {str(e)[:300]}", "fatal": fatal})
             log.warning("review of %s failed: %s", eid, e)
-            if getattr(e, "fatal", False):  # e.g. invalid key / quota exhausted: stop calling
+            if fatal:  # e.g. invalid key / rate limit / every model retired: stop calling
                 break
     return reviews, errors
