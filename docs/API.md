@@ -14,7 +14,7 @@ No endpoint returns secrets.
 | GET | `/api/events/latest?selected_only=true` | ranked events of the latest completed run |
 | GET | `/api/events/{event_id}` | event details, all linked articles, assessment history across runs |
 | GET | `/api/feeds` | feed registry merged with health (last status, items, failures) |
-| GET | `/api/usage` | requests per provider in the last 24 h |
+| GET | `/api/usage` | requests per provider (24 h), model calls/tokens per model (24 h), NewsData requests today vs budget |
 
 ## RankedEvent (abridged)
 
@@ -28,6 +28,10 @@ No endpoint returns secrets.
                   "evidence": ["terms: semiconductor, export controls", "5/5 reports on …"]}],
   "penalties": [], "flags": ["some_dates_approximate"],
   "rationale": "Selected #1 with importance 50.4/100. Main drivers: …",
+  "headline": "publisher headline when the title was written by the model, else null",
+  "summary": "model summary that passed the grounding check, else null",
+  "review": {"provider": "nvidia", "model": "…", "outlier_article_ids": [], "rejected": {},
+             "soft_news": false, "scores": {"economic": {"score": 0.8, "reason": "…"}}},
   "first_article_at": "…", "latest_article_at": "…", "cluster_confidence": 0.716, "is_continuing": false
 }
 ```

@@ -29,12 +29,18 @@ intelpod/
     base.py            NewsProvider interface, FetchRecord, ProviderResult
     rss.py             RSS/Atom (feedparser) with conditional GET
     gdelt.py           GDELT DOC 2.0 ArtList
+    newsdata.py        NewsData.io /latest (key in header, credit budgeting, 429 variants)
+  llm/
+    client.py          OpenAI-compatible chat client (NVIDIA / Ollama): model failover,
+                       pacing, retries, 202 polling, cache, usage log, JSON validation + repair
+    parsing.py         JSON extraction, reasoning stripping, grounding check
   pipeline/
     normalize.py       RawItem -> Article
     dedup.py           URL / title / syndication de-duplication
     cluster.py         article -> event clustering, linking to earlier events
-    embeddings.py      optional Ollama embeddings
-    rank.py            importance scoring, selection, explanations
+    embeddings.py      NVIDIA / Ollama embedders + SQLite embedding cache
+    rank.py            importance scoring, selection, explanations, model-score blending
+    review.py          model review of top events: prompt, validation, grounding, outliers
     report.py          Markdown + JSON output
     runner.py          stage orchestration, persistence, resume, retries
   web/app.py           FastAPI JSON API + Jinja2 dashboard
@@ -50,6 +56,7 @@ tests/                 offline tests + fixtures; test_live.py for real network
 | `ingest` | provider config | per-provider request/item counts, dedup stats, inserted count, warnings | single source failures are logged and skipped; if **all** requests fail and no stored articles are in the window → `StageError` (run fails, resumable); if all fail but older articles exist → continues with a "stale data" warning |
 | `cluster` | articles in `[now - lookback, now]` (English) | `EventCandidate` list; events and event–article links written to DB | no articles → `StageError` |
 | `rank` | candidates from `cluster` output | `RankedEvent` list in `event_scores` (with full explanation) | retried once |
+| `review` | top-ranked events (default 12) | per-event model reviews; outliers unlinked; scores re-ranked and overwritten in `event_scores`; reviewed candidates | **never fails the run**: no key / disabled → `skipped`; provider rejects key, rate limit persists, or every configured model is retired → remaining reviews stop and keyword ranking stands (`failed_all` if none succeeded); one bad answer only affects that event |
 | `report` | ranked events | `data/runs/<run_id>/phase1_events.{md,json}` | retried once |
 
 Runs record their `now` timestamp, so a resumed run uses the identical time window.
@@ -77,7 +84,15 @@ A run in progress blocks a second run (`--force` overrides a stale lock).
 * `similarity = cosine + entity_weight × entity_overlap × gate`, where `gate = min(1, cosine/0.2)`.
   Shared entities are a bonus scaled by lexical agreement, so two unrelated stories that both
   mention "United States" do not merge.
-* Optional: Ollama embeddings (`nomic-embed-text` by default) blended with lexical cosine.
+* Optional embeddings (NVIDIA `nemotron-3-embed-1b` by default, or Ollama), cached per text.
+  Embedding models have very different cosine "floors" (unrelated headlines often score 0.6–0.8),
+  so raw embedding cosine is **calibrated**: the 90th percentile of sampled pairs in the batch
+  maps to 0. Clusters compare against the *average* member embedding similarity, not a dense
+  centroid, which would attract everything. Default mode `boost` lets embeddings only **raise**
+  similarity (catching paraphrases), never lower it: on the stress test, `blend` mode split real
+  events when embeddings were uninformative (completeness 0.996 → 0.866), while `boost` never
+  did worse than lexical-only. Without calibration a high-floor model merged every article into
+  one cluster; a regression test guards this.
 * Greedy pass in time order (articles more than 72h apart never merge). An article joins the
   best cluster above `similarity_threshold` **only if it also directly matches at least one
   member** (`member_min_similarity`). Without this guard a growing cluster's averaged centroid
@@ -109,8 +124,41 @@ Eight components, each in [0, 1] with recorded evidence:
 `importance ≥ min_score`, at most `max_per_topic` per topic and `max_events` in total; if fewer
 than `min_events` qualify, events above `quiet_day_floor` fill in, flagged `quiet_day_fill`.
 
+**Model review blending.** For reviewed events, each of geopolitical, economic, business, India
+and long-term becomes `(1 − w) × keyword + w × model` (`llm.event_review.weight`, default 0.5);
+the evidence shows both numbers and the model's one-line reason. A model "soft news" judgement
+applies the soft-news penalty. Novelty, corroboration and uncertainty stay rule-based.
+
 These are heuristics over headlines and short descriptions. They are transparent and tunable,
-not a judgement of truth; Phase 2+ adds model-based analysis on top.
+not a judgement of truth.
+
+## Model review safeguards
+
+* The model sees only the retrieved reports (publisher, date, headline, feed summary) with short
+  ids (`r1`…); the system prompt tells it to treat report text as data. Unknown ids are ignored;
+  if it rejects every report, the cluster is kept as is.
+* The answer must validate against a pydantic schema with five explicit score fields (requested
+  via `response_format: json_schema`); invalid JSON gets one repair round-trip.
+* **Grounding check:** a model title or summary is rejected if it contains any number or
+  capitalised name that appears in none of the reports; the publisher headline is kept instead.
+  Rejections are recorded and shown.
+* Outliers are unlinked from the event (they remain stored as articles).
+* Every call is logged (`llm_calls`: model, tokens, latency, error) and cached (`llm_cache`);
+  only complete answers (`finish_reason: stop`) are cached.
+
+## LLM client behaviour (NVIDIA specifics from NVIDIA's client source and forum staff)
+
+| Situation | Handling |
+|---|---|
+| No key / disabled | stage `skipped`, reason recorded |
+| 401/402/403 | provider unusable for this run; 403 message explains the "Public API Endpoints" entitlement |
+| 404 "not found for account" / 410 Gone | that model is skipped for the run; next model in `llm.tasks.<task>.models` |
+| 422 "body -> field … extra_forbidden" | field dropped for that model, retried once |
+| 400/422 on structured output | retried with prompt-only JSON for that model |
+| 429 (no Retry-After) | backoff 5 → 10 → 20 s, then stop calling for this run |
+| 202 + `NVCF-REQID` | polled at `api.nvcf.nvidia.com/v2/nvcf/pexec/status/{id}` |
+| reasoning only, empty content | error telling you to raise `max_tokens` or disable thinking |
+| `<think>…</think>`, lone `</think>`, `<|return|>` in content | stripped |
 
 ## Database (SQLite, `data/intelpod.db`)
 
@@ -122,9 +170,12 @@ not a judgement of truth; Phase 2+ adds model-based analysis on top.
 | `event_scores` | (`run_id`, `event_id`) unique | full `RankedEvent` per run → assessment history |
 | `pipeline_runs` | `run_id` | status running/paused/completed/failed, params (incl. `now`) |
 | `stage_runs` | (`run_id`, `stage`) unique | status, attempts, output JSON, error |
+| `llm_calls` | id | every model call: provider, model, task, tokens, latency, cached, error |
+| `llm_cache` | request hash | complete model answers |
+| `embedding_cache` | hash(model, text) | float32 vectors, pruned after 14 days |
 | `fetch_log` | id | every provider request: status, items, duration, error (quota/health) |
 | `feed_state` | feed URL | ETag/Last-Modified, health, consecutive failures |
-| `meta` | key | `schema_version` (migrations hook in `Database.migrate`) |
+| `meta` | key | `schema_version` (v2 adds the three tables above; v1 databases upgrade in place) |
 
 Tables for research results, sources/classifications, claims, arguments, impact analyses,
 event relationships, forecasts and episodes arrive with the phases that fill them.
@@ -139,3 +190,7 @@ event relationships, forecasts and episodes arrive with the phases that fill the
 | SQLite + SQLAlchemy, `create_all` + version table | zero setup; Alembic would be overkill for a single-user DB at this stage |
 | APScheduler / n8n deferred to Phase 7 | the CLI already runs on demand; scheduling belongs with the full pipeline |
 | Stage outputs stored as JSON | makes resume trivial and keeps an audit trail of each run |
+| One model call per event (top ~12) | small, cacheable, isolated failures; well inside NVIDIA's free rate limit |
+| Model scores blended, not substituted | keeps the ranking explainable and stable if the model is wrong or unavailable |
+| Ordered model lists | NVIDIA retires free models frequently; a retired default must not break the run |
+| Raw httpx instead of an SDK | one small OpenAI-compatible client covers NVIDIA and Ollama; no telemetry, no extra dependency |

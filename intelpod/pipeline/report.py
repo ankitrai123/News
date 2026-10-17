@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from ..schemas import Article, RankedEvent
+from ..schemas import EXACT_DATE_SOURCES, Article, RankedEvent
 
 if TYPE_CHECKING:
     from .runner import RunContext
@@ -27,6 +27,18 @@ def render_markdown(ctx: "RunContext", selected: list[RankedEvent], ranked: list
                                                  f"{v.get('normalized', 0)} articles" for k, v in provs.items()))
     lines.append(f"**Articles considered:** {cluster.get('articles', '?')} → **events:** {cluster.get('events', '?')} "
                  f"({cluster.get('multi_article_events', '?')} with 2+ reports) → **selected:** {len(selected)}")
+    review = ctx.outputs.get("review") or {}
+    if review.get("status") == "completed":
+        lines.append(f"**Model review:** {review.get('reviewed')} of {review.get('requested')} top events reviewed by "
+                     f"`{review.get('model')}` ({review.get('provider')}); scores blend keyword analysis and the model. "
+                     f"{review.get('outliers_removed', 0)} off-topic reports removed; "
+                     f"{review.get('titles_rejected', 0) + review.get('summaries_rejected', 0)} model texts rejected "
+                     f"for naming facts absent from the reports.")
+    elif review:
+        lines.append(f"**Model review:** not used ({review.get('reason', review.get('status'))}); keyword ranking only.")
+    for name, v in provs.items():
+        if v.get("note"):
+            lines.append(f"> {name}: {v['note']}")
     for w in ingest.get("warnings", []):
         lines.append(f"> ⚠️ {w}")
     if len(selected) < 5:
@@ -40,6 +52,11 @@ def render_markdown(ctx: "RunContext", selected: list[RankedEvent], ranked: list
                   f"{r.independent_sources} independent publishers"
                   + (f" · cluster confidence {r.cluster_confidence}" if r.cluster_confidence is not None else " · single report"),
                   ""]
+        if r.headline:
+            lines += [f"_Title written by {r.review.model if r.review else 'the model'} from the reports below; "
+                      f"lead publisher headline: “{r.headline}”_", ""]
+        if r.summary:
+            lines += [f"**Summary ({r.review.model if r.review else 'model'}, checked against the reports):** {r.summary}", ""]
         if r.description:
             lines += [f"> {r.description}", ""]
         lines += [f"**Why selected:** {r.rationale}", "", "| Criterion | Score | Weight | Evidence |", "|---|---|---|---|"]
@@ -51,7 +68,7 @@ def render_markdown(ctx: "RunContext", selected: list[RankedEvent], ranked: list
         for aid in cand.get("article_ids", [])[:12]:
             a = articles.get(aid)
             if a:
-                when = _fmt(a.published_at) + ("" if a.date_source == "feed" else f" ({a.date_source})")
+                when = _fmt(a.published_at) + ("" if a.date_source in EXACT_DATE_SOURCES else f" ({a.date_source})")
                 lines.append(f"- [{a.title}]({a.source_url}) — {a.source_name}, {when}")
         extra = len(cand.get("article_ids", [])) - 12
         if extra > 0:

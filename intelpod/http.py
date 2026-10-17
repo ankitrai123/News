@@ -22,6 +22,7 @@ class FetchError(Exception):
     def __init__(self, message: str, status_code: int | None = None):
         super().__init__(message)
         self.status_code = status_code
+        self.response: httpx.Response | None = None
 
 
 class RobotsDisallowed(FetchError):
@@ -97,26 +98,45 @@ class HttpClient:
     # -- requests ---------------------------------------------------------
     def get(self, url: str, params: dict | None = None, headers: dict | None = None,
             check_robots: bool = True) -> httpx.Response:
+        return self.request("GET", url, params=params, headers=headers, check_robots=check_robots)
+
+    def post(self, url: str, json: dict | None = None, headers: dict | None = None,
+             timeout: float | None = None) -> httpx.Response:
+        """POST to an API endpoint (robots.txt does not apply to documented APIs)."""
+        return self.request("POST", url, json=json, headers=headers, check_robots=False, timeout=timeout)
+
+    def request(self, method: str, url: str, *, params: dict | None = None, headers: dict | None = None,
+                json: dict | None = None, check_robots: bool = True, timeout: float | None = None,
+                retry_statuses: set[int] | None = None) -> httpx.Response:
+        """Send a request with throttling and retries.
+
+        Retries timeouts, connection errors, 429 and 5xx (honouring Retry-After), or only
+        `retry_statuses` when given. Never retries proxy/policy denials or other 4xx; a
+        non-retried error status is returned to the caller. Log lines name only the host, so query
+        strings (which may hold API keys) never reach the logs."""
         if check_robots and not self.allowed_by_robots(url):
             raise RobotsDisallowed(f"robots.txt disallows {url}")
         host = urlsplit(url).netloc
         attempts = self.cfg.max_retries + 1
         last_exc: Exception | None = None
+        extra = {"timeout": timeout} if timeout else {}
+        retry_on = RETRY_STATUS if retry_statuses is None else retry_statuses
         for attempt in range(1, attempts + 1):
             self._throttle(host)
             try:
-                resp = self._client.get(url, params=params, headers=headers)
+                resp = self._client.request(method, url, params=params, headers=headers, json=json, **extra)
             except (httpx.ProxyError, httpx.UnsupportedProtocol) as e:
                 # A proxy/policy denial or bad scheme will not fix itself on retry.
                 raise FetchError(f"{type(e).__name__}: {e}") from e
             except (httpx.TimeoutException, httpx.TransportError) as e:
                 last_exc = e
-                log.warning("GET %s failed (%s) attempt %d/%d", host, type(e).__name__, attempt, attempts)
+                log.warning("%s %s failed (%s) attempt %d/%d", method, host, type(e).__name__, attempt, attempts)
             else:
-                if resp.status_code not in RETRY_STATUS:
+                if resp.status_code not in retry_on:
                     return resp
                 last_exc = FetchError(f"HTTP {resp.status_code}", resp.status_code)
-                log.warning("GET %s -> %d attempt %d/%d", host, resp.status_code, attempt, attempts)
+                last_exc.response = resp
+                log.warning("%s %s -> %d attempt %d/%d", method, host, resp.status_code, attempt, attempts)
                 if attempt < attempts:
                     retry_after = _retry_after_seconds(resp)
                     if retry_after is not None:

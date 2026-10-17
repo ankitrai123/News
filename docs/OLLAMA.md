@@ -1,7 +1,9 @@
 # Ollama and local models
 
-Phase 1 runs without any model. Ollama is optional now (better clustering through embeddings)
-and becomes the default engine for analysis and script writing from Phase 2.
+Phase 1 can run without any model. The default model provider is NVIDIA's free hosted API
+(`llm.provider: nvidia`). Ollama is the fully local alternative: nothing leaves your machine,
+there are no rate limits or trial terms, and output can be shared subject only to each model's
+licence. Switch with `llm.provider: ollama` and `clustering.embeddings.provider: ollama`.
 
 ## Install
 
@@ -23,8 +25,14 @@ Then set in `config/config.yaml`:
 clustering:
   embeddings:
     enabled: true
+    provider: ollama
     model: nomic-embed-text
-    weight: 0.5
+llm:
+  provider: ollama
+  tasks:
+    event_review:
+      models:
+        - {id: "qwen2.5:7b"}      # any instruct model you have pulled
 ```
 
 If Ollama is down or the model is missing, the cluster stage logs the reason, records

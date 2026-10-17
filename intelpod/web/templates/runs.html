@@ -7,6 +7,12 @@
 {% if usage %}<div class="card small"><b>Requests in the last 24h:</b>
 {% for u in usage %}<span class="pill">{{ u.provider }}: {{ u.requests }} ({{ u.ok }} ok, {{ u.items }} items)</span>{% endfor %}
 <div class="muted">GDELT and RSS have no hard quota, but GDELT asks for roughly one request every 5 seconds; IntelPod enforces this.</div></div>{% endif %}
+<div class="card small"><b>Free-tier quotas.</b> NewsData.io today (UTC): {{ newsdata_today }} of {{ newsdata_budget }} budgeted requests (free plan: 200 credits/day, 30 per 15 min).
+{% if llm_usage %}<br>Model calls, last 24h: {% for u in llm_usage %}<span class="pill">{{ u.provider }} · {{ u.model }}: {{ u.calls }} calls ({{ u.cached }} cached), {{ u.prompt_tokens }}+{{ u.completion_tokens }} tokens</span>{% endfor %}{% endif %}
+<div class="muted">NVIDIA's free trial is rate-limited (no published daily quota); IntelPod paces requests and caches answers.</div></div>
+{% if llm_errors %}<div class="card"><h3>Recent model errors</h3><table><tr><th>When</th><th>Model</th><th>Task</th><th>Error</th></tr>
+{% for c in llm_errors %}<tr><td class="small">{{ c.started_at|dt }}</td><td class="small">{{ c.model }}</td><td class="small">{{ c.task }}</td><td class="small bad">{{ c.error }}</td></tr>{% endfor %}
+</table></div>{% endif %}
 <div class="card scroll"><table><tr><th>Run</th><th>Status</th><th>Started</th><th>Stages</th><th>Error</th></tr>
 {% for r in runs %}<tr><td><a href="/?run={{ r.run_id }}">{{ r.run_id }}</a></td>
 <td class="{{ 'ok' if r.status=='completed' else ('bad' if r.status=='failed' else 'warn') }}">{{ r.status }}</td>

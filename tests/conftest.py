@@ -1,9 +1,30 @@
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
 import pytest
+
+# Offline tests must never see real credentials (from the shell or from .env). The real
+# values are kept aside only for the opt-in live tests (`pytest -m live`).
+_KEY_NAMES = ("NEWSDATA_API_KEY", "NVIDIA_API_KEY")
+
+
+def _dotenv_values() -> dict:
+    p = Path(__file__).resolve().parent.parent / ".env"
+    out = {}
+    if p.exists():
+        for line in p.read_text(encoding="utf-8").splitlines():
+            if "=" in line and not line.strip().startswith("#"):
+                k, _, v = line.partition("=")
+                out[k.strip()] = v.strip().strip('"').strip("'")
+    return out
+
+
+_dotenv = _dotenv_values()
+LIVE_KEYS = {k: v for k in _KEY_NAMES if (v := os.environ.pop(k, None) or _dotenv.get(k))}
+os.environ["INTELPOD_NO_DOTENV"] = "1"
 
 sys.path.insert(0, str(Path(__file__).parent))
 
@@ -33,3 +54,14 @@ def settings(tmp_path):
         "ingestion.providers.gdelt.min_interval_seconds": 0,
         "ingestion.providers.gdelt.queries": [{"topic": "trade_policy", "query": "(tariff OR \"export controls\")"}],
     })
+
+
+@pytest.fixture
+def live_key(monkeypatch):
+    """Restore one real API key for a live test, or skip if it isn't configured."""
+    def _get(name: str) -> str:
+        if name not in LIVE_KEYS:
+            pytest.skip(f"{name} not set (live test)")
+        monkeypatch.setenv(name, LIVE_KEYS[name])
+        return LIVE_KEYS[name]
+    return _get

@@ -25,7 +25,8 @@ def test_end_to_end_run(settings):
     repo = pipe.repo
     assert repo.get_run(run_id).status == "completed"
     stages = repo.stages(run_id)
-    assert [s for s in stages] == ["ingest", "cluster", "rank", "report"]
+    assert [s for s in stages] == ["ingest", "cluster", "rank", "review", "report"]
+    assert stages["review"].output["status"] == "skipped" and "NVIDIA_API_KEY" in stages["review"].output["reason"]
     ingest = stages["ingest"].output
     assert ingest["dedup"]["duplicate_url"] >= 1 and ingest["dedup"]["duplicate_title_same_publisher"] >= 1
     assert ingest["providers"]["rss"]["ok"] == 3 and ingest["providers"]["gdelt"]["ok"] == 1

@@ -11,13 +11,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterator
 
-from sqlalchemy import (JSON, Boolean, DateTime, Float, ForeignKey, Index, Integer, String, Text,
+from sqlalchemy import (JSON, Boolean, DateTime, Float, ForeignKey, Index, Integer, LargeBinary, String, Text,
                         UniqueConstraint, create_engine, event, select, text)
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 from sqlalchemy.types import TypeDecorator
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2  # v2: llm_calls, llm_cache, embedding_cache
 
 
 def utcnow() -> datetime:
@@ -170,6 +170,46 @@ class FeedStateRow(Base):
     last_error: Mapped[str | None] = mapped_column(Text)
 
 
+class LLMCallRow(Base):
+    """Every model request (cache hits included): drives quota tracking and debugging."""
+
+    __tablename__ = "llm_calls"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    run_id: Mapped[str | None] = mapped_column(String(40), index=True)
+    provider: Mapped[str] = mapped_column(String(40), index=True)
+    model: Mapped[str] = mapped_column(String(200))
+    task: Mapped[str] = mapped_column(String(60))
+    started_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, index=True)
+    duration_ms: Mapped[int | None] = mapped_column(Integer)
+    ok: Mapped[bool] = mapped_column(Boolean)
+    cached: Mapped[bool] = mapped_column(Boolean, default=False)
+    prompt_tokens: Mapped[int | None] = mapped_column(Integer)
+    completion_tokens: Mapped[int | None] = mapped_column(Integer)
+    status_code: Mapped[int | None] = mapped_column(Integer)
+    error: Mapped[str | None] = mapped_column(Text)
+
+
+class LLMCacheRow(Base):
+    """Response cache keyed by a hash of (provider, model, messages, parameters)."""
+
+    __tablename__ = "llm_cache"
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    provider: Mapped[str] = mapped_column(String(40))
+    model: Mapped[str] = mapped_column(String(200))
+    response: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, index=True)
+
+
+class EmbeddingCacheRow(Base):
+    """Embedding per (model, text) as float32 bytes; pruned after a couple of weeks."""
+
+    __tablename__ = "embedding_cache"
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    model: Mapped[str] = mapped_column(String(200))
+    vector: Mapped[bytes] = mapped_column(LargeBinary)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, index=True)
+
+
 class MetaRow(Base):
     __tablename__ = "meta"
     key: Mapped[str] = mapped_column(String(60), primary_key=True)
@@ -192,7 +232,8 @@ class Database:
         with self.session() as s:
             row = s.get(MetaRow, "schema_version")
             current = int(row.value) if row else 0
-            # Future migrations go here: `if current < 2: ...`
+            # v2 only adds tables, which create_all() above already created.
+            # Future column changes go here: `if current < 3: s.execute(text("ALTER TABLE ..."))`
             if current < SCHEMA_VERSION:
                 s.merge(MetaRow(key="schema_version", value=str(SCHEMA_VERSION)))
 

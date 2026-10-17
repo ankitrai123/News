@@ -70,12 +70,6 @@ class Cluster:
     def centroid(self) -> Vector:
         return _normalize(self.sum_vec)
 
-    def dense_centroid(self) -> list[float] | None:
-        if self.sum_dense is None:
-            return None
-        n = math.sqrt(sum(x * x for x in self.sum_dense)) or 1.0
-        return [x / n for x in self.sum_dense]
-
     def entity_share(self) -> dict[str, float]:
         n = len(self.members)
         return {e: c / n for e, c in self.ent_counts.items()}
@@ -122,16 +116,53 @@ def build_docs(articles: list[Article], taxonomy: Taxonomy,
     return docs
 
 
+def dense_baseline(docs: list[Doc], max_pairs: int = 3000) -> float:
+    """High percentile of embedding cosine over (mostly unrelated) article pairs in this batch.
+
+    Embedding models differ wildly in their cosine "floor" (unrelated headlines often
+    score 0.6-0.8), so raw embedding cosines cannot share thresholds with TF-IDF.
+    Almost all random pairs in a day's news are unrelated, so the 90th percentile of
+    deterministic sampled pairs is a robust "unrelated" ceiling; we rescale above it."""
+    dense = [d.dense for d in docs if d.dense]
+    n = len(dense)
+    if n < 4:
+        return 0.0
+    sims = []
+    step = max(1, (n * (n - 1) // 2) // max_pairs)
+    k = 0
+    for i in range(n):
+        for j in range(i + 1, n):
+            if k % step == 0:
+                sims.append(dense_cos(dense[i], dense[j]))
+            k += 1
+    sims.sort()
+    return sims[int(len(sims) * 0.9)]
+
+
 class Clusterer:
     def __init__(self, cfg: ClusteringConfig):
         self.cfg = cfg
         self.max_gap = timedelta(hours=cfg.max_time_gap_hours)
+        self.baseline = 0.0
+
+    def calibrated(self, raw: float) -> float:
+        """Map an embedding cosine onto the lexical scale: batch 'unrelated' ceiling -> 0, identical -> 1."""
+        b = self.baseline
+        return max(0.0, (raw - b) / (1 - b)) if b < 1 else 0.0
 
     def _lexical(self, cos: float, dense_cos_value: float | None) -> float:
+        """Combine lexical cosine with calibrated embedding similarity.
+
+        mode "boost" (default): embeddings can only RAISE similarity (catching paraphrases
+        that share few words), never lower it, so a weak or miscalibrated model can never do
+        worse than lexical clustering. mode "blend": weighted average; on a planted-event
+        stress test it improved purity with a good model but split real events (completeness
+        0.996 -> 0.866) when embeddings were uninformative."""
         if dense_cos_value is None:
             return cos
         w = self.cfg.embeddings.weight
-        return w * dense_cos_value + (1 - w) * cos
+        blended = w * self.calibrated(dense_cos_value) + (1 - w) * cos
+        return max(cos, blended) if self.cfg.embeddings.mode == "boost" else blended
 
     def _pair_lex(self, a: Doc, b: Doc) -> float:
         return self._lexical(cosine(a.vec, b.vec), dense_cos(a.dense, b.dense) if a.dense and b.dense else None)
@@ -144,16 +175,19 @@ class Clusterer:
         if not self.has_direct_match(doc, cl):
             return 0.0
         cos = cosine(doc.vec, cl.centroid())
-        dc = cl.dense_centroid()
-        lex = self._lexical(cos, dense_cos(doc.dense, dc) if doc.dense and dc else None)
+        # Embeddings: mean similarity to members (average linkage). A dense centroid would be
+        # inflated by the component all embeddings share and would attract everything.
+        mean_dense = dense_cos(doc.dense, cl.sum_dense) / len(cl.members) if doc.dense and cl.sum_dense else None
+        lex = self._lexical(cos, mean_dense)
         share = cl.entity_share()
         ent = sum(share.get(e, 0.0) for e in doc.entities) / max(1, len(doc.entities))
         return self._combine(lex, ent)
 
     def cluster_to_cluster(self, a: Cluster, b: Cluster) -> float:
         cos = cosine(a.centroid(), b.centroid())
-        da, db = a.dense_centroid(), b.dense_centroid()
-        lex = self._lexical(cos, dense_cos(da, db) if da and db else None)
+        mean_dense = (dense_cos(a.sum_dense, b.sum_dense) / (len(a.members) * len(b.members))
+                      if a.sum_dense and b.sum_dense else None)
+        lex = self._lexical(cos, mean_dense)
         ea, eb = a.entity_share(), b.entity_share()
         keys = set(ea) | set(eb)
         ent = sum(min(ea.get(k, 0), eb.get(k, 0)) for k in keys) / max(1e-9, sum(max(ea.get(k, 0), eb.get(k, 0)) for k in keys)) if keys else 0.0
@@ -163,6 +197,7 @@ class Clusterer:
         return combine_similarity(lex, ent, self.cfg.entity_weight)
 
     def cluster(self, docs: list[Doc]) -> list[Cluster]:
+        self.baseline = dense_baseline(docs)
         clusters: list[Cluster] = []
         index: dict[str, set[int]] = defaultdict(set)  # term -> cluster indexes
         for doc in sorted(docs, key=lambda d: (d.time, d.article.article_id)):

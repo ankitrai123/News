@@ -1,7 +1,8 @@
-"""REAL-NETWORK integration tests (not mocks). Run explicitly: `pytest -m live`.
+"""REAL-NETWORK integration tests (not mocks). Run explicitly: `pytest -m live -v`.
 
-They hit GDELT and the first enabled feed in config/feeds.yaml, so they need internet
-access and can fail when a source is down or rate-limits you.
+They contact GDELT, the first configured RSS feed, NewsData.io (1 credit) and NVIDIA
+(a few small requests). Tests needing a key are skipped when it isn't set (shell or .env).
+They can fail when a source is down, rate-limits you, or retires a model.
 """
 import pytest
 
@@ -27,3 +28,48 @@ def test_first_feed_returns_items():
         items, rec = RssProvider(http, [feed], use_conditional_get=False).fetch_feed(feed)
     assert rec.ok, rec.error
     assert items
+
+
+def test_newsdata_latest(live_key):
+    from intelpod.providers.newsdata import NewsdataProvider
+    live_key("NEWSDATA_API_KEY")
+    s = load_settings()
+    cfg = s.ingestion.providers.newsdata
+    with HttpClient(s.http, s.app.user_agent) as http:
+        p = NewsdataProvider(http, cfg)
+        items, rec, _, _ = p.fetch_page(cfg.queries[0], None)
+    assert rec.ok, rec.error
+    assert items and all(i.title and i.url.startswith("http") for i in items)
+    assert all(not (i.description or "").upper().startswith("ONLY AVAILABLE") for i in items)
+
+
+def test_nvidia_models_and_structured_chat(live_key):
+    from pydantic import BaseModel
+
+    from intelpod.llm.client import LLMClient
+    live_key("NVIDIA_API_KEY")
+    s = load_settings()
+    s.llm.cache = False
+    client = LLMClient(s.llm)
+    models = client.list_models()
+    assert models
+
+    class Probe(BaseModel):
+        capital: str
+
+    obj, model = client.chat_json("event_review", [{"role": "user", "content":
+                                  'Return JSON {"capital": "<capital of France>"}'}], Probe)
+    assert "paris" in obj.capital.lower(), (model, obj)
+
+
+def test_nvidia_embeddings(live_key):
+    from intelpod.pipeline.embeddings import NvidiaEmbedder
+    live_key("NVIDIA_API_KEY")
+    s = load_settings()
+    prov = s.llm.providers["nvidia"]
+    e = NvidiaEmbedder(s.clustering.embeddings, prov.base_url, prov.api_key_env)
+    out = e(["US tightens chip export controls on China", "Washington curbs semiconductor sales to Beijing",
+             "Football final ends in penalty shootout"])
+    assert out, e.last_error
+    dot = lambda a, b: sum(x * y for x, y in zip(a, b))  # noqa: E731
+    assert dot(out[0], out[1]) > dot(out[0], out[2])  # paraphrases closer than an unrelated story

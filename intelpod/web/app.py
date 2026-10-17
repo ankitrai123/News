@@ -120,7 +120,9 @@ def create_app(settings: Settings | None = None, pipeline_factory=None) -> FastA
 
     @app.get("/api/usage")
     def api_usage():
-        return repo.provider_usage()
+        return {"providers_24h": repo.provider_usage(), "llm_24h": repo.llm_usage(),
+                "newsdata_requests_today_utc": repo.requests_today("newsdata"),
+                "newsdata_daily_budget": settings.ingestion.providers.newsdata.daily_credit_budget}
 
     # ------------------------------------------------------------------- pages
     def page(request: Request, name: str, **ctx):
@@ -135,6 +137,7 @@ def create_app(settings: Settings | None = None, pipeline_factory=None) -> FastA
         return page(request, "index.html", run=run_row, selected=[r for r in ranked if r.selected],
                     others=[r for r in ranked if not r.selected][:15],
                     ingest=(stages.get("ingest").output or {}) if stages.get("ingest") else {},
+                    review=(stages.get("review").output or {}) if stages.get("review") else {},
                     cluster=(stages.get("cluster").output or {}) if stages.get("cluster") else {})
 
     @app.get("/events/{event_id}", response_class=HTMLResponse)
@@ -151,7 +154,10 @@ def create_app(settings: Settings | None = None, pipeline_factory=None) -> FastA
     def runs_page(request: Request):
         runs = repo.list_runs(30)
         return page(request, "runs.html", runs=runs, stages={r.run_id: repo.stages(r.run_id) for r in runs[:10]},
-                    failures=[f for f in repo.fetch_log(limit=300) if not f.ok][:50], usage=repo.provider_usage())
+                    failures=[f for f in repo.fetch_log(limit=300) if not f.ok][:50], usage=repo.provider_usage(),
+                    llm_usage=repo.llm_usage(), newsdata_today=repo.requests_today("newsdata"),
+                    newsdata_budget=settings.ingestion.providers.newsdata.daily_credit_budget,
+                    llm_errors=[c for c in repo.llm_calls(limit=200) if not c.ok][:20])
 
     @app.post("/runs/start")
     def runs_start(resume: str | None = None):

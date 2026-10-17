@@ -7,7 +7,7 @@ from sqlalchemy import Integer, cast, delete, func, select
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
 from .db import (ArticleRow, Database, EventArticleRow, EventRow, EventScoreRow, FeedStateRow, FetchLogRow,
-                 PipelineRunRow, StageRunRow, utcnow)
+                 EmbeddingCacheRow, LLMCacheRow, LLMCallRow, PipelineRunRow, StageRunRow, utcnow)
 from .pipeline.cluster import PriorEvent
 from .providers.base import FetchRecord
 from .schemas import Article, EventCandidate, RankedEvent
@@ -239,3 +239,72 @@ class Repository:
                                     func.sum(FetchLogRow.item_count))
                              .where(FetchLogRow.started_at >= since).group_by(FetchLogRow.provider)).all()
             return [{"provider": p, "requests": n, "ok": int(ok or 0), "items": int(items or 0)} for p, n, ok, items in rows]
+
+    def requests_today(self, provider: str) -> int:
+        """Requests that reached `provider` since 00:00 UTC (they may have used quota).
+        Requests that never got an HTTP status (network failures) are not counted."""
+        start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        with self.db.session() as s:
+            return s.scalar(select(func.count()).select_from(FetchLogRow).where(
+                FetchLogRow.provider == provider, FetchLogRow.started_at >= start,
+                FetchLogRow.status_code.is_not(None))) or 0
+
+    def unlink_articles(self, event_id: str, article_ids: list[str]) -> None:
+        if not article_ids:
+            return
+        with self.db.session() as s:
+            s.execute(delete(EventArticleRow).where(EventArticleRow.event_id == event_id,
+                                                    EventArticleRow.article_id.in_(article_ids)))
+
+    # -- LLM ------------------------------------------------------------------
+    def llm_cache_get(self, key: str) -> str | None:
+        with self.db.session() as s:
+            row = s.get(LLMCacheRow, key)
+            return row.response if row else None
+
+    def llm_cache_put(self, key: str, provider: str, model: str, response: str) -> None:
+        with self.db.session() as s:
+            s.merge(LLMCacheRow(key=key, provider=provider, model=model, response=response, created_at=utcnow()))
+
+    def log_llm_call(self, **kw) -> None:
+        if kw.get("error"):
+            kw["error"] = str(kw["error"])[:1000]
+        with self.db.session() as s:
+            s.add(LLMCallRow(**kw))
+
+    def llm_usage(self, since: datetime | None = None) -> list[dict]:
+        since = since or datetime.now(timezone.utc) - timedelta(days=1)
+        with self.db.session() as s:
+            rows = s.execute(select(LLMCallRow.provider, LLMCallRow.model, func.count(),
+                                    func.sum(cast(LLMCallRow.ok, Integer)), func.sum(cast(LLMCallRow.cached, Integer)),
+                                    func.sum(LLMCallRow.prompt_tokens), func.sum(LLMCallRow.completion_tokens))
+                             .where(LLMCallRow.started_at >= since)
+                             .group_by(LLMCallRow.provider, LLMCallRow.model)).all()
+            return [{"provider": p, "model": m, "calls": n, "ok": int(ok or 0), "cached": int(c or 0),
+                     "prompt_tokens": int(pt or 0), "completion_tokens": int(ct or 0)}
+                    for p, m, n, ok, c, pt, ct in rows]
+
+    def llm_calls(self, run_id: str | None = None, limit: int = 100) -> list[LLMCallRow]:
+        with self.db.session() as s:
+            q = select(LLMCallRow).order_by(LLMCallRow.started_at.desc()).limit(limit)
+            if run_id:
+                q = q.where(LLMCallRow.run_id == run_id)
+            return list(s.scalars(q))
+
+    # -- embeddings cache -------------------------------------------------------
+    def embeddings_get(self, keys: list[str]) -> dict[str, bytes]:
+        out: dict[str, bytes] = {}
+        with self.db.session() as s:
+            for i in range(0, len(keys), 500):
+                for r in s.scalars(select(EmbeddingCacheRow).where(EmbeddingCacheRow.key.in_(keys[i:i + 500]))):
+                    out[r.key] = r.vector
+        return out
+
+    def embeddings_put(self, model: str, items: dict[str, bytes]) -> None:
+        with self.db.session() as s:
+            for k, v in items.items():
+                s.merge(EmbeddingCacheRow(key=k, model=model, vector=v, created_at=utcnow()))
+
+    def embeddings_prune(self, older_than: datetime) -> int:
+        with self.db.session() as s:
+            return s.execute(delete(EmbeddingCacheRow).where(EmbeddingCacheRow.created_at < older_than)).rowcount or 0

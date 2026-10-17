@@ -111,3 +111,34 @@ def gdelt_json(now: datetime = NOW) -> str:
 
 
 GDELT_RATE_LIMIT_TEXT = "Please limit requests to one every 5 seconds or contact us for larger queries."
+
+
+def newsdata_json(now: datetime = NOW, next_page: str | None = None) -> dict:
+    """SYNTHETIC NewsData.io /latest response (fictional sources), including the
+    paid-plan placeholder strings the free tier returns."""
+    pub = (now - timedelta(hours=14)).strftime("%Y-%m-%d %H:%M:%S")
+    return {
+        "status": "success", "totalResults": 3, "nextPage": next_page,
+        "results": [
+            {"article_id": "a" * 32, "title": "India and EU conclude round of free trade agreement talks",
+             "link": "https://nd-sample.test/india-eu-fta", "keywords": None, "creator": ["Staff Writer"],
+             "description": "Negotiators said tariff schedules for autos and wine remain open.",
+             "content": "ONLY AVAILABLE IN PAID PLANS", "pubDate": pub, "pubDateTZ": "UTC",
+             "image_url": None, "video_url": None, "source_id": "ndsample", "source_name": "ND Sample Times",
+             "source_priority": 1200, "source_url": "https://www.nd-sample.test", "source_icon": None,
+             "language": "english", "country": ["india"], "category": ["business", "politics"],
+             "sentiment": "ONLY AVAILABLE IN PROFESSIONAL AND CORPORATE PLANS",
+             "ai_tag": "ONLY AVAILABLE IN PROFESSIONAL AND CORPORATE PLANS",
+             "ai_region": "ONLY AVAILABLE IN CORPORATE PLANS", "ai_summary": "ONLY AVAILABLE IN PAID PLANS",
+             "duplicate": False},
+            {"article_id": "b" * 32, "title": "Duplicate copy flagged by provider", "link": "https://nd-sample.test/dup",
+             "description": None, "pubDate": pub, "pubDateTZ": "UTC", "source_name": "ND Sample Times",
+             "source_url": "https://www.nd-sample.test", "language": "english", "country": ["india"],
+             "category": ["top"], "duplicate": True},
+            {"article_id": "c" * 32, "title": "Rupee steadies as RBI signals liquidity support",
+             "link": "https://other-nd.test/rupee", "description": "ONLY AVAILABLE IN PAID PLANS",
+             "pubDate": pub, "pubDateTZ": "Asia/Kolkata", "source_name": None, "source_id": "othernd",
+             "source_url": "https://other-nd.test", "language": "english", "country": ["united states of america"],
+             "category": None, "creator": None, "duplicate": False},
+        ],
+    }

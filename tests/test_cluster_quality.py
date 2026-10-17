@@ -65,5 +65,66 @@ def test_planted_event_purity_and_completeness():
         assert biggest <= 30, biggest
 
 
+def _high_floor_embedder_factory(floor_strength):
+    """Fake embedding model whose unrelated texts still score ~0.7-0.9 cosine (like many real models)."""
+    import math
+    from intelpod.pipeline import cluster as C
+    real_build = C.build_docs
+
+    def build(arts, tax, embedder=None):
+        docs = real_build(arts, tax)
+        for d in docs:
+            v = [0.0] * 64
+            for t, w in d.vec.items():
+                rng = random.Random(t)
+                for k in range(64):
+                    v[k] += w * rng.gauss(0, 1)
+            n = math.sqrt(sum(x * x for x in v)) or 1
+            v = [x / n for x in v]
+            v[0] += floor_strength
+            n = math.sqrt(sum(x * x for x in v))
+            d.dense = [x / n for x in v]
+        return docs
+    return build
+
+
+def test_high_floor_embeddings_do_not_collapse_clusters(monkeypatch):
+    """Without calibration, an embedding model with a high cosine floor merged every article
+    into one cluster. Calibrated average-linkage blending must keep (or improve) purity."""
+    import sys
+    from intelpod.config import EmbeddingsConfig
+    mod = sys.modules[__name__]
+    monkeypatch.setattr(mod, "build_docs", _high_floor_embedder_factory(1.8))
+    for mode in ("boost", "blend"):
+        cfg = ClusteringConfig(embeddings=EmbeddingsConfig(enabled=True, weight=0.5, mode=mode))
+        purity, completeness, biggest = run(seed=1, n_events=40, singletons=250, cfg=cfg, quiet=True)
+        assert purity >= 0.85 and completeness >= 0.95 and biggest <= 30, (mode, purity, completeness, biggest)
+
+
+def test_uninformative_embeddings_never_split_events_in_boost_mode(monkeypatch):
+    """A bad embedding model (pure noise) must not make boost-mode clustering worse than lexical."""
+    import math
+    import sys
+    from intelpod.config import EmbeddingsConfig
+    from intelpod.pipeline import cluster as C
+    real_build = C.build_docs
+
+    def noisy_build(arts, tax, embedder=None):
+        docs = real_build(arts, tax)
+        for d in docs:
+            rng = random.Random(d.article.article_id)
+            v = [rng.gauss(0, 1) * 0.5 for _ in range(48)]
+            v[0] += 1.8
+            n = math.sqrt(sum(x * x for x in v))
+            d.dense = [x / n for x in v]
+        return docs
+
+    base = run(seed=2, n_events=40, singletons=250, quiet=True)
+    monkeypatch.setattr(sys.modules[__name__], "build_docs", noisy_build)
+    boosted = run(seed=2, n_events=40, singletons=250, quiet=True,
+                  cfg=ClusteringConfig(embeddings=EmbeddingsConfig(enabled=True, mode="boost")))
+    assert boosted[1] >= base[1] - 0.005 and boosted[0] >= base[0] - 0.02, (base, boosted)
+
+
 if __name__ == "__main__":
     run()

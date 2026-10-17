@@ -4,8 +4,8 @@
 
 | Phase | Scope | Status |
 |---|---|---|
-| 1 | Ingestion, normalization, de-duplication, event clustering, ranking, SQLite, CLI/report/dashboard | **Done** — tested offline; awaiting first live run on a networked machine |
-| 2 | Research: per-event query generation (10 query types), GDELT/RSS/official-source adapters, 10–21 day window, date validation, 10–15 results per event, source-quality assessment, cache | next |
+| 1 | Ingestion (RSS, GDELT, NewsData.io), normalization, de-duplication, event clustering (+ embeddings), ranking, model review (NVIDIA/Ollama), SQLite, CLI/report/dashboard | **Done** — tested offline with mocked APIs; awaiting first live run with real keys |
+| 2 | Research: per-event query generation (10 query types), GDELT/RSS/official-source adapters, 10–21 day window, date validation, 10–15 results per event, source-quality assessment, cache. Uses the same `LLMClient` (new task entries in `llm.tasks`) | next |
 | 3 | Source registry with evidence-backed editorial metadata, viewpoint discovery, claim-level evidence map, agreement/disagreement, uncertainty | planned |
 | 4 | Historical context, event relationships, causal business/economic chains, India impact | planned |
 | 5 | Narrative plan, two-host script, citation-linked transcript, fact verification | planned |
@@ -29,6 +29,14 @@
 
 * **No live verification yet.** All feed URLs are marked `verified: false`; some may have moved.
   The pipeline handles that (logs, skips, flags) but cannot fix it.
+* **NewsData.io and NVIDIA integrations are tested only against mocked APIs** built from their
+  documented formats; the build sandbox could not reach either service and had no keys. Run
+  `intelpod newsdata test`, `intelpod llm test` and `pytest -m live` once your keys are set.
+* **NVIDIA model ids are third-party-reported** (Oct 2026) and retire often; the failover list
+  softens this but you may need to update it.
+* **NVIDIA trial terms:** personal/evaluation use only; do not publish model-written text from the
+  free tier (use Ollama or a paid plan for anything public).
+* **NewsData free plan is ~12 h delayed** and 200 credits/day.
 * **Headline-level analysis.** Clustering and ranking use titles plus feed summaries (GDELT gives
   titles only). Keyword heuristics miss nuance and can misjudge significance; weights and
   thresholds need tuning on real data.

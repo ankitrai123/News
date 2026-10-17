@@ -12,7 +12,7 @@ import math
 from collections import Counter
 
 from ..config import RankingConfig
-from ..schemas import Article, EventCandidate, RankedEvent, ScoreComponent
+from ..schemas import EXACT_DATE_SOURCES, Article, EventCandidate, EventReview, RankedEvent, ScoreComponent
 from ..textutil import Taxonomy
 from .cluster import article_text
 
@@ -43,7 +43,8 @@ class Ranker:
         self.cfg = cfg
         self.tax = taxonomy
 
-    def score(self, ev: EventCandidate, articles: list[Article]) -> RankedEvent:
+    def score(self, ev: EventCandidate, articles: list[Article], review: EventReview | None = None,
+              review_weight: float = 0.5) -> RankedEvent:
         texts = [article_text(a) for a in articles]
         n = max(1, len(texts))
         member_topics = [set(self.tax.topic_hits(t)) for t in texts]
@@ -126,6 +127,16 @@ class Ranker:
         comps.append(ScoreComponent(name="uncertainty", value=round(_clamp(unc), 3), weight=w.uncertainty,
                                     evidence=[f"terms: {', '.join(unc_terms[:6])}" if unc_terms else "no risk/uncertainty language"]))
 
+        if review is not None:
+            # Blend the model's judgement with the keyword score; both stay visible as evidence.
+            for c in comps:
+                a = review.scores.get(c.name)
+                if a is None:
+                    continue
+                keyword = c.value
+                c.value = round(_clamp((1 - review_weight) * keyword + review_weight * a.score), 3)
+                c.evidence.append(f"model {a.score:.2f} ({a.reason}); keyword score {keyword:.2f}")
+
         total_w = sum(c.weight for c in comps) or 1.0
         importance = 100 * sum(c.value * c.weight for c in comps) / total_w
 
@@ -135,17 +146,29 @@ class Ranker:
             importance *= self.cfg.soft_news_penalty
             penalties.append(f"soft news (x{self.cfg.soft_news_penalty}): {soft_members}/{n} reports match sports/entertainment/lifestyle terms")
             flags.append("soft_news")
+        elif review is not None and review.soft_news:
+            importance *= self.cfg.soft_news_penalty
+            penalties.append(f"soft news (x{self.cfg.soft_news_penalty}): judged sports/entertainment/lifestyle by {review.model}")
+            flags.append("soft_news")
+        if review is not None and review.outlier_article_ids:
+            flags.append("model_removed_outliers")
+        if review is not None and review.rejected:
+            flags.append("model_text_rejected")
         if indep <= 1 and not official:
             importance *= self.cfg.single_source_penalty
             penalties.append(f"single source (x{self.cfg.single_source_penalty}): not yet independently corroborated")
             flags.append("single_source")
         if ev.topic == "other":
             flags.append("off_taxonomy")
-        if any(a.date_source != "feed" for a in articles):
+        if any(a.date_source not in EXACT_DATE_SOURCES for a in articles):
             flags.append("some_dates_approximate")
 
+        title, headline = ev.title, None
+        if review is not None and review.title:
+            title, headline = review.title, ev.title
         return RankedEvent(
-            rank=None, selected=False, event_id=ev.event_id, title=ev.title, description=ev.description,
+            rank=None, selected=False, event_id=ev.event_id, title=title, headline=headline,
+            summary=review.summary if review else None, review=review, description=ev.description,
             topic=ev.topic, subtopic=ev.subtopic, countries=ev.countries, publishers=ev.publishers,
             independent_sources=indep, article_count=len(articles), importance=round(_clamp(importance / 100) * 100, 1),
             components=comps, penalties=penalties, flags=flags, rationale="",
@@ -153,8 +176,11 @@ class Ranker:
             cluster_confidence=ev.cluster_confidence, is_continuing=ev.is_continuing,
         )
 
-    def rank(self, events: list[EventCandidate], articles_by_id: dict[str, Article]) -> list[RankedEvent]:
-        scored = [self.score(ev, [articles_by_id[a] for a in ev.article_ids if a in articles_by_id]) for ev in events]
+    def rank(self, events: list[EventCandidate], articles_by_id: dict[str, Article],
+             reviews: dict[str, EventReview] | None = None, review_weight: float = 0.5) -> list[RankedEvent]:
+        reviews = reviews or {}
+        scored = [self.score(ev, [articles_by_id[a] for a in ev.article_ids if a in articles_by_id],
+                             reviews.get(ev.event_id), review_weight) for ev in events]
         scored.sort(key=lambda r: (-r.importance, -r.independent_sources, r.event_id))
         selected: list[RankedEvent] = []
         per_topic: Counter = Counter()
@@ -209,4 +235,6 @@ class Ranker:
             parts.append("Included below the normal threshold because few events qualified today.")
         if r.is_continuing:
             parts.append("Continuing story from an earlier run.")
+        if r.review is not None:
+            parts.append(f"Scores blend keyword analysis with a review by {r.review.model}.")
         return " ".join(parts)

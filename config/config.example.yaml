@@ -42,6 +42,28 @@ ingestion:
         - {topic: technology_ai, query: '("artificial intelligence" OR "AI regulation" OR "data center")'}
         - {topic: supply_chain, query: '("supply chain" OR shipping OR freight OR "Red Sea")'}
         - {topic: defense, query: '(military OR missile OR defence OR defense OR NATO)'}
+    newsdata:
+      # NewsData.io free tier: needs a free key in NEWSDATA_API_KEY (skipped without it).
+      # 200 credits/day, 30 per 15 minutes, 1 credit per request of up to 10 articles,
+      # and free-plan articles arrive about 12 hours late (window: past 48 hours).
+      enabled: true
+      api_key_env: NEWSDATA_API_KEY
+      language: en
+      size: 10                       # free-plan maximum
+      removeduplicate: true
+      max_pages_per_query: 1
+      max_credits_per_run: 20        # stays under the 30-per-15-minute limit
+      daily_credit_budget: 180       # headroom below the 200/day quota (counted per UTC day)
+      queries:                       # q: max 100 characters on the free plan (AND/OR/NOT, "phrases")
+        - {topic: geopolitics, q: 'sanctions OR ceasefire OR invasion OR "peace talks"'}
+        - {topic: trade_policy, q: 'tariff OR tariffs OR "export controls" OR "trade deal"'}
+        - {topic: markets_monetary, q: '"central bank" OR "interest rate" OR inflation', category: business}
+        - {topic: energy_commodities, q: 'OPEC OR "oil prices" OR LNG OR "natural gas"'}
+        - {topic: semiconductors_minerals, q: 'semiconductor OR chipmaker OR "rare earth" OR "critical minerals"'}
+        - {topic: technology_ai, q: '"artificial intelligence" OR "AI regulation"', category: technology}
+        - {topic: india, category: business, country: in}
+        - {topic: india, category: politics, country: in}
+        - {topic: geopolitics, category: world}
 
 clustering:
   # Lexical TF-IDF + entity overlap. Optional local embeddings via Ollama.
@@ -53,10 +75,19 @@ clustering:
   link_lookback_days: 7          # link to ongoing events from earlier runs
   link_threshold: 0.38
   embeddings:
-    enabled: false               # requires Ollama running locally
+    # Semantic similarity to catch paraphrases. NVIDIA (needs NVIDIA_API_KEY) or local Ollama.
+    # Without a working provider, clustering silently uses lexical similarity only.
+    enabled: true
+    provider: nvidia             # nvidia | ollama
+    nvidia_model: nvidia/nemotron-3-embed-1b      # 2048 dims; never send a `dimensions` other than 2048
+    nvidia_fallback_models: [nvidia/nv-embedqa-e5-v5]
+    input_type: passage
+    truncate: END
+    batch_size: 50
     ollama_url: http://localhost:11434
-    model: nomic-embed-text
-    weight: 0.5                  # blend: weight*embedding + (1-weight)*lexical
+    model: nomic-embed-text      # Ollama model
+    mode: boost                  # boost: embeddings can only raise similarity (safe); blend: weighted average
+    weight: 0.5
     timeout_seconds: 60
 
 ranking:
@@ -77,3 +108,42 @@ ranking:
   single_source_penalty: 0.85    # multiplier when only one independent publisher
   soft_news_penalty: 0.3         # multiplier for sports/celebrity/lifestyle clusters
   corroboration_cap: 8           # independent publishers needed for full score
+
+llm:
+  # Language model used to review the top events (title, summary, outliers, significance).
+  # NVIDIA's hosted API is free for trial/evaluation use with a key in NVIDIA_API_KEY
+  # (build.nvidia.com). Without a key the review stage is skipped and keyword ranking is used.
+  enabled: true
+  provider: nvidia               # nvidia | ollama
+  timeout_seconds: 120
+  max_retries: 3
+  cache: true                    # never pay twice for an identical request
+  providers:
+    nvidia:
+      base_url: https://integrate.api.nvidia.com/v1
+      api_key_env: NVIDIA_API_KEY
+      requests_per_minute: 20    # free tier allows "up to" 40/min; users report 429s from ~12-24/min
+      structured_output: json_schema
+      poll_url: https://api.nvcf.nvidia.com/v2/nvcf/pexec/status
+      backoff_base_seconds: 5    # 429s carry no Retry-After: wait 5, 10, 20 s
+    ollama:
+      base_url: http://localhost:11434/v1
+      api_key_env: null
+      structured_output: json_object
+  tasks:
+    event_review:
+      # Ordered preference list. NVIDIA retires free models often (most well-known ids returned
+      # 410 Gone between Aug and Oct 2026). A model answering 404/410 is skipped and the next is
+      # tried. These ids were reported live in Oct 2026 by third parties: confirm with
+      # `intelpod llm models` and `intelpod llm test --model <id>`, then reorder or replace.
+      models:
+        - {id: nvidia/nemotron-3.5-lightning-30b-a3b, extra_body: {chat_template_kwargs: {enable_thinking: false}}}
+        - {id: openai/gpt-oss-20b, extra_body: {reasoning_effort: low}, max_tokens: 2000}
+        - {id: google/gemma-4-31b-it, extra_body: {chat_template_kwargs: {enable_thinking: false}}}
+        - {id: nvidia/nemotron-3-ultra-550b-a55b, extra_body: {chat_template_kwargs: {enable_thinking: false}}}
+      temperature: 0.2
+      max_tokens: 900
+  event_review:
+    enabled: true
+    max_events: 12               # one model call per event, highest-ranked first
+    weight: 0.5                  # share of each blended score taken from the model

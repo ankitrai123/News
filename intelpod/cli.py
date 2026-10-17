@@ -9,6 +9,9 @@
   intelpod events [--run ID] [--all]
   intelpod runs
   intelpod serve                  local dashboard on http://127.0.0.1:8000
+  intelpod llm models [--filter x]  models your NVIDIA key can use
+  intelpod llm test               one tiny structured call to check key + model
+  intelpod newsdata test          one NewsData.io request (uses 1 credit)
 """
 from __future__ import annotations
 
@@ -32,6 +35,10 @@ def _settings(args) -> Settings:
         overrides["ingestion.providers.gdelt.enabled"] = False
     if getattr(args, "no_rss", False):
         overrides["ingestion.providers.rss.enabled"] = False
+    if getattr(args, "no_newsdata", False):
+        overrides["ingestion.providers.newsdata.enabled"] = False
+    if getattr(args, "no_llm", False):
+        overrides["llm.enabled"] = False
     if getattr(args, "lookback_hours", None):
         overrides["ingestion.lookback_hours"] = args.lookback_hours
     s = load_settings(args.config, overrides)
@@ -96,6 +103,26 @@ def cmd_doctor(args) -> int:
             report["network"][name] = f"HTTP {r.status_code}, {len(r.content)} bytes"
         except Exception as e:  # noqa: BLE001
             report["network"][name] = f"FAILED: {type(e).__name__}: {str(e)[:120]}"
+    report["api_keys"] = {
+        "NEWSDATA_API_KEY": "set" if os.environ.get(s.ingestion.providers.newsdata.api_key_env) else "not set",
+        "NVIDIA_API_KEY": "set" if os.environ.get("NVIDIA_API_KEY") else "not set",
+    }
+    repo = Repository(Database(s.db_file))
+    report["newsdata_requests_today_utc"] = repo.requests_today("newsdata")
+    from .llm.client import LLMClient, LLMError
+    try:
+        client = LLMClient(s.llm, repo=repo, user_agent=s.app.user_agent)
+        ok, why = client.availability()
+        if ok:
+            models = client.list_models()
+            wanted = [m.id for m in s.llm.tasks["event_review"].models]
+            report["llm"] = {"provider": s.llm.provider, "models_listed": len(models),
+                             "event_review_models": {m: ("listed" if m in models else "NOT listed") for m in wanted},
+                             "note": "listing does not prove a model can be called; run `intelpod llm test`"}
+        else:
+            report["llm"] = {"provider": s.llm.provider, "available": False, "reason": why}
+    except (LLMError, Exception) as e:  # noqa: BLE001 - doctor must always print a report
+        report["llm"] = {"provider": s.llm.provider, "available": False, "reason": f"{type(e).__name__}: {str(e)[:200]}"}
     ram = report["ram_gb"] or 0
     report["recommendation"] = (
         "lightweight mode: lexical clustering only; for later phases use a 1-3B model (e.g. qwen2.5:3b / llama3.2:3b)"
@@ -188,6 +215,83 @@ def cmd_runs(args) -> int:
     usage = repo.provider_usage()
     if usage:
         print("\nrequests in the last 24h: " + ", ".join(f"{u['provider']}={u['requests']} ({u['ok']} ok)" for u in usage))
+    print(f"NewsData.io requests today (UTC): {repo.requests_today('newsdata')} "
+          f"of budget {s.ingestion.providers.newsdata.daily_credit_budget}")
+    for u in repo.llm_usage():
+        print(f"LLM last 24h: {u['provider']}/{u['model']}: {u['calls']} calls ({u['cached']} cached, {u['ok']} ok), "
+              f"{u['prompt_tokens']}+{u['completion_tokens']} tokens")
+    return 0
+
+
+def cmd_llm_models(args) -> int:
+    from .llm.client import LLMClient, LLMError
+
+    s = _settings(args)
+    try:
+        models = LLMClient(s.llm, user_agent=s.app.user_agent).list_models()
+    except LLMError as e:
+        print(f"cannot list models: {e}", file=sys.stderr)
+        return 2
+    for m in models:
+        if not args.filter or args.filter.lower() in m.lower():
+            print(m)
+    print(f"\n{len(models)} models listed by {s.llm.provider}. Listing does not guarantee a model is callable "
+          f"on the free tier; check with `intelpod llm test --model <id>`.", file=sys.stderr)
+    return 0
+
+
+def cmd_llm_test(args) -> int:
+    import time as _time
+
+    from pydantic import BaseModel
+
+    from .llm.client import LLMClient, LLMError
+
+    class Probe(BaseModel):
+        ok: bool
+        capital_of_france: str
+
+    s = _settings(args)
+    if args.model:
+        from .config import LLMModelChoice
+        current = {m.id: m for m in s.llm.tasks["event_review"].models}
+        s.llm.tasks["event_review"].models = [current.get(args.model) or LLMModelChoice(id=args.model)]
+    s.llm.cache = False
+    client = LLMClient(s.llm, repo=Repository(Database(s.db_file)), user_agent=s.app.user_agent)
+    t0 = _time.monotonic()
+    try:
+        obj, model = client.chat_json("event_review", [
+            {"role": "user", "content": 'Reply with JSON {"ok": true, "capital_of_france": "<city>"}.'}], Probe)
+    except LLMError as e:
+        print(f"FAILED: {e}", file=sys.stderr)
+        return 2
+    print(f"OK: {model} answered {obj.model_dump()} in {_time.monotonic() - t0:.1f}s")
+    return 0
+
+
+def cmd_newsdata_test(args) -> int:
+    from .http import HttpClient
+    from .providers.newsdata import NewsdataProvider
+
+    s = _settings(args)
+    cfg = s.ingestion.providers.newsdata
+    if not cfg.queries:
+        print("no newsdata queries configured", file=sys.stderr)
+        return 2
+    repo = Repository(Database(s.db_file))
+    with HttpClient(s.http, s.app.user_agent) as http:
+        p = NewsdataProvider(http, cfg, credits_used_today=lambda: repo.requests_today("newsdata"))
+        if not p.api_key:
+            print(f"{cfg.api_key_env} is not set", file=sys.stderr)
+            return 2
+        items, rec, _, _ = p.fetch_page(cfg.queries[0], None)
+    repo.log_fetches(None, [rec])
+    if not rec.ok:
+        print(f"FAILED: {rec.error}", file=sys.stderr)
+        return 2
+    print(f"OK: {len(items)} articles; credits remaining today: {p.last_credits_remaining if p.last_credits_remaining is not None else 'not reported'}")
+    for it in items[:5]:
+        print(f"  - {it.published_at:%Y-%m-%d %H:%M} {it.source_name}: {it.title}" if it.published_at else f"  - {it.title}")
     return 0
 
 
@@ -222,6 +326,8 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--force", action="store_true", help="start even if another run looks active")
     run.add_argument("--no-gdelt", action="store_true")
     run.add_argument("--no-rss", action="store_true")
+    run.add_argument("--no-newsdata", action="store_true")
+    run.add_argument("--no-llm", action="store_true", help="skip the model review (keyword ranking only)")
     run.add_argument("--lookback-hours", type=int)
     run.set_defaults(fn=cmd_run)
 
@@ -233,6 +339,19 @@ def build_parser() -> argparse.ArgumentParser:
     runs = sub.add_parser("runs", help="list runs and stage status")
     runs.add_argument("--limit", type=int, default=15)
     runs.set_defaults(fn=cmd_runs)
+
+    llm = sub.add_parser("llm", help="language-model tools")
+    lsub = llm.add_subparsers(dest="llm_cmd", required=True)
+    lm = lsub.add_parser("models", help="list models available to your key")
+    lm.add_argument("--filter")
+    lm.set_defaults(fn=cmd_llm_models)
+    lt = lsub.add_parser("test", help="one small structured-output call")
+    lt.add_argument("--model", help="model id to try instead of llm.tasks.event_review.model")
+    lt.set_defaults(fn=cmd_llm_test)
+
+    nd = sub.add_parser("newsdata", help="NewsData.io tools")
+    ndsub = nd.add_subparsers(dest="nd_cmd", required=True)
+    ndsub.add_parser("test", help="one request with the first configured query (1 credit)").set_defaults(fn=cmd_newsdata_test)
 
     srv = sub.add_parser("serve", help="start the local dashboard")
     srv.add_argument("--host", default="127.0.0.1")

@@ -6,7 +6,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-DateSource = Literal["feed", "gdelt_seendate", "missing", "invalid"]
+DateSource = Literal["feed", "api", "gdelt_seendate", "missing", "invalid"]
+EXACT_DATE_SOURCES = frozenset({"feed", "api"})  # publisher timestamps; the rest are approximate or absent
 
 
 class RawItem(BaseModel):
@@ -85,6 +86,28 @@ class EventCandidate(BaseModel):
     centroid: dict[str, float] = Field(default_factory=dict)
 
 
+REVIEW_DIMENSIONS = ("geopolitical", "economic", "business", "india", "long_term")
+
+
+class DimensionAssessment(BaseModel):
+    score: float = Field(ge=0, le=1)
+    reason: str = ""
+
+
+class EventReview(BaseModel):
+    """A language model's review of one event cluster, after IntelPod's own checks."""
+
+    provider: str
+    model: str
+    same_event: bool = True
+    outlier_article_ids: list[str] = Field(default_factory=list)
+    title: str | None = None           # accepted only if grounded in the reports
+    summary: str | None = None         # accepted only if grounded in the reports
+    rejected: dict[str, list[str]] = Field(default_factory=dict)  # field -> unsupported terms
+    soft_news: bool = False
+    scores: dict[str, DimensionAssessment] = Field(default_factory=dict)
+
+
 class RankedEvent(BaseModel):
     rank: int | None
     selected: bool
@@ -106,3 +129,6 @@ class RankedEvent(BaseModel):
     latest_article_at: datetime | None
     cluster_confidence: float | None
     is_continuing: bool
+    headline: str | None = None        # representative publisher headline when `title` is model-written
+    summary: str | None = None
+    review: EventReview | None = None

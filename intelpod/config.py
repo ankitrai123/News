@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -54,9 +54,36 @@ class GdeltProviderConfig(BaseModel):
     queries: list[GdeltQuery] = Field(default_factory=list)
 
 
+class NewsdataQuery(BaseModel):
+    topic: str
+    q: str | None = Field(None, max_length=100)   # free plan: max 100 characters
+    category: str | None = None                    # comma-separated, max 5
+    country: str | None = None                     # comma-separated ISO-2 codes, max 5
+
+
+class NewsdataProviderConfig(BaseModel):
+    """NewsData.io free tier: 200 credits/day, 30 per 15 min, 10 articles per credit, ~12 h delay."""
+
+    enabled: bool = True
+    api_key_env: str = "NEWSDATA_API_KEY"
+    base_url: str = "https://newsdata.io/api/1"
+    endpoint: str = "latest"
+    language: str = "en"
+    size: int = Field(10, ge=1, le=50)             # free plan maximum is 10
+    search_field: str = Field("q", pattern="^(q|qInMeta)$")
+    removeduplicate: bool = True
+    prioritydomain: str | None = None              # top | medium | low
+    max_pages_per_query: int = Field(1, ge=1, le=10)
+    max_credits_per_run: int = Field(20, ge=1)     # stays under the 30-per-15-minute limit
+    daily_credit_budget: int = Field(180, ge=1)    # leave headroom below the 200/day quota
+    min_interval_seconds: float = 2.0
+    queries: list[NewsdataQuery] = Field(default_factory=list)
+
+
 class ProvidersConfig(BaseModel):
     rss: RssProviderConfig = Field(default_factory=RssProviderConfig)
     gdelt: GdeltProviderConfig = Field(default_factory=GdeltProviderConfig)
+    newsdata: NewsdataProviderConfig = Field(default_factory=NewsdataProviderConfig)
 
 
 class IngestionConfig(BaseModel):
@@ -68,8 +95,15 @@ class IngestionConfig(BaseModel):
 
 class EmbeddingsConfig(BaseModel):
     enabled: bool = False
+    provider: str = Field("nvidia", pattern="^(nvidia|ollama)$")
     ollama_url: str = "http://localhost:11434"
-    model: str = "nomic-embed-text"
+    model: str = "nomic-embed-text"                 # Ollama model
+    nvidia_model: str = "nvidia/nemotron-3-embed-1b"  # NVIDIA API model (uses llm.providers.nvidia)
+    nvidia_fallback_models: list[str] = Field(default_factory=lambda: ["nvidia/nv-embedqa-e5-v5"])
+    input_type: str = "passage"                     # NVIDIA retrieval models require it
+    truncate: str = "END"                           # NVIDIA: NONE | START | END
+    batch_size: int = Field(50, ge=1, le=512)
+    mode: str = Field("boost", pattern="^(boost|blend)$")  # boost: embeddings can only raise similarity
     weight: float = Field(0.5, ge=0, le=1)
     timeout_seconds: float = 60
 
@@ -108,12 +142,91 @@ class RankingConfig(BaseModel):
     corroboration_cap: int = 8
 
 
+class LLMProviderConfig(BaseModel):
+    base_url: str
+    api_key_env: str | None = None                 # env var holding the key; None for local Ollama
+    requests_per_minute: float = 0                 # client-side pacing; 0 = unlimited
+    structured_output: str = Field("none", pattern="^(none|guided_json|json_schema|json_object)$")
+    extra_body: dict = Field(default_factory=dict)  # provider-specific request fields
+    poll_url: str | None = None                     # NVIDIA: where 202-queued requests are polled
+    backoff_base_seconds: float = 2.0               # retry backoff for 429/5xx (NVIDIA sends no Retry-After)
+
+
+class LLMModelChoice(BaseModel):
+    id: str
+    extra_body: dict = Field(default_factory=dict)  # model-specific fields, e.g. reasoning switches
+    max_tokens: int | None = None                   # override (reasoning models need more room)
+
+
+class LLMTaskConfig(BaseModel):
+    """Ordered model preference list: on 404/410 (not available / retired) the next model is tried."""
+
+    models: list[LLMModelChoice] = Field(min_length=1)
+    temperature: float = 0.1
+    top_p: float | None = None                      # change temperature OR top_p, not both
+    max_tokens: int = 900
+
+    @model_validator(mode="before")
+    @classmethod
+    def _accept_single_model(cls, data):
+        # Backwards compatible: `model: "x"` (+ optional `extra_body`) means a one-item list.
+        if isinstance(data, dict) and "model" in data and "models" not in data:
+            data = dict(data)
+            data["models"] = [{"id": data.pop("model"), "extra_body": data.pop("extra_body", {}) or {}}]
+        return data
+
+    @property
+    def model(self) -> str:
+        return self.models[0].id
+
+
+def _default_llm_providers() -> dict[str, LLMProviderConfig]:
+    return {
+        "nvidia": LLMProviderConfig(base_url="https://integrate.api.nvidia.com/v1", api_key_env="NVIDIA_API_KEY",
+                                    requests_per_minute=20, structured_output="json_schema",
+                                    poll_url="https://api.nvcf.nvidia.com/v2/nvcf/pexec/status",
+                                    backoff_base_seconds=5.0),
+        "ollama": LLMProviderConfig(base_url="http://localhost:11434/v1", api_key_env=None,
+                                    requests_per_minute=0, structured_output="json_object"),
+    }
+
+
+_NO_THINK = {"chat_template_kwargs": {"enable_thinking": False}}
+# Free NVIDIA endpoints reported live in Oct 2026 (third-party evidence; NVIDIA retires models often).
+# Verify with `intelpod llm models` / `intelpod llm test` and reorder or replace as needed.
+DEFAULT_REVIEW_MODELS = [
+    LLMModelChoice(id="nvidia/nemotron-3.5-lightning-30b-a3b", extra_body=_NO_THINK),
+    LLMModelChoice(id="openai/gpt-oss-20b", extra_body={"reasoning_effort": "low"}, max_tokens=2000),
+    LLMModelChoice(id="google/gemma-4-31b-it", extra_body=_NO_THINK),
+    LLMModelChoice(id="nvidia/nemotron-3-ultra-550b-a55b", extra_body=_NO_THINK),
+]
+
+
+class EventReviewConfig(BaseModel):
+    enabled: bool = True
+    max_events: int = Field(12, ge=0)               # model calls per run (one per event)
+    weight: float = Field(0.5, ge=0, le=1)          # share of each blended score taken from the model
+
+
+class LLMConfig(BaseModel):
+    enabled: bool = True
+    provider: str = "nvidia"
+    providers: dict[str, LLMProviderConfig] = Field(default_factory=_default_llm_providers)
+    timeout_seconds: float = 120
+    max_retries: int = 3
+    cache: bool = True
+    tasks: dict[str, LLMTaskConfig] = Field(default_factory=lambda: {
+        "event_review": LLMTaskConfig(temperature=0.2, max_tokens=900, models=DEFAULT_REVIEW_MODELS)})
+    event_review: EventReviewConfig = Field(default_factory=EventReviewConfig)
+
+
 class Settings(BaseModel):
     app: AppConfig = Field(default_factory=AppConfig)
     http: HttpConfig = Field(default_factory=HttpConfig)
     ingestion: IngestionConfig = Field(default_factory=IngestionConfig)
     clustering: ClusteringConfig = Field(default_factory=ClusteringConfig)
     ranking: RankingConfig = Field(default_factory=RankingConfig)
+    llm: LLMConfig = Field(default_factory=LLMConfig)
     taxonomy_file: str = "config/taxonomy.yaml"
 
     def resolve(self, path: str) -> Path:
@@ -140,15 +253,20 @@ _ENV_OVERRIDES: dict[str, tuple[str, ...]] = {
     "INTELPOD_FEEDS_FILE": ("ingestion", "feeds_file"),
     "INTELPOD_RSS_ENABLED": ("ingestion", "providers", "rss", "enabled"),
     "INTELPOD_GDELT_ENABLED": ("ingestion", "providers", "gdelt", "enabled"),
+    "INTELPOD_NEWSDATA_ENABLED": ("ingestion", "providers", "newsdata", "enabled"),
+    "INTELPOD_LLM_ENABLED": ("llm", "enabled"),
+    "INTELPOD_LLM_PROVIDER": ("llm", "provider"),
     "INTELPOD_EMBEDDINGS_ENABLED": ("clustering", "embeddings", "enabled"),
+    "INTELPOD_EMBEDDINGS_PROVIDER": ("clustering", "embeddings", "provider"),
     "INTELPOD_OLLAMA_URL": ("clustering", "embeddings", "ollama_url"),
     "INTELPOD_EMBEDDING_MODEL": ("clustering", "embeddings", "model"),
 }
 
 
 def _load_dotenv(path: Path) -> None:
-    """Minimal .env reader (no dependency). Existing env vars win."""
-    if not path.exists():
+    """Minimal .env reader (no dependency). Existing env vars win.
+    INTELPOD_NO_DOTENV=1 disables it (the test suite sets this so real keys are never used)."""
+    if os.environ.get("INTELPOD_NO_DOTENV") == "1" or not path.exists():
         return
     for line in path.read_text(encoding="utf-8").splitlines():
         line = line.strip()
