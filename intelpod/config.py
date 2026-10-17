@@ -258,6 +258,87 @@ class LLMConfig(BaseModel):
     event_review: EventReviewConfig = Field(default_factory=EventReviewConfig)
 
 
+class ResearchGdeltConfig(BaseModel):
+    """GDELT DOC 2.0 searches over the research window (shares GDELT's throttling with ingestion)."""
+
+    enabled: bool = True
+    max_queries_per_event: int = Field(4, ge=0, le=10)  # combined queries; results are re-labelled locally
+    max_requests_per_run: int = Field(32, ge=0)
+    max_records: int = Field(75, ge=1, le=250)
+    sort: str = "HybridRel"
+    language_filter: str = "sourcelang:english"
+
+
+class ResearchFeedsConfig(BaseModel):
+    """Official, international-organisation and think-tank feeds, fetched once per run and
+    matched to events locally (no per-query requests)."""
+
+    enabled: bool = True
+    feeds_file: str = "config/research_feeds.yaml"
+    keep_days: int = Field(45, ge=1)                 # how long fetched items stay searchable
+
+
+class ResearchArchiveConfig(BaseModel):
+    """Search IntelPod's own stored articles (every ingest run adds to it): free and instant."""
+
+    enabled: bool = True
+
+
+class ResearchKeyedApiConfig(BaseModel):
+    """Optional API that needs a free key; skipped (with a note) when the key is not set."""
+
+    enabled: bool = True
+    api_key_env: str = ""
+    max_requests_per_run: int = Field(20, ge=0)
+    page_size: int = Field(20, ge=1, le=50)
+
+
+class ResearchPagesConfig(BaseModel):
+    """Fetching result pages for dates, page type and short evidence extracts."""
+
+    enabled: bool = True
+    max_pages_per_event: int = Field(18, ge=0)
+    max_pages_per_run: int = Field(140, ge=0)
+    max_bytes: int = Field(2_500_000, ge=10_000)
+    timeout_seconds: float = 20
+    workers: int = Field(4, ge=1, le=12)             # different hosts in parallel; same host stays throttled
+    max_extracts_per_result: int = Field(3, ge=0, le=6)
+    max_extract_chars: int = Field(300, ge=80, le=400)
+    cache_days: int = Field(7, ge=0)                 # page metadata (never text) cached this long
+
+
+class ResearchConfig(BaseModel):
+    enabled: bool = True
+    window_days: int = Field(14, ge=1, le=90)        # product spec: 10-21 days; GDELT searches <= ~3 months
+    latest_days: int = Field(3, ge=1, le=30)         # "latest facts" look this far back
+    allow_background: bool = True                    # keep a few older, highly relevant sources as background
+    background_days: int = Field(90, ge=1, le=365)
+    max_events: int = Field(8, ge=0)
+    min_results: int = Field(10, ge=0)               # below this the package records a limitation
+    max_results: int = Field(15, ge=1, le=40)
+    min_relevance: float = Field(0.12, ge=0, le=1)
+    max_per_publisher: int = Field(3, ge=1)
+    max_from_event: int = Field(4, ge=0)             # the event's own Phase 1 reports in the package
+    max_seconds: float = Field(900, ge=30)           # research stops starting new events after this
+    search_cache_hours: float = Field(12, ge=0)
+    model_queries: bool = True                       # one model call per event proposes extra keywords
+    model_notes: bool = True                         # one model call per event writes grounded notes
+    max_model_calls: int = Field(20, ge=0)
+    gdelt: ResearchGdeltConfig = Field(default_factory=ResearchGdeltConfig)
+    feeds: ResearchFeedsConfig = Field(default_factory=ResearchFeedsConfig)
+    archive: ResearchArchiveConfig = Field(default_factory=ResearchArchiveConfig)
+    guardian: ResearchKeyedApiConfig = Field(default_factory=lambda: ResearchKeyedApiConfig(api_key_env="GUARDIAN_API_KEY"))
+    pages: ResearchPagesConfig = Field(default_factory=ResearchPagesConfig)
+
+    @model_validator(mode="after")
+    def _check(self):
+        if self.min_results > self.max_results:
+            raise ValueError("research.min_results must not exceed research.max_results")
+        if self.latest_days > self.window_days:
+            self.latest_days = self.window_days
+        return self
+
+
 class Settings(BaseModel):
     app: AppConfig = Field(default_factory=AppConfig)
     http: HttpConfig = Field(default_factory=HttpConfig)
@@ -265,6 +346,7 @@ class Settings(BaseModel):
     clustering: ClusteringConfig = Field(default_factory=ClusteringConfig)
     ranking: RankingConfig = Field(default_factory=RankingConfig)
     llm: LLMConfig = Field(default_factory=LLMConfig)
+    research: ResearchConfig = Field(default_factory=ResearchConfig)
     taxonomy_file: str = "config/taxonomy.yaml"
 
     def resolve(self, path: str) -> Path:
