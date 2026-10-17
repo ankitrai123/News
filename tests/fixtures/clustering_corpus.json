@@ -1,0 +1,5269 @@
+{
+"_note":"SYNTHETIC evaluation data for clustering tests. Headlines, publishers and descriptions were written by a language model to imitate how many outlets cover one story; they are NOT real news reports, the publishers are fictional, and nothing here may be shown as news. Each story has a kind: big (20+ reports), medium (6-9), distractor (shares countries/topic words with another story but is a different event) or singleton.",
+"days":[
+{
+"day":"day1",
+"stories":[
+{
+"story_id":"us-russia-oil-waiver",
+"kind":"big",
+"summary":"US Treasury issues a 180-day sanctions waiver (general license) allowing purchases of Russian crude oil, easing pressure on Indian refiners.",
+"headlines":[
+{
+"title":"US grants waiver allowing purchases of Russian oil for 180 days",
+"publisher":"Global Wire Service",
+"description":"The US Treasury issued a general license permitting transactions involving Russian-origin crude for six months, easing secondary-sanctions risk for buyers including India.",
+"hours_ago":22
+},
+{
+"title":"US grants waiver allowing purchases of Russian oil for 180 days",
+"publisher":"Midwest Courier",
+"description":"",
+"hours_ago":21
+},
+{
+"title":"U.S. grants waiver allowing Russian oil purchases for 180 days",
+"publisher":"Gulf Coast Tribune",
+"description":"Buyers of Russian crude will not face U.S. penalties for six months under a license issued by the Treasury Department.",
+"hours_ago":20
+},
+{
+"title":"Washington eases sanctions grip, lets buyers resume Russian crude purchases",
+"publisher":"Atlantic Ledger",
+"description":"",
+"hours_ago":19
+},
+{
+"title":"Treasury issues general license covering Russian crude transactions",
+"publisher":"Capital Markets Daily",
+"description":"The OFAC license authorizes payments, shipping and insurance tied to Russian oil cargoes through mid-April.",
+"hours_ago":21
+},
+{
+"title":"Relief for Indian refiners as US exempts Russian oil from sanctions",
+"publisher":"Delhi Business Ledger",
+"description":"",
+"hours_ago":15
+},
+{
+"title":"What the US waiver on Russian oil means for India's import bill",
+"publisher":"Bombay Market Journal",
+"description":"Discounted Urals barrels could trim India's crude import costs by several billion dollars if the exemption runs its full six-month term.",
+"hours_ago":12
+},
+{
+"title":"Trump administration carves out Russian crude from sanctions regime",
+"publisher":"Capitol Report",
+"description":"",
+"hours_ago":20
+},
+{
+"title":"Oil prices slip after US loosens curbs on Russian crude",
+"publisher":"Energy Markets Wire",
+"description":"Brent fell nearly 2% as traders bet more Russian barrels would flow to Asian buyers following Washington's waiver.",
+"hours_ago":18
+},
+{
+"title":"Brent drops as Washington opens door to Moscow's barrels",
+"publisher":"Commodity Desk",
+"description":"",
+"hours_ago":17
+},
+{
+"title":"IOC, BPCL set to step up Russian crude buying after US nod",
+"publisher":"Economic Herald of India",
+"description":"",
+"hours_ago":10
+},
+{
+"title":"Kremlin welcomes US exemption for buyers of Russian oil",
+"publisher":"Eurasia Daily",
+"description":"A Kremlin spokesman called the six-month license a pragmatic step but said Western sanctions remained illegitimate.",
+"hours_ago":14
+},
+{
+"title":"Kyiv says US waiver on Russian oil sends 'wrong signal' to Moscow",
+"publisher":"Dnipro Herald",
+"description":"Ukraine's foreign ministry urged Washington to reconsider the license allowing purchases of Russian crude.",
+"hours_ago":13
+},
+{
+"title":"Delhi breathes easier as Washington relents on Moscow crude",
+"publisher":"The Southern Chronicle",
+"description":"",
+"hours_ago":11
+},
+{
+"title":"White House signs off on temporary exemption for Russian crude buyers",
+"publisher":"Washington Brief",
+"description":"",
+"hours_ago":21
+},
+{
+"title":"Rupee gains as US relief on Russian oil eases import worries",
+"publisher":"Times of the Nation",
+"description":"The rupee rose 22 paise against the dollar as the prospect of cheaper crude improved India's import outlook.",
+"hours_ago":6
+},
+{
+"title":"OMC stocks rally after US clears way for Russian oil imports",
+"publisher":"Dalal Street Wire",
+"description":"Shares of HPCL, BPCL and IOC rose up to 4% in early trade after the US sanctions waiver.",
+"hours_ago":5
+},
+{
+"title":"Sanctions U-turn? US opens six-month window for Russian crude",
+"publisher":"London Financial Courier",
+"description":"",
+"hours_ago":16
+},
+{
+"title":"Explained: The US general license on Russian oil and who gains from it",
+"publisher":"The Indian Chronicle Online",
+"description":"",
+"hours_ago":8
+},
+{
+"title":"Urals discount narrows after US eases sanctions on Russian oil trade",
+"publisher":"Gulf Energy Review",
+"description":"Traders said discounts for Russia's flagship grade tightened by about $2 a barrel on renewed Indian and Chinese interest.",
+"hours_ago":9
+},
+{
+"title":"EU officials voice concern over US exemption for Russian crude",
+"publisher":"Brussels Policy Review",
+"description":"",
+"hours_ago":12
+},
+{
+"title":"Bessent defends Russian oil waiver as a way to cool fuel prices",
+"publisher":"Potomac Times",
+"description":"The Treasury secretary said the temporary license would keep global supply stable heading into winter.",
+"hours_ago":15
+},
+{
+"title":"Senate Democrats demand briefing on Russian oil sanctions waiver",
+"publisher":"Hill Dispatch",
+"description":"",
+"hours_ago":4
+},
+{
+"title":"Asian refiners eye more Russian cargoes after US relaxes sanctions",
+"publisher":"Asia Markets Post",
+"description":"",
+"hours_ago":7
+}
+]
+},
+{
+"story_id":"fed-rate-cut",
+"kind":"big",
+"summary":"US Federal Reserve cuts its benchmark interest rate by 25 basis points to a 3.25%-3.50% range at its policy meeting.",
+"headlines":[
+{
+"title":"Fed cuts rates by a quarter point",
+"publisher":"Global Wire Service",
+"description":"The Federal Reserve lowered its benchmark rate to a 3.25%-3.50% range, citing a softer labor market and moderating inflation.",
+"hours_ago":18
+},
+{
+"title":"Fed cuts interest rates by a quarter point",
+"publisher":"Midwest Courier",
+"description":"",
+"hours_ago":17
+},
+{
+"title":"Fed cuts rates by quarter point",
+"publisher":"Valley Herald",
+"description":"",
+"hours_ago":17
+},
+{
+"title":"Federal Reserve lowers benchmark rate to 3.25%-3.50% range",
+"publisher":"Capital Markets Daily",
+"description":"It was the central bank's second straight quarter-point reduction.",
+"hours_ago":18
+},
+{
+"title":"Fed delivers another rate cut but signals caution on further easing",
+"publisher":"Atlantic Ledger",
+"description":"Policymakers said future moves would depend on incoming data, tempering bets on a further reduction in December.",
+"hours_ago":17
+},
+{
+"title":"Stocks climb on Wall Street after Fed trims borrowing costs",
+"publisher":"Market Pulse",
+"description":"",
+"hours_ago":16
+},
+{
+"title":"Treasury yields fall as Fed eases policy",
+"publisher":"Bond Desk Journal",
+"description":"",
+"hours_ago":16
+},
+{
+"title":"Dollar slips after US central bank's 25-basis-point reduction",
+"publisher":"Currency Desk Daily",
+"description":"",
+"hours_ago":15
+},
+{
+"title":"What the Fed's rate cut means for your mortgage and savings",
+"publisher":"Household Money",
+"description":"Mortgage rates may edge lower, but savers should expect smaller returns on high-yield accounts.",
+"hours_ago":14
+},
+{
+"title":"Fed rate cut: Sensex, Nifty poised for strong open",
+"publisher":"Dalal Street Wire",
+"description":"GIFT Nifty pointed to a gap-up start as global markets cheered the US central bank's move.",
+"hours_ago":9
+},
+{
+"title":"US rate cut could revive foreign inflows into Indian equities, analysts say",
+"publisher":"Economic Herald of India",
+"description":"",
+"hours_ago":8
+},
+{
+"title":"Fed chair says quarter-point cut appropriate as hiring slows",
+"publisher":"Potomac Times",
+"description":"At a post-meeting news conference, the Fed chair said risks to employment had risen while inflation pressures had eased.",
+"hours_ago":16
+},
+{
+"title":"Two FOMC members dissent as Fed eases policy again",
+"publisher":"The Policy Observer",
+"description":"",
+"hours_ago":17
+},
+{
+"title":"Gold hits record high after Fed cut",
+"publisher":"Commodity Desk",
+"description":"",
+"hours_ago":13
+},
+{
+"title":"Gulf markets cheer Fed's quarter-point move",
+"publisher":"Emirates Business Today",
+"description":"Because Gulf currencies are pegged to the dollar, regional borrowing costs typically track US rate changes.",
+"hours_ago":10
+},
+{
+"title":"Trump presses for deeper cuts after Fed's quarter-point move",
+"publisher":"Capitol Report",
+"description":"",
+"hours_ago":14
+},
+{
+"title":"Analysis: Fed's cut leaves December move in doubt",
+"publisher":"London Financial Courier",
+"description":"Divisions on the rate-setting committee suggest the bar for another reduction this year is higher.",
+"hours_ago":12
+},
+{
+"title":"US central bank trims key lending rate, citing softer hiring",
+"publisher":"Continental Press Agency",
+"description":"",
+"hours_ago":18
+},
+{
+"title":"Rupee firms as Fed easing lifts emerging-market currencies",
+"publisher":"Times of the Nation",
+"description":"",
+"hours_ago":7
+},
+{
+"title":"Borrowing costs fall again as Fed acts to support slowing economy",
+"publisher":"Lakeshore Daily News",
+"description":"",
+"hours_ago":15
+},
+{
+"title":"Fed cuts rates: What it means for Indian investors, students and borrowers",
+"publisher":"Bombay Market Journal",
+"description":"A weaker dollar could ease costs for students abroad, while foreign fund flows may improve, experts said.",
+"hours_ago":6
+},
+{
+"title":"Asian shares rise after Federal Reserve easing",
+"publisher":"Asia Markets Post",
+"description":"",
+"hours_ago":11
+}
+]
+},
+{
+"story_id":"opec-plus-december-output",
+"kind":"medium",
+"summary":"Eight OPEC+ members agree to raise oil output by 137,000 barrels per day in December.",
+"headlines":[
+{
+"title":"OPEC+ agrees to raise oil output by 137,000 bpd in December",
+"publisher":"Global Wire Service",
+"description":"Eight members of the producer alliance approved another modest increase at a virtual meeting, citing healthy market fundamentals.",
+"hours_ago":30
+},
+{
+"title":"Oil producers' alliance opts for another small supply increase",
+"publisher":"Atlantic Ledger",
+"description":"",
+"hours_ago":29
+},
+{
+"title":"OPEC+ sticks to cautious path with modest December hike",
+"publisher":"Energy Markets Wire",
+"description":"The group kept the pace of unwinding its voluntary cuts unchanged from the previous month.",
+"hours_ago":28
+},
+{
+"title":"Saudi-led group nudges production higher despite surplus fears",
+"publisher":"Gulf Energy Review",
+"description":"",
+"hours_ago":27
+},
+{
+"title":"OPEC+ output decision: What it means for petrol prices in India",
+"publisher":"Delhi Business Ledger",
+"description":"",
+"hours_ago":24
+},
+{
+"title":"Eight OPEC+ nations approve December quota increase",
+"publisher":"Emirates Business Today",
+"description":"Saudi Arabia, Russia, the UAE and five other producers will add 137,000 barrels per day next month.",
+"hours_ago":26
+}
+]
+},
+{
+"story_id":"india-canada-trade-pact",
+"kind":"medium",
+"summary":"India and Canada sign an interim (early progress) trade agreement cutting tariffs on a range of goods.",
+"headlines":[
+{
+"title":"India, Canada sign interim trade agreement",
+"publisher":"Global Wire Service",
+"description":"The early progress pact cuts tariffs on a range of goods and sets a timeline for talks on services and investment.",
+"hours_ago":11
+},
+{
+"title":"New Delhi, Ottawa ink early-harvest trade deal",
+"publisher":"Times of the Nation",
+"description":"",
+"hours_ago":10
+},
+{
+"title":"Goyal, Canadian counterpart sign pact aiming to double bilateral trade",
+"publisher":"Economic Herald of India",
+"description":"",
+"hours_ago":9
+},
+{
+"title":"India-Canada trade pact: Pulses, IT services among big winners",
+"publisher":"Bombay Market Journal",
+"description":"Canadian lentil growers and Indian software exporters stand to gain most from the tariff cuts.",
+"hours_ago":7
+},
+{
+"title":"Canada and India seal trade deal, capping thaw in relations",
+"publisher":"Maple Business Daily",
+"description":"The signing in New Delhi follows a year of restored diplomatic ties after a prolonged rift.",
+"hours_ago":12
+},
+{
+"title":"Carney hails trade agreement with India as 'a new chapter'",
+"publisher":"Ottawa Ledger",
+"description":"",
+"hours_ago":12
+},
+{
+"title":"Textile, gems exporters cheer India-Canada tariff cuts",
+"publisher":"The Southern Chronicle",
+"description":"",
+"hours_ago":5
+}
+]
+},
+{
+"story_id":"eu-china-steel-duties",
+"kind":"medium",
+"summary":"European Commission imposes provisional anti-dumping duties of up to 35% on Chinese steel imports.",
+"headlines":[
+{
+"title":"EU slaps duties of up to 35% on Chinese steel imports",
+"publisher":"Global Wire Service",
+"description":"",
+"hours_ago":25
+},
+{
+"title":"Brussels imposes anti-dumping tariffs on Chinese coated steel",
+"publisher":"Brussels Policy Review",
+"description":"The European Commission said provisional duties of 18% to 35% would apply pending a final decision.",
+"hours_ago":24
+},
+{
+"title":"European Commission moves to shield steelmakers from cheap Chinese supply",
+"publisher":"London Financial Courier",
+"description":"",
+"hours_ago":23
+},
+{
+"title":"China 'firmly opposes' EU steel duties, vows to protect its companies",
+"publisher":"Asia Markets Post",
+"description":"Beijing's commerce ministry called the measures protectionist and urged Brussels to reverse course.",
+"hours_ago":20
+},
+{
+"title":"European steel shares rise after EU levies on Chinese steel",
+"publisher":"Market Pulse",
+"description":"",
+"hours_ago":22
+},
+{
+"title":"EU duties on Chinese steel may open door for Indian mills",
+"publisher":"Economic Herald of India",
+"description":"Indian producers could gain share in Europe, though they remain subject to the bloc's safeguard quotas.",
+"hours_ago":14
+}
+]
+},
+{
+"story_id":"ukraine-russia-istanbul-talks",
+"kind":"medium",
+"summary":"Russian and Ukrainian delegations hold a new round of peace talks in Istanbul, agreeing a prisoner swap but no ceasefire.",
+"headlines":[
+{
+"title":"Russia, Ukraine open new round of peace talks in Istanbul",
+"publisher":"Global Wire Service",
+"description":"Delegations met at a Turkish government venue for the first direct negotiations in several months.",
+"hours_ago":26
+},
+{
+"title":"Kyiv and Moscow negotiators meet in Turkey for fresh talks",
+"publisher":"Atlantic Ledger",
+"description":"",
+"hours_ago":25
+},
+{
+"title":"Ukraine, Russia agree to swap 1,000 prisoners each at Istanbul talks",
+"publisher":"Continental Press Agency",
+"description":"",
+"hours_ago":21
+},
+{
+"title":"Istanbul peace talks end without ceasefire breakthrough",
+"publisher":"London Financial Courier",
+"description":"Both sides agreed to keep technical contacts going but remained far apart on territorial questions.",
+"hours_ago":20
+},
+{
+"title":"Zelensky calls Istanbul talks 'a step forward', urges more pressure on Moscow",
+"publisher":"Dnipro Herald",
+"description":"",
+"hours_ago":19
+},
+{
+"title":"Kremlin calls Istanbul negotiations 'constructive' but says gaps remain",
+"publisher":"Eurasia Daily",
+"description":"Moscow's delegation head said a further meeting could be held once working groups report back.",
+"hours_ago":18
+},
+{
+"title":"Turkey's Fidan opens latest round of Russia-Ukraine negotiations",
+"publisher":"Bosphorus Daily",
+"description":"",
+"hours_ago":26
+}
+]
+},
+{
+"story_id":"russia-drone-strike-kharkiv",
+"kind":"distractor",
+"summary":"Overnight Russian drone attack damages energy infrastructure in Ukraine's Kharkiv region, cutting power.",
+"headlines":[
+{
+"title":"Russian drone attack knocks out power in parts of Kharkiv",
+"publisher":"Global Wire Service",
+"description":"Ukraine's energy ministry said crews were working to restore electricity to about 40,000 households.",
+"hours_ago":31
+},
+{
+"title":"Overnight Russian strike damages energy facility in eastern Ukraine",
+"publisher":"Dnipro Herald",
+"description":"",
+"hours_ago":30
+},
+{
+"title":"Kharkiv hit by wave of drones; regional governor reports five injured",
+"publisher":"Continental Press Agency",
+"description":"",
+"hours_ago":29
+}
+]
+},
+{
+"story_id":"trump-mexico-tariffs",
+"kind":"distractor",
+"summary":"Trump announces tariffs on Mexican imports will rise to 30% from December.",
+"headlines":[
+{
+"title":"Trump to raise tariffs on Mexican goods to 30% from December",
+"publisher":"Global Wire Service",
+"description":"The president said the higher rate would apply to goods outside the USMCA trade pact unless Mexico does more on border security.",
+"hours_ago":3
+},
+{
+"title":"White House announces higher duties on Mexico, citing border concerns",
+"publisher":"Capitol Report",
+"description":"",
+"hours_ago":2
+},
+{
+"title":"Peso slides after Trump tariff move against Mexico",
+"publisher":"Currency Desk Daily",
+"description":"",
+"hours_ago":1
+}
+]
+},
+{
+"story_id":"us-iran-oil-shipping-sanctions",
+"kind":"distractor",
+"summary":"US Treasury sanctions tankers and front companies accused of shipping Iranian oil.",
+"headlines":[
+{
+"title":"US sanctions shipping network accused of moving Iranian oil",
+"publisher":"Global Wire Service",
+"description":"The Treasury designated a dozen tankers and several front companies it said helped ship Iranian crude to Asian buyers.",
+"hours_ago":6
+},
+{
+"title":"Treasury targets tankers, front companies in new Iran oil sanctions",
+"publisher":"Potomac Times",
+"description":"",
+"hours_ago":5
+},
+{
+"title":"OFAC blacklists 12 vessels over Iranian crude shipments",
+"publisher":"Gulf Energy Review",
+"description":"",
+"hours_ago":4
+}
+]
+},
+{
+"story_id":"modi-putin-phone-call",
+"kind":"distractor",
+"summary":"Indian PM Modi and Russian President Putin hold a phone call on bilateral ties and summit preparations.",
+"headlines":[
+{
+"title":"Modi, Putin speak by phone, review preparations for annual summit",
+"publisher":"Times of the Nation",
+"description":"",
+"hours_ago":28
+},
+{
+"title":"Kremlin says Putin and Modi held 'warm and substantive' phone call",
+"publisher":"Eurasia Daily",
+"description":"",
+"hours_ago":29
+},
+{
+"title":"PM Modi dials Putin, discusses bilateral ties and situation in Ukraine",
+"publisher":"The Southern Chronicle",
+"description":"The two leaders also reviewed preparations for the next India-Russia annual summit, the MEA said.",
+"hours_ago":27
+}
+]
+},
+{
+"story_id":"reliance-q2-results",
+"kind":"distractor",
+"summary":"Reliance Industries reports second-quarter earnings ahead of estimates.",
+"headlines":[
+{
+"title":"Reliance Industries Q2 net profit rises 9% on retail, Jio strength",
+"publisher":"Economic Herald of India",
+"description":"Consolidated net profit came in at about ₹19,800 crore, ahead of analyst estimates.",
+"hours_ago":2
+},
+{
+"title":"RIL Q2 results: O2C margins improve, profit beats estimates",
+"publisher":"Dalal Street Wire",
+"description":"",
+"hours_ago":1
+},
+{
+"title":"Reliance quarterly earnings top Street view as refining margins recover",
+"publisher":"Global Wire Service",
+"description":"",
+"hours_ago":0
+}
+]
+},
+{
+"story_id":"china-eu-wine-probe",
+"kind":"distractor",
+"summary":"China launches an anti-dumping investigation into wine imported from the EU.",
+"headlines":[
+{
+"title":"China launches anti-dumping investigation into EU wine imports",
+"publisher":"Asia Markets Post",
+"description":"The commerce ministry said the probe would cover still wines from France, Italy and Spain and could last up to a year.",
+"hours_ago":33
+},
+{
+"title":"Beijing targets European wine with fresh trade probe",
+"publisher":"London Financial Courier",
+"description":"",
+"hours_ago":32
+},
+{
+"title":"French winemakers alarmed as China opens dumping inquiry",
+"publisher":"Brussels Policy Review",
+"description":"",
+"hours_ago":31
+}
+]
+},
+{
+"story_id":"bank-of-canada-rate-cut",
+"kind":"distractor",
+"summary":"Bank of Canada cuts its policy rate by a quarter point to 2%.",
+"headlines":[
+{
+"title":"Bank of Canada trims key rate to 2%",
+"publisher":"Maple Business Daily",
+"description":"The central bank cut its policy rate by a quarter point, saying US tariffs continue to weigh on exports and business investment.",
+"hours_ago":19
+},
+{
+"title":"Canadian central bank eases again as economy slows",
+"publisher":"Global Wire Service",
+"description":"",
+"hours_ago":19
+},
+{
+"title":"Loonie dips after Bank of Canada rate cut",
+"publisher":"Currency Desk Daily",
+"description":"",
+"hours_ago":18
+}
+]
+},
+{
+"story_id":"india-us-trade-talks-round",
+"kind":"distractor",
+"summary":"Indian and US negotiators begin a new round of bilateral trade agreement talks in New Delhi.",
+"headlines":[
+{
+"title":"India, US begin fresh round of trade talks in New Delhi",
+"publisher":"Times of the Nation",
+"description":"A US delegation led by an assistant trade representative will hold four days of negotiations on a bilateral trade agreement.",
+"hours_ago":8
+},
+{
+"title":"Goyal meets visiting US trade team as negotiators push to close deal",
+"publisher":"Economic Herald of India",
+"description":"",
+"hours_ago":7
+},
+{
+"title":"India-US trade negotiations: Farm market access tops agenda",
+"publisher":"Delhi Business Ledger",
+"description":"",
+"hours_ago":6
+}
+]
+},
+{
+"story_id":"bessent-he-lifeng-talks",
+"kind":"distractor",
+"summary":"US Treasury says Secretary Bessent will meet China's He Lifeng next week for trade talks.",
+"headlines":[
+{
+"title":"Bessent to meet China's He Lifeng next week for trade talks",
+"publisher":"Potomac Times",
+"description":"The Treasury secretary said discussions would focus on export controls and farm purchase commitments.",
+"hours_ago":23
+},
+{
+"title":"US, China set new round of economic talks, Treasury says",
+"publisher":"Global Wire Service",
+"description":"",
+"hours_ago":22
+}
+]
+},
+{
+"story_id":"kremlin-putin-trump-summit",
+"kind":"distractor",
+"summary":"Kremlin says no date has been set for a possible Putin-Trump summit.",
+"headlines":[
+{
+"title":"Kremlin says no date set for Putin-Trump meeting",
+"publisher":"Eurasia Daily",
+"description":"Kremlin spokesman Dmitry Peskov said contacts with Washington continued but no venue or date had been agreed.",
+"hours_ago":33
+},
+{
+"title":"Peskov: Preparations for possible Putin-Trump summit at early stage",
+"publisher":"Continental Press Agency",
+"description":"",
+"hours_ago":32
+},
+{
+"title":"Moscow cools talk of imminent Trump-Putin summit",
+"publisher":"Atlantic Ledger",
+"description":"",
+"hours_ago":31
+}
+]
+},
+{
+"story_id":"fed-stress-test-overhaul",
+"kind":"distractor",
+"summary":"Federal Reserve Board finalizes an overhaul of annual bank stress tests.",
+"headlines":[
+{
+"title":"Fed finalizes changes to make bank stress tests more transparent",
+"publisher":"Capital Markets Daily",
+"description":"Under the new rule, the Federal Reserve Board will publish its scenarios and models for public comment each year.",
+"hours_ago":34
+},
+{
+"title":"Federal Reserve board approves stress test overhaul for big banks",
+"publisher":"Banking Regulatory Wire",
+"description":"",
+"hours_ago":33
+}
+]
+},
+{
+"story_id":"india-monsoon-withdrawal",
+"kind":"singleton",
+"summary":"IMD declares southwest monsoon withdrawn from all of India.",
+"headlines":[
+{
+"title":"Southwest monsoon withdraws from entire country, IMD says",
+"publisher":"Times of the Nation",
+"description":"The withdrawal was completed about a week later than normal, the weather office said.",
+"hours_ago":20
+}
+]
+},
+{
+"story_id":"super-earth-water-vapour",
+"kind":"singleton",
+"summary":"Astronomers detect water vapour in a nearby super-Earth's atmosphere.",
+"headlines":[
+{
+"title":"Astronomers detect water vapour in atmosphere of nearby super-Earth",
+"publisher":"Science Frontier News",
+"description":"",
+"hours_ago":26
+}
+]
+},
+{
+"story_id":"japan-exports-september",
+"kind":"singleton",
+"summary":"Japan's exports rise for a second straight month.",
+"headlines":[
+{
+"title":"Japan's exports rise for second straight month on chip demand",
+"publisher":"Asia Markets Post",
+"description":"Shipments of semiconductor equipment to China and Taiwan drove the gain, finance ministry data showed.",
+"hours_ago":27
+}
+]
+},
+{
+"story_id":"fifth-street-bridge-repair",
+"kind":"singleton",
+"summary":"Local city council approves bridge repair funding.",
+"headlines":[
+{
+"title":"City council approves $40 million plan to repair Fifth Street bridge",
+"publisher":"Midwest Courier",
+"description":"",
+"hours_ago":22
+}
+]
+},
+{
+"story_id":"okinawa-typhoon-flights",
+"kind":"singleton",
+"summary":"Typhoon forces flight cancellations in Okinawa, Japan.",
+"headlines":[
+{
+"title":"Typhoon forces hundreds of flight cancellations in Okinawa",
+"publisher":"Global Wire Service",
+"description":"Airlines grounded flights and ferries were suspended as the storm brought winds of up to 180 km/h.",
+"hours_ago":9
+}
+]
+},
+{
+"story_id":"real-madrid-getafe",
+"kind":"singleton",
+"summary":"Real Madrid beat Getafe in La Liga.",
+"headlines":[
+{
+"title":"Real Madrid beat Getafe 2-0 to stay top of La Liga",
+"publisher":"Sports Desk Daily",
+"description":"",
+"hours_ago":3
+}
+]
+},
+{
+"story_id":"toyota-fuel-pump-recall",
+"kind":"singleton",
+"summary":"Toyota recalls 120,000 US vehicles over a fuel pump fault.",
+"headlines":[
+{
+"title":"Toyota recalls 120,000 vehicles in US over fuel pump fault",
+"publisher":"Auto Industry Report",
+"description":"Owners will be notified by mail, and dealers will replace the pump free of charge.",
+"hours_ago":13
+}
+]
+},
+{
+"story_id":"uk-inflation-september",
+"kind":"singleton",
+"summary":"UK consumer price inflation eases to 3.4% in September.",
+"headlines":[
+{
+"title":"UK inflation eases to 3.4% in September",
+"publisher":"London Financial Courier",
+"description":"",
+"hours_ago":30
+}
+]
+},
+{
+"story_id":"kerala-digital-health-card",
+"kind":"singleton",
+"summary":"Kerala launches a statewide digital health card.",
+"headlines":[
+{
+"title":"Kerala launches statewide digital health card for residents",
+"publisher":"The Southern Chronicle",
+"description":"",
+"hours_ago":23
+}
+]
+},
+{
+"story_id":"netflix-quarterly-revenue",
+"kind":"singleton",
+"summary":"Netflix shares rise after quarterly revenue beats forecasts.",
+"headlines":[
+{
+"title":"Netflix shares jump after quarterly revenue tops forecasts",
+"publisher":"Market Pulse",
+"description":"",
+"hours_ago":31
+}
+]
+},
+{
+"story_id":"walking-dementia-study",
+"kind":"singleton",
+"summary":"Study links daily brisk walking to lower dementia risk.",
+"headlines":[
+{
+"title":"Brisk daily walking linked to lower dementia risk, study finds",
+"publisher":"Health & Science Wire",
+"description":"Researchers tracked 60,000 adults over a decade and found those walking 30 minutes a day had a 25% lower risk.",
+"hours_ago":16
+}
+]
+},
+{
+"story_id":"bengaluru-metro-yellow-line",
+"kind":"singleton",
+"summary":"Bengaluru metro Yellow Line ridership crosses one lakh a day.",
+"headlines":[
+{
+"title":"Bengaluru metro's Yellow Line crosses one lakh daily riders",
+"publisher":"Deccan Evening Post",
+"description":"",
+"hours_ago":12
+}
+]
+},
+{
+"story_id":"airbus-september-deliveries",
+"kind":"singleton",
+"summary":"Airbus delivers 68 jets in September.",
+"headlines":[
+{
+"title":"Airbus delivered 68 jets in September, sources say",
+"publisher":"Aviation Business Daily",
+"description":"",
+"hours_ago":25
+}
+]
+},
+{
+"story_id":"dubai-airport-q3-traffic",
+"kind":"singleton",
+"summary":"Dubai airport reports record third-quarter passenger traffic.",
+"headlines":[
+{
+"title":"Dubai airport handles record 24 million passengers in third quarter",
+"publisher":"Emirates Business Today",
+"description":"Strong demand from India and Saudi Arabia drove the increase, the airport operator said.",
+"hours_ago":21
+}
+]
+},
+{
+"story_id":"ventura-wildfire-evacuation",
+"kind":"singleton",
+"summary":"Wildfire near Ventura, California forces evacuations.",
+"headlines":[
+{
+"title":"Wildfire near Ventura forces evacuation of 2,000 homes",
+"publisher":"Pacific Coast Herald",
+"description":"Fire crews battled gusty Santa Ana winds as the blaze spread across 3,000 acres.",
+"hours_ago":4
+}
+]
+},
+{
+"story_id":"samsung-thin-foldable",
+"kind":"singleton",
+"summary":"Samsung unveils a thinner foldable phone.",
+"headlines":[
+{
+"title":"Samsung unveils thinner foldable phone at Seoul event",
+"publisher":"Tech Pulse Online",
+"description":"",
+"hours_ago":24
+}
+]
+},
+{
+"story_id":"chile-copper-output",
+"kind":"singleton",
+"summary":"Chile's copper output falls 4% in September.",
+"headlines":[
+{
+"title":"Chile's copper output falls 4% in September",
+"publisher":"Commodity Desk",
+"description":"",
+"hours_ago":29
+}
+]
+},
+{
+"story_id":"torkham-border-reopening",
+"kind":"singleton",
+"summary":"Pakistan and Afghanistan agree to reopen the Torkham border crossing.",
+"headlines":[
+{
+"title":"Pakistan, Afghanistan agree to reopen Torkham border crossing",
+"publisher":"Continental Press Agency",
+"description":"The key trade route had been shut for nearly two weeks after clashes between border forces.",
+"hours_ago":15
+}
+]
+},
+{
+"story_id":"philippine-budget-house",
+"kind":"singleton",
+"summary":"Philippine House of Representatives approves the 2027 national budget.",
+"headlines":[
+{
+"title":"Philippine House approves 2027 national budget on final reading",
+"publisher":"Manila Morning Ledger",
+"description":"",
+"hours_ago":11
+}
+]
+},
+{
+"story_id":"railways-festive-special-trains",
+"kind":"singleton",
+"summary":"Indian Railways announces special trains for Diwali and Chhath travel.",
+"headlines":[
+{
+"title":"Indian Railways to run 1,200 special trains for Diwali, Chhath rush",
+"publisher":"Times of the Nation",
+"description":"The trains will operate on high-demand routes to Bihar and Uttar Pradesh between late October and mid-November.",
+"hours_ago":5
+}
+]
+},
+{
+"story_id":"india-west-indies-test",
+"kind":"singleton",
+"summary":"India beat West Indies to win a Test series.",
+"headlines":[
+{
+"title":"India beat West Indies by seven wickets to clinch Test series",
+"publisher":"Cricket Corner Daily",
+"description":"",
+"hours_ago":2
+}
+]
+},
+{
+"story_id":"indus-wheat-genome",
+"kind":"singleton",
+"summary":"Scientists sequence the genome of ancient wheat from an Indus Valley site.",
+"headlines":[
+{
+"title":"Scientists sequence genome of 4,000-year-old wheat from Indus Valley site",
+"publisher":"Science Frontier News",
+"description":"",
+"hours_ago":32
+}
+]
+},
+{
+"story_id":"lakeview-library-hours",
+"kind":"singleton",
+"summary":"Local library extends weekend opening hours.",
+"headlines":[
+{
+"title":"Lakeview library to extend weekend hours from November",
+"publisher":"Lakeshore Daily News",
+"description":"",
+"hours_ago":10
+}
+]
+},
+{
+"story_id":"nepal-landslides-highway",
+"kind":"singleton",
+"summary":"Heavy rain triggers landslides in Nepal, blocking a key highway.",
+"headlines":[
+{
+"title":"Heavy rain triggers landslides in Nepal, blocking key highway",
+"publisher":"Global Wire Service",
+"description":"Authorities said at least 300 vehicles were stranded on the Prithvi Highway.",
+"hours_ago":8
+}
+]
+},
+{
+"story_id":"sap-cloud-outlook",
+"kind":"singleton",
+"summary":"SAP raises its cloud revenue outlook after third-quarter results.",
+"headlines":[
+{
+"title":"SAP lifts cloud revenue outlook after strong third quarter",
+"publisher":"Continental Business Review",
+"description":"",
+"hours_ago":0
+}
+]
+}
+]
+},
+{
+"day":"day2",
+"stories":[
+{
+"story_id":"us-china-chip-export-controls",
+"kind":"big",
+"summary":"US Commerce Department expands export controls on advanced AI chips, high-bandwidth memory and chipmaking tools to China and adds 29 Chinese entities to the Entity List.",
+"headlines":[
+{
+"title":"US widens curbs on chip exports to China, adds dozens of firms to trade blacklist",
+"publisher":"Global Wire Service",
+"description":"The Commerce Department said the new rules tighten limits on advanced AI processors, high-bandwidth memory and chipmaking tools, and add 29 Chinese entities to its Entity List.",
+"hours_ago":14
+},
+{
+"title":"US widens curbs on chip exports to China, adds dozens of firms to blacklist",
+"publisher":"Midwest Courier",
+"description":"",
+"hours_ago":12
+},
+{
+"title":"U.S. widens curbs on chip exports to China, adds dozens of firms to trade blacklist",
+"publisher":"Gulf Coast Daily Herald",
+"description":"The Commerce Department said the new rules tighten limits on advanced AI processors, high-bandwidth memory and chipmaking tools.",
+"hours_ago":11
+},
+{
+"title":"Washington tightens the screws on Beijing's AI ambitions",
+"publisher":"The Capital Ledger",
+"description":"New Commerce Department restrictions target high-bandwidth memory and advanced lithography gear in a bid to slow China's development of cutting-edge AI hardware.",
+"hours_ago":13
+},
+{
+"title":"Lutnick unveils sweeping new semiconductor export rules aimed at China",
+"publisher":"Atlantic Business Daily",
+"description":"",
+"hours_ago":15
+},
+{
+"title":"Beijing vows 'resolute countermeasures' after US expands chip export controls",
+"publisher":"Asia Pacific Wire",
+"description":"China's commerce ministry said the latest restrictions violate international trade rules and disrupt global semiconductor supply chains.",
+"hours_ago":8
+},
+{
+"title":"Nvidia, AMD shares slide as US broadens ban on AI chip sales to China",
+"publisher":"MarketPulse Online",
+"description":"",
+"hours_ago":9
+},
+{
+"title":"Chip toolmakers tumble as Washington restricts more equipment sales to China",
+"publisher":"Wall Street Monitor",
+"description":"Applied Materials, Lam Research and KLA fell between 3% and 6% after the Commerce Department extended licensing requirements to additional etching and deposition tools.",
+"hours_ago":7
+},
+{
+"title":"ASML, Tokyo Electron fall in early trade after new US export restrictions on China",
+"publisher":"Euro Markets Brief",
+"description":"",
+"hours_ago":6
+},
+{
+"title":"Entity List grows: 29 Chinese companies hit in latest US export crackdown",
+"publisher":"Tech Policy Daily",
+"description":"",
+"hours_ago":13
+},
+{
+"title":"What the US chip crackdown on China means for India's semiconductor dream",
+"publisher":"Delhi Business Ledger",
+"description":"Analysts say tighter American restrictions on Chinese chipmakers could steer more assembly, testing and design investment toward India, though advanced fabrication remains years away.",
+"hours_ago":5
+},
+{
+"title":"Indian semiconductor stocks rally on 'China plus one' hopes after fresh US chip curbs on Beijing",
+"publisher":"Mumbai Market Times",
+"description":"",
+"hours_ago":4
+},
+{
+"title":"Trump administration slams door on high-end memory chip sales to China",
+"publisher":"Eastern Seaboard Times",
+"description":"",
+"hours_ago":14
+},
+{
+"title":"HBM, lithography and the Entity List: a guide to America's newest China tech restrictions",
+"publisher":"Silicon Valley Signal",
+"description":"A breakdown of which products, companies and loopholes are covered by the expanded rules issued by the Bureau of Industry and Security.",
+"hours_ago":10
+},
+{
+"title":"China slams US 'tech bullying' as Commerce Department expands export controls",
+"publisher":"Harbour City Post",
+"description":"",
+"hours_ago":7
+},
+{
+"title":"South Korea studies fallout for chipmakers from expanded US export controls on China",
+"publisher":"Korea Economic Herald",
+"description":"Seoul's trade ministry said it would seek clarity from Washington on whether Samsung and SK Hynix factories in China keep their existing exemptions under the new rules.",
+"hours_ago":6
+},
+{
+"title":"Asian chip stocks mixed after US export crackdown on China",
+"publisher":"Singapore Business Wire",
+"description":"",
+"hours_ago":3
+},
+{
+"title":"SMIC, Hua Hong drop in Hong Kong as US tightens chip export rules",
+"publisher":"Asia Markets Daily",
+"description":"",
+"hours_ago":4
+},
+{
+"title":"Explainer: Why the US keeps tightening chip export rules on China",
+"publisher":"The Daily Explainer",
+"description":"",
+"hours_ago":9
+},
+{
+"title":"New US rules target AI chips reaching Chinese firms through third countries",
+"publisher":"Policy Watch Washington",
+"description":"The Commerce Department's expanded controls add due-diligence requirements for distributors in Southeast Asia and the Middle East to stop advanced processors being diverted to China.",
+"hours_ago":12
+},
+{
+"title":"US escalates chip war with China in sweeping new export crackdown",
+"publisher":"Emirates Daily Observer",
+"description":"",
+"hours_ago":10
+},
+{
+"title":"New chip curbs cast shadow over fragile US-China trade truce",
+"publisher":"The Financial Courier",
+"description":"",
+"hours_ago":5
+}
+]
+},
+{
+"story_id":"rbi-policy-rate-cut",
+"kind":"big",
+"summary":"RBI Monetary Policy Committee cuts the repo rate by 25 bps to 5.25% in a 5-1 vote, keeps a neutral stance, raises FY27 growth forecast and lowers its inflation projection.",
+"headlines":[
+{
+"title":"RBI cuts repo rate by 25 bps to 5.25%, retains neutral stance",
+"publisher":"Bharat Press Wire",
+"description":"The Monetary Policy Committee voted 5-1 to lower the policy rate, citing benign inflation and the need to support growth amid global trade uncertainty.",
+"hours_ago":9
+},
+{
+"title":"RBI cuts repo rate by 25 bps to 5.25 pc, retains neutral stance",
+"publisher":"Deccan Evening Chronicle",
+"description":"",
+"hours_ago":8
+},
+{
+"title":"RBI cuts repo rate by 25 basis points to 5.25%; retains 'neutral' stance",
+"publisher":"Punjab Daily Post",
+"description":"",
+"hours_ago":7
+},
+{
+"title":"Malhotra delivers rate cut as inflation stays well below target",
+"publisher":"Global Wire Service",
+"description":"Reserve Bank of India Governor Sanjay Malhotra said price pressures remained subdued, giving the central bank room to support the economy.",
+"hours_ago":9
+},
+{
+"title":"Home loan EMIs set to fall as RBI trims key lending rate",
+"publisher":"Metro Mumbai Daily",
+"description":"",
+"hours_ago":8
+},
+{
+"title":"Sensex jumps 600 points after RBI rate cut; banking, realty stocks lead gains",
+"publisher":"Market Mantra",
+"description":"",
+"hours_ago":7
+},
+{
+"title":"Rupee slips 12 paise against dollar after RBI lowers interest rates",
+"publisher":"Southern Business Line",
+"description":"",
+"hours_ago":6
+},
+{
+"title":"RBI raises FY27 growth forecast to 6.8%, lowers inflation projection to 2.6%",
+"publisher":"Delhi Business Ledger",
+"description":"The central bank also trimmed its consumer price inflation estimate for the current fiscal year, citing a good monsoon harvest and softer food prices.",
+"hours_ago":9
+},
+{
+"title":"India's central bank lowers benchmark rate to 5.25% to bolster growth",
+"publisher":"Asia Pacific Wire",
+"description":"",
+"hours_ago":10
+},
+{
+"title":"Monetary policy: Key takeaways from Governor Sanjay Malhotra's address",
+"publisher":"Bharat Economic Times",
+"description":"",
+"hours_ago":8
+},
+{
+"title":"Repo rate cut: What it means for your fixed deposits, loans and EMIs",
+"publisher":"Money Matters India",
+"description":"Borrowers with repo-linked loans should see lower EMIs within weeks, while savers may face lower fixed deposit rates.",
+"hours_ago":6
+},
+{
+"title":"MPC votes 5-1 for quarter-point cut; external member preferred a pause",
+"publisher":"The Policy Observer",
+"description":"",
+"hours_ago":7
+},
+{
+"title":"Real estate developers, automakers cheer RBI's 25 bps rate reduction",
+"publisher":"Corporate Chronicle India",
+"description":"Industry bodies said lower borrowing costs would support festive-season demand for homes and vehicles.",
+"hours_ago":5
+},
+{
+"title":"Reserve Bank of India eases again, signals room for more support if growth falters",
+"publisher":"Gulf Business Today",
+"description":"",
+"hours_ago":9
+},
+{
+"title":"Mint Street opts for a cut, keeps stance neutral",
+"publisher":"Coromandel Herald",
+"description":"",
+"hours_ago":8
+},
+{
+"title":"Government bond yields dip as RBI lowers repo rate",
+"publisher":"Fixed Income Daily",
+"description":"",
+"hours_ago":6
+},
+{
+"title":"Bankers expect quick transmission of RBI's rate cut to borrowers",
+"publisher":"The Commerce Beat",
+"description":"Lenders with repo-linked loan books said revisions would kick in from the next reset cycle.",
+"hours_ago":4
+},
+{
+"title":"Economists see one more cut in RBI's easing cycle after October reduction",
+"publisher":"Mumbai Market Times",
+"description":"Most economists polled after the policy expect a final 25 bps reduction by February before a prolonged pause.",
+"hours_ago":3
+},
+{
+"title":"Rupee volatility no constraint on easing, says RBI Governor at post-policy briefing",
+"publisher":"National Times Online",
+"description":"",
+"hours_ago":7
+},
+{
+"title":"Alongside rate cut, RBI unveils steps to ease credit flow to small businesses",
+"publisher":"MSME Today",
+"description":"The policy statement included proposals to raise collateral-free loan limits for micro and small enterprises.",
+"hours_ago":8
+},
+{
+"title":"Why the RBI chose to cut rates now — and what comes next",
+"publisher":"The Indian Analyst",
+"description":"",
+"hours_ago":4
+}
+]
+},
+{
+"story_id":"taiwan-quake-chip-plants",
+"kind":"medium",
+"summary":"A magnitude 6.3 earthquake off Hualien, Taiwan forces TSMC and other chipmakers to evacuate staff and pause some fab lines for inspection.",
+"headlines":[
+{
+"title":"Strong earthquake shakes Taiwan, TSMC evacuates some fab workers",
+"publisher":"Global Wire Service",
+"description":"The magnitude 6.3 quake struck off eastern Hualien county; TSMC said its safety systems worked as designed and staff were evacuated from some plants in Hsinchu and Taichung.",
+"hours_ago":22
+},
+{
+"title":"Strong quake shakes Taiwan; TSMC evacuates some fab workers",
+"publisher":"Lakeside Gazette",
+"description":"",
+"hours_ago":21
+},
+{
+"title":"Taiwan quake: TSMC, UMC pause some production lines for inspections",
+"publisher":"Asia Markets Daily",
+"description":"",
+"hours_ago":20
+},
+{
+"title":"Magnitude 6.3 tremor jolts Hualien, buildings sway in Taipei",
+"publisher":"Harbour City Post",
+"description":"",
+"hours_ago":23
+},
+{
+"title":"TSMC says over 90% of tools recovered after quake evacuation",
+"publisher":"Taipei Tech Times",
+"description":"The world's largest contract chipmaker said it expected full recovery of its fabs within a day and did not foresee a material impact on shipments.",
+"hours_ago":12
+},
+{
+"title":"Chip supply chain on alert after Taiwan earthquake halts some fabs",
+"publisher":"Silicon Valley Signal",
+"description":"Analysts said any prolonged outage could tighten supplies of advanced chips already stretched by AI demand.",
+"hours_ago":15
+},
+{
+"title":"Taiwan earthquake: Chipmakers resume operations, no major damage reported",
+"publisher":"National Times Online",
+"description":"",
+"hours_ago":9
+}
+]
+},
+{
+"story_id":"japan-snap-election-ldp-majority",
+"kind":"medium",
+"summary":"Prime Minister Sanae Takaichi's Liberal Democratic Party wins an outright majority in Japan's snap lower house election.",
+"headlines":[
+{
+"title":"Takaichi's LDP wins outright majority in Japan's snap lower house election",
+"publisher":"Global Wire Service",
+"description":"The Liberal Democratic Party secured 241 of the 465 seats in the House of Representatives, according to final results, allowing it to govern without relying on coalition partners.",
+"hours_ago":26
+},
+{
+"title":"Takaichi's LDP wins outright majority in Japan snap election",
+"publisher":"Midwest Courier",
+"description":"",
+"hours_ago":25
+},
+{
+"title":"Japan's ruling party regains lower house majority, strengthening Takaichi's hand",
+"publisher":"Asia Pacific Wire",
+"description":"",
+"hours_ago":24
+},
+{
+"title":"Japan election: Voters hand Takaichi a clear mandate",
+"publisher":"Tokyo Business Review",
+"description":"",
+"hours_ago":25
+},
+{
+"title":"Nikkei hits record, yen weakens after Liberal Democrats' decisive election win",
+"publisher":"MarketPulse Online",
+"description":"Investors bet the strengthened government will push ahead with expansionary fiscal policies.",
+"hours_ago":18
+},
+{
+"title":"Opposition CDP loses ground as Liberal Democrats sweep Japan's general election",
+"publisher":"Eastern Seaboard Times",
+"description":"",
+"hours_ago":22
+},
+{
+"title":"What Japan's election result means for India-Japan ties",
+"publisher":"The Indian Analyst",
+"description":"Analysts expect continuity in infrastructure and semiconductor cooperation after the ruling party's win.",
+"hours_ago":14
+}
+]
+},
+{
+"story_id":"india-uk-fta-enters-force",
+"kind":"medium",
+"summary":"The India-UK Comprehensive Economic and Trade Agreement enters into force after ratification, cutting tariffs on goods such as whisky, cars and textiles.",
+"headlines":[
+{
+"title":"India-UK free trade agreement comes into force, cutting tariffs on whisky and textiles",
+"publisher":"Global Wire Service",
+"description":"The Comprehensive Economic and Trade Agreement took effect after both countries completed ratification, eliminating duties on 99% of Indian exports to Britain.",
+"hours_ago":30
+},
+{
+"title":"CETA takes effect: Indian textile, leather exporters get duty-free access to UK market",
+"publisher":"Delhi Business Ledger",
+"description":"",
+"hours_ago":28
+},
+{
+"title":"Scotch whisky makers toast as UK-India trade pact kicks in",
+"publisher":"The Northern Chronicle",
+"description":"Tariffs on Scotch whisky entering India were halved to 75% with immediate effect, with further cuts phased in over a decade.",
+"hours_ago":27
+},
+{
+"title":"Goyal hails 'new chapter' as India-UK trade deal becomes operational",
+"publisher":"Bharat Press Wire",
+"description":"",
+"hours_ago":29
+},
+{
+"title":"British cars, cosmetics to get cheaper in India as UK trade deal takes effect",
+"publisher":"Metro Mumbai Daily",
+"description":"",
+"hours_ago":26
+},
+{
+"title":"India pact, Britain's biggest post-Brexit bilateral trade deal, enters force",
+"publisher":"London Business Post",
+"description":"",
+"hours_ago":25
+},
+{
+"title":"Indian exporters flag rules-of-origin paperwork as UK FTA kicks in",
+"publisher":"Coromandel Herald",
+"description":"Small exporters said they needed more guidance on certificates of origin to claim lower tariffs under the newly effective pact.",
+"hours_ago":20
+}
+]
+},
+{
+"story_id":"samsung-q3-profit-warning",
+"kind":"medium",
+"summary":"Samsung Electronics issues preliminary Q3 guidance with operating profit of about 7.2 trillion won, well below estimates, citing chip weakness and inventory charges.",
+"headlines":[
+{
+"title":"Samsung Electronics warns Q3 profit will miss estimates on chip weakness",
+"publisher":"Global Wire Service",
+"description":"The company estimated July-September operating profit at 7.2 trillion won, well below the analyst consensus of about 9.1 trillion won.",
+"hours_ago":31
+},
+{
+"title":"Samsung shares drop 4% after disappointing earnings guidance",
+"publisher":"Korea Economic Herald",
+"description":"Shares of Samsung Electronics fell as much as 4.2% in Seoul, their biggest one-day drop in three months.",
+"hours_ago":28
+},
+{
+"title":"Samsung's profit warning underscores struggle to catch rivals in AI memory",
+"publisher":"Silicon Valley Signal",
+"description":"Delays in qualifying its latest high-bandwidth memory chips with major customers continue to weigh on the world's largest memory maker.",
+"hours_ago":24
+},
+{
+"title":"Samsung flags one-off inventory charges, foundry losses in preliminary Q3 results",
+"publisher":"Asia Markets Daily",
+"description":"",
+"hours_ago":30
+},
+{
+"title":"Samsung Q3 guidance: Operating profit seen at 7.2 trillion won as sales stay flat",
+"publisher":"Seoul Financial Daily",
+"description":"",
+"hours_ago":32
+},
+{
+"title":"Samsung earnings shock drags Kospi lower",
+"publisher":"Singapore Business Wire",
+"description":"",
+"hours_ago":27
+}
+]
+},
+{
+"story_id":"china-september-exports",
+"kind":"distractor",
+"summary":"China's customs data shows September exports rising 8.3%, beating forecasts, with a wider trade surplus.",
+"headlines":[
+{
+"title":"China's September exports rise 8.3%, beating forecasts",
+"publisher":"Global Wire Service",
+"description":"Shipments to Southeast Asia and Africa offset a further decline in sales to the United States, customs data showed.",
+"hours_ago":20
+},
+{
+"title":"China's trade surplus widens in September as imports stall",
+"publisher":"Asia Pacific Wire",
+"description":"",
+"hours_ago":19
+},
+{
+"title":"Chinese exporters shrug off US tariffs as overseas shipments grow",
+"publisher":"The Financial Courier",
+"description":"",
+"hours_ago":16
+}
+]
+},
+{
+"story_id":"tsmc-kumamoto-second-fab",
+"kind":"distractor",
+"summary":"TSMC's Japanese unit JASM begins volume production at its second fab in Kumamoto, Japan.",
+"headlines":[
+{
+"title":"TSMC begins volume production at second Kumamoto plant in Japan",
+"publisher":"Tokyo Business Review",
+"description":"",
+"hours_ago":17
+},
+{
+"title":"Japan's chip revival gets boost as TSMC's second Kyushu fab starts output",
+"publisher":"Asia Markets Daily",
+"description":"The plant, operated by TSMC-majority-owned JASM, will make 6- and 7-nanometre chips for automotive and industrial customers.",
+"hours_ago":15
+},
+{
+"title":"TSMC-led JASM ramps up new Japanese factory backed by Sony, Denso and Toyota",
+"publisher":"Taipei Tech Times",
+"description":"",
+"hours_ago":13
+}
+]
+},
+{
+"story_id":"india-wpi-september",
+"kind":"distractor",
+"summary":"India's wholesale price inflation eases to 0.4% in September on falling food prices.",
+"headlines":[
+{
+"title":"India's wholesale inflation eases to 0.4% in September on cheaper food",
+"publisher":"Bharat Press Wire",
+"description":"Data released by the commerce ministry showed prices of vegetables and pulses declined for a third straight month.",
+"hours_ago":33
+},
+{
+"title":"WPI inflation cools again as vegetable, pulse prices fall",
+"publisher":"Delhi Business Ledger",
+"description":"",
+"hours_ago":32
+},
+{
+"title":"Wholesale prices: Fuel, manufactured goods inflation moderates in September",
+"publisher":"Southern Business Line",
+"description":"",
+"hours_ago":30
+}
+]
+},
+{
+"story_id":"rbi-cancels-coop-bank-licence",
+"kind":"distractor",
+"summary":"RBI cancels the banking licence of Satara-based Shree Kavya Urban Co-operative Bank.",
+"headlines":[
+{
+"title":"RBI cancels licence of Satara-based Shree Kavya Urban Co-operative Bank",
+"publisher":"Western India Times",
+"description":"The central bank said the lender lacked adequate capital and earning prospects; eligible depositors can claim up to Rs 5 lakh under deposit insurance.",
+"hours_ago":21
+},
+{
+"title":"Shree Kavya Urban Co-op Bank licence revoked; depositors to get DICGC payouts",
+"publisher":"Money Matters India",
+"description":"",
+"hours_ago":18
+}
+]
+},
+{
+"story_id":"boj-ueda-signals-hike",
+"kind":"distractor",
+"summary":"Bank of Japan Governor Kazuo Ueda signals a possible rate hike in a speech in Osaka.",
+"headlines":[
+{
+"title":"BOJ's Ueda says rate hike possible if wage gains broaden",
+"publisher":"Global Wire Service",
+"description":"Speaking at a business conference in Osaka, the Bank of Japan governor said underlying inflation was moving steadily toward the 2% target.",
+"hours_ago":11
+},
+{
+"title":"Bank of Japan governor keeps door open to December rate increase",
+"publisher":"Tokyo Business Review",
+"description":"",
+"hours_ago":10
+},
+{
+"title":"Yen firms as Ueda hints at tighter policy ahead",
+"publisher":"MarketPulse Online",
+"description":"",
+"hours_ago":9
+}
+]
+},
+{
+"story_id":"japan-iwate-earthquake",
+"kind":"distractor",
+"summary":"A magnitude 5.7 earthquake strikes off Iwate in northeastern Japan with no tsunami warning.",
+"headlines":[
+{
+"title":"Magnitude 5.7 earthquake jolts northeastern Japan; no tsunami warning issued",
+"publisher":"Asia Pacific Wire",
+"description":"The quake struck off the coast of Iwate prefecture at a depth of about 50 km, the Japan Meteorological Agency said.",
+"hours_ago":5
+},
+{
+"title":"Quake rattles Iwate, bullet train services briefly suspended",
+"publisher":"Tokyo Business Review",
+"description":"",
+"hours_ago":4
+}
+]
+},
+{
+"story_id":"uk-gcc-trade-deal",
+"kind":"distractor",
+"summary":"The UK and the Gulf Cooperation Council conclude negotiations on a free trade agreement.",
+"headlines":[
+{
+"title":"UK and Gulf states conclude free trade talks after three years",
+"publisher":"London Business Post",
+"description":"The agreement with the six-member Gulf Cooperation Council is expected to cut tariffs on British food, cars and financial services.",
+"hours_ago":12
+},
+{
+"title":"Britain, GCC seal trade pact covering goods, services and investment",
+"publisher":"Emirates Daily Observer",
+"description":"",
+"hours_ago":11
+},
+{
+"title":"UK-GCC trade deal: What changes for Gulf importers",
+"publisher":"Gulf Business Today",
+"description":"",
+"hours_ago":8
+}
+]
+},
+{
+"story_id":"samsung-noida-expansion",
+"kind":"distractor",
+"summary":"Samsung announces a Rs 2,000-crore investment to expand its Noida smartphone factory in India.",
+"headlines":[
+{
+"title":"Samsung to expand Noida phone factory with Rs 2,000-crore investment",
+"publisher":"Delhi Business Ledger",
+"description":"The South Korean company said the expansion would add capacity for foldable phones and create about 1,500 jobs, mainly for export production.",
+"hours_ago":3
+},
+{
+"title":"Samsung India plans fresh investment at Noida unit to boost smartphone exports",
+"publisher":"Bharat Economic Times",
+"description":"",
+"hours_ago":2
+}
+]
+},
+{
+"story_id":"us-india-trade-talks-round",
+"kind":"distractor",
+"summary":"US and Indian trade negotiators begin a new round of bilateral trade talks in New Delhi.",
+"headlines":[
+{
+"title":"India, US negotiators begin fresh round of trade talks in New Delhi",
+"publisher":"Bharat Press Wire",
+"description":"The four-day round will focus on market access for farm goods and tariff relief for Indian textiles and gems, officials said.",
+"hours_ago":16
+},
+{
+"title":"US trade team arrives in Delhi as both sides push to close first tranche of deal",
+"publisher":"Coromandel Herald",
+"description":"",
+"hours_ago":15
+},
+{
+"title":"Washington, New Delhi resume bilateral trade negotiations",
+"publisher":"Global Wire Service",
+"description":"",
+"hours_ago":14
+}
+]
+},
+{
+"story_id":"nvidia-pune-datacentre-deal",
+"kind":"distractor",
+"summary":"Nvidia agrees to supply GPUs for Pune startup Nilgiri Compute's AI data centre.",
+"headlines":[
+{
+"title":"Nvidia to supply GPUs for Nilgiri Compute's AI data centre in Pune",
+"publisher":"Tech Policy Daily",
+"description":"",
+"hours_ago":19
+},
+{
+"title":"Pune startup Nilgiri Compute signs Nvidia deal for 20,000-GPU cluster",
+"publisher":"Mumbai Market Times",
+"description":"The facility, due to go live in 2027, will offer AI computing capacity to Indian startups and government research labs.",
+"hours_ago":18
+}
+]
+},
+{
+"story_id":"commerce-battery-import-probe",
+"kind":"distractor",
+"summary":"US Commerce Secretary Lutnick opens a Section 232 national security investigation into lithium battery imports.",
+"headlines":[
+{
+"title":"Commerce Department launches national security probe into lithium battery imports",
+"publisher":"Policy Watch Washington",
+"description":"",
+"hours_ago":25
+},
+{
+"title":"Lutnick opens Section 232 review of battery imports, raising prospect of new tariffs",
+"publisher":"Wall Street Monitor",
+"description":"The investigation will examine whether reliance on imported lithium-ion cells threatens US national security.",
+"hours_ago":24
+}
+]
+},
+{
+"story_id":"trump-apec-shenzhen-trip",
+"kind":"distractor",
+"summary":"Trump confirms he will travel to Shenzhen, China for next month's APEC leaders' summit.",
+"headlines":[
+{
+"title":"Trump says he will travel to China for APEC summit next month",
+"publisher":"Global Wire Service",
+"description":"",
+"hours_ago":1
+},
+{
+"title":"White House confirms Trump's Shenzhen trip for APEC leaders' meeting",
+"publisher":"Eastern Seaboard Times",
+"description":"The president is expected to hold talks with Xi Jinping on the sidelines of the gathering, officials said.",
+"hours_ago":0
+}
+]
+},
+{
+"story_id":"single-netflix-q3",
+"kind":"singleton",
+"summary":"Netflix shares rise after quarterly revenue beats estimates.",
+"headlines":[
+{
+"title":"Netflix shares jump after quarterly revenue beats estimates",
+"publisher":"Wall Street Monitor",
+"description":"The streaming company also raised its full-year revenue outlook, citing growth in advertising.",
+"hours_ago":17
+}
+]
+},
+{
+"story_id":"single-brazil-selic",
+"kind":"singleton",
+"summary":"Brazil's central bank keeps its Selic rate unchanged.",
+"headlines":[
+{
+"title":"Brazil's central bank keeps Selic rate unchanged at 15%",
+"publisher":"Americas Wire Service",
+"description":"",
+"hours_ago":30
+}
+]
+},
+{
+"story_id":"single-australia-jobs",
+"kind":"singleton",
+"summary":"Australia's unemployment rate holds steady in September.",
+"headlines":[
+{
+"title":"Australia's jobless rate holds at 4.3% in September",
+"publisher":"Pacific Rim Wire",
+"description":"",
+"hours_ago":27
+}
+]
+},
+{
+"story_id":"single-delhi-air-quality",
+"kind":"singleton",
+"summary":"Delhi's air quality deteriorates to 'poor' as stubble burning increases.",
+"headlines":[
+{
+"title":"Delhi's air quality slips into 'poor' category as stubble burning picks up",
+"publisher":"National Times Online",
+"description":"The city's AQI crossed 250 at several monitoring stations, with forecasters warning of further deterioration as winds slow.",
+"hours_ago":6
+}
+]
+},
+{
+"story_id":"single-bengaluru-property-tax",
+"kind":"singleton",
+"summary":"Bengaluru's civic body approves revised property tax slabs.",
+"headlines":[
+{
+"title":"Bengaluru civic body approves revised property tax slabs for 2027",
+"publisher":"Karnataka Daily Mirror",
+"description":"",
+"hours_ago":19
+}
+]
+},
+{
+"story_id":"single-mumbai-coastal-road",
+"kind":"singleton",
+"summary":"Mumbai coastal road's northern arm set to open next month.",
+"headlines":[
+{
+"title":"Mumbai coastal road's northern arm to open to traffic next month",
+"publisher":"Metro Mumbai Daily",
+"description":"",
+"hours_ago":23
+}
+]
+},
+{
+"story_id":"single-ford-recall",
+"kind":"singleton",
+"summary":"Ford recalls 140,000 SUVs in the US over a rearview camera fault.",
+"headlines":[
+{
+"title":"Ford recalls 140,000 SUVs in US over rearview camera fault",
+"publisher":"Midwest Courier",
+"description":"The automaker said owners would be notified by mail and dealers would update camera software free of charge.",
+"hours_ago":21
+}
+]
+},
+{
+"story_id":"single-spotify-prices",
+"kind":"singleton",
+"summary":"Spotify raises premium subscription prices in 12 markets.",
+"headlines":[
+{
+"title":"Spotify raises premium subscription prices in 12 markets",
+"publisher":"Atlantic Business Daily",
+"description":"",
+"hours_ago":29
+}
+]
+},
+{
+"story_id":"single-gold-record",
+"kind":"singleton",
+"summary":"Gold prices climb to a record high as the dollar weakens.",
+"headlines":[
+{
+"title":"Gold climbs to record high as dollar weakens",
+"publisher":"Euro Markets Brief",
+"description":"",
+"hours_ago":2
+}
+]
+},
+{
+"story_id":"single-oil-opec",
+"kind":"singleton",
+"summary":"Oil prices edge up after OPEC+ signals continued output restraint.",
+"headlines":[
+{
+"title":"Oil prices edge higher as OPEC+ signals output restraint",
+"publisher":"Emirates Daily Observer",
+"description":"",
+"hours_ago":13
+}
+]
+},
+{
+"story_id":"single-germany-zew",
+"kind":"singleton",
+"summary":"German investor sentiment improves in October according to the ZEW survey.",
+"headlines":[
+{
+"title":"German investor sentiment rises in October, ZEW survey shows",
+"publisher":"Continental Finance Report",
+"description":"",
+"hours_ago":31
+}
+]
+},
+{
+"story_id":"single-western-ghats-frog",
+"kind":"singleton",
+"summary":"Researchers discover a new shrub frog species in the Western Ghats.",
+"headlines":[
+{
+"title":"Scientists discover new species of shrub frog in Western Ghats",
+"publisher":"The Science Desk",
+"description":"Researchers from a Kerala university said the frog, found in the Wayanad hills, is distinguished by its high-pitched call.",
+"hours_ago":34
+}
+]
+},
+{
+"story_id":"single-exoplanet-water",
+"kind":"singleton",
+"summary":"Astronomers detect water vapour in the atmosphere of a distant rocky exoplanet.",
+"headlines":[
+{
+"title":"Astronomers detect water vapour in atmosphere of distant rocky exoplanet",
+"publisher":"Cosmos Weekly",
+"description":"",
+"hours_ago":26
+}
+]
+},
+{
+"story_id":"single-arsenal-chelsea",
+"kind":"singleton",
+"summary":"Arsenal beat Chelsea 2-1 to top the Premier League table.",
+"headlines":[
+{
+"title":"Arsenal beat Chelsea 2-1 to go top of the Premier League",
+"publisher":"The Northern Chronicle",
+"description":"",
+"hours_ago":1
+}
+]
+},
+{
+"story_id":"single-kkr-coach",
+"kind":"singleton",
+"summary":"Kolkata Knight Riders appoint a new head coach for IPL 2027.",
+"headlines":[
+{
+"title":"Kolkata Knight Riders name new head coach ahead of IPL 2027",
+"publisher":"Cricket Pavilion",
+"description":"",
+"hours_ago":10
+}
+]
+},
+{
+"story_id":"single-airbus-vietnam-order",
+"kind":"singleton",
+"summary":"Airbus wins an order for 40 A321neo jets from a Vietnamese airline.",
+"headlines":[
+{
+"title":"Airbus wins order for 40 A321neo jets from Vietnamese carrier",
+"publisher":"Asia Markets Daily",
+"description":"",
+"hours_ago":20
+}
+]
+},
+{
+"story_id":"single-pakistan-imf",
+"kind":"singleton",
+"summary":"Pakistan and the IMF reach a staff-level agreement on a loan programme review.",
+"headlines":[
+{
+"title":"Pakistan, IMF reach staff-level agreement on loan review",
+"publisher":"Global Wire Service",
+"description":"The agreement, subject to approval by the IMF executive board, would unlock a disbursement of about $1 billion.",
+"hours_ago":16
+}
+]
+},
+{
+"story_id":"single-philippines-typhoon",
+"kind":"singleton",
+"summary":"A typhoon forces the evacuation of 50,000 people in the northern Philippines.",
+"headlines":[
+{
+"title":"Typhoon forces evacuation of 50,000 people in northern Philippines",
+"publisher":"Asia Pacific Wire",
+"description":"Disaster officials said schools were closed and ferry services suspended across several provinces in northern Luzon.",
+"hours_ago":8
+}
+]
+},
+{
+"story_id":"single-nigeria-inflation",
+"kind":"singleton",
+"summary":"Nigeria's inflation rate slows for a seventh consecutive month.",
+"headlines":[
+{
+"title":"Nigeria's inflation slows for seventh consecutive month",
+"publisher":"Africa Business Wire",
+"description":"",
+"hours_ago":22
+}
+]
+},
+{
+"story_id":"single-eu-gambling-ads",
+"kind":"singleton",
+"summary":"European Parliament approves tougher rules on online gambling advertising.",
+"headlines":[
+{
+"title":"European Parliament approves tougher rules on online gambling ads",
+"publisher":"Euro Policy Report",
+"description":"",
+"hours_ago":33
+}
+]
+},
+{
+"story_id":"single-canada-housing-fund",
+"kind":"singleton",
+"summary":"Canada's federal government announces a C$2 billion fund for first-time home buyers.",
+"headlines":[
+{
+"title":"Ottawa unveils C$2 billion fund to help first-time home buyers",
+"publisher":"Northern Maple Post",
+"description":"The program will offer low-interest down-payment loans to buyers in high-cost cities, the housing minister said.",
+"hours_ago":15
+}
+]
+},
+{
+"story_id":"single-mahindra-ev-launch",
+"kind":"singleton",
+"summary":"Mahindra launches a new electric SUV in India.",
+"headlines":[
+{
+"title":"Mahindra launches new electric SUV priced from Rs 16 lakh",
+"publisher":"Auto Wheels India",
+"description":"The compact SUV offers a claimed range of 450 km and will go on sale in November.",
+"hours_ago":11
+}
+]
+},
+{
+"story_id":"single-qatar-airways-kochi",
+"kind":"singleton",
+"summary":"Qatar Airways adds a daily direct flight between Doha and Kochi.",
+"headlines":[
+{
+"title":"Qatar Airways adds daily direct flight between Doha and Kochi",
+"publisher":"Gulf Business Today",
+"description":"",
+"hours_ago":24
+}
+]
+},
+{
+"story_id":"single-singapore-nodx",
+"kind":"singleton",
+"summary":"Singapore's non-oil domestic exports decline in September.",
+"headlines":[
+{
+"title":"Singapore's non-oil domestic exports fall 3.1% in September",
+"publisher":"Singapore Business Wire",
+"description":"",
+"hours_ago":32
+}
+]
+},
+{
+"story_id":"single-chennai-metro-trial",
+"kind":"singleton",
+"summary":"Chennai Metro begins phase two trial runs on the Poonamallee stretch.",
+"headlines":[
+{
+"title":"Chennai Metro phase two trial run begins on Poonamallee stretch",
+"publisher":"Coromandel Herald",
+"description":"Officials said passenger services on the stretch are expected to start by early next year after safety certification.",
+"hours_ago":12
+}
+]
+}
+]
+},
+{
+"day":"day3",
+"stories":[
+{
+"story_id":"israel-iran-ceasefire",
+"kind":"big",
+"summary":"Israel and Iran agree to a US-brokered ceasefire announced by President Trump, ending 12 days of strikes, with the truce taking effect at midnight.",
+"headlines":[
+{
+"title":"Israel and Iran agree to ceasefire, Trump announces",
+"publisher":"Global Wire Service",
+"description":"US President Donald Trump said Israel and Iran had agreed to a full ceasefire taking effect at midnight local time, ending 12 days of cross-border strikes.",
+"hours_ago":22
+},
+{
+"title":"Israel and Iran agree to ceasefire, Trump announces",
+"publisher":"Midwest Courier",
+"description":"",
+"hours_ago":21
+},
+{
+"title":"Israel, Iran agree to ceasefire, Trump announces",
+"publisher":"Lakeshore Daily Press",
+"description":"",
+"hours_ago":20
+},
+{
+"title":"Trump says Israel and Iran have agreed to a 'complete and total' truce",
+"publisher":"Atlantic Herald",
+"description":"In a late-night social media post, the president said both governments had accepted a US proposal to stop the fighting.",
+"hours_ago":22
+},
+{
+"title":"Washington brokers end to 12-day Israel-Iran war",
+"publisher":"The Capital Ledger",
+"description":"",
+"hours_ago":19
+},
+{
+"title":"White House: Israel-Iran truce to take effect at midnight",
+"publisher":"Continental Press Agency",
+"description":"",
+"hours_ago":21
+},
+{
+"title":"Netanyahu accepts ceasefire with Iran, says Israel 'achieved its objectives'",
+"publisher":"Levant Dispatch",
+"description":"The Israeli prime minister's office said Israel had agreed to the US proposal and would respond forcefully to any violation of the truce.",
+"hours_ago":18
+},
+{
+"title":"Iran's Araghchi says Tehran will stop firing if Israel holds to truce",
+"publisher":"Gulf Evening Standard",
+"description":"",
+"hours_ago":18
+},
+{
+"title":"Qatar and Oman helped seal Iran-Israel truce, diplomats say",
+"publisher":"Peninsula Daily",
+"description":"Officials in Doha said Qatari and Omani mediators relayed messages between Tehran and Washington in the hours before the ceasefire was announced.",
+"hours_ago":16
+},
+{
+"title":"Oil slides 6% as Israel-Iran truce calms supply fears",
+"publisher":"Market Pulse",
+"description":"Brent crude fell below $70 a barrel after the Israel-Iran ceasefire announcement eased worries about disruption to tanker traffic through the Strait of Hormuz.",
+"hours_ago":17
+},
+{
+"title":"Brent posts steepest one-day fall in over two years on Israel-Iran ceasefire",
+"publisher":"Energy Intelligence Daily",
+"description":"",
+"hours_ago":15
+},
+{
+"title":"Gold retreats from record as Iran-Israel ceasefire curbs safe-haven demand",
+"publisher":"Bullion & Markets Daily",
+"description":"",
+"hours_ago":14
+},
+{
+"title":"Rupee rallies 45 paise, OMC stocks jump as West Asia ceasefire cools crude",
+"publisher":"Indian Financial Daily",
+"description":"Oil marketing companies such as HPCL and BPCL led gains as traders priced in lower import costs after Israel and Iran agreed to stop fighting.",
+"hours_ago":12
+},
+{
+"title":"India welcomes Iran-Israel ceasefire, urges dialogue and diplomacy",
+"publisher":"The National Chronicle of India",
+"description":"The Ministry of External Affairs said New Delhi hoped the truce would bring lasting peace to West Asia, home to nearly 9 million Indians.",
+"hours_ago":13
+},
+{
+"title":"Iran-Israel truce: What it means for your petrol prices, flights and investments",
+"publisher":"Mumbai Money Mirror",
+"description":"",
+"hours_ago":9
+},
+{
+"title":"Explained: Why the Israel-Iran ceasefire is good news for India's oil import bill",
+"publisher":"Bharat Express",
+"description":"With crude prices falling sharply after the truce, analysts say India could save billions of dollars if the calm holds.",
+"hours_ago":8
+},
+{
+"title":"Guterres welcomes Israel-Iran truce, urges both sides to respect it fully",
+"publisher":"World Affairs Wire",
+"description":"",
+"hours_ago":15
+},
+{
+"title":"UK, France and Germany hail ceasefire between Israel and Iran",
+"publisher":"London Evening Chronicle",
+"description":"",
+"hours_ago":14
+},
+{
+"title":"Ceasefire holds through first night as Israel and Iran halt missile fire",
+"publisher":"Asia Pacific Wire",
+"description":"No launches or air-raid sirens were reported in either country in the first hours after the truce took effect, officials said.",
+"hours_ago":6
+},
+{
+"title":"Relief on the streets of Tehran and Tel Aviv as war pause begins",
+"publisher":"The Westminster Review",
+"description":"",
+"hours_ago":10
+},
+{
+"title":"Airlines map return to Middle East routes after Israel-Iran truce",
+"publisher":"Travel Trade Daily",
+"description":"",
+"hours_ago":7
+},
+{
+"title":"Five questions hanging over the fragile Iran-Israel ceasefire",
+"publisher":"Pacific Coast Courier",
+"description":"",
+"hours_ago":4
+},
+{
+"title":"Truce trade: Gulf markets cheer as Israel-Iran guns fall silent",
+"publisher":"Gulf Business Today",
+"description":"Bourses from Dubai to Riyadh rallied after Israel and Iran agreed to halt hostilities under a US-brokered deal.",
+"hours_ago":11
+}
+]
+},
+{
+"story_id":"red-sea-container-attacks",
+"kind":"big",
+"summary":"Houthi missile and drone attacks on two container ships near Bab el-Mandeb prompt Maersk and other major container lines to suspend Red Sea transits and reroute around Africa.",
+"headlines":[
+{
+"title":"Houthis claim missile attacks on two container ships in Red Sea",
+"publisher":"Global Wire Service",
+"description":"Yemen's Houthi movement said it fired missiles and drones at the Liberian-flagged Atlantic Meridian and the Hanse Corona near the Bab el-Mandeb strait.",
+"hours_ago":31
+},
+{
+"title":"Houthis claim missile attacks on two container ships in Red Sea",
+"publisher":"Gulf Coast Gazette",
+"description":"",
+"hours_ago":30
+},
+{
+"title":"Houthis claim attacks on two container ships in the Red Sea",
+"publisher":"Riverside Tribune",
+"description":"",
+"hours_ago":29
+},
+{
+"title":"Fire on boxship struck off Yemen; all crew accounted for, UKMTO says",
+"publisher":"Maritime Ledger",
+"description":"The UK Maritime Trade Operations agency said a vessel west of Hodeidah was hit by a projectile, causing a fire the crew brought under control.",
+"hours_ago":32
+},
+{
+"title":"Maersk suspends Red Sea sailings after attacks on two container ships",
+"publisher":"Nordic Shipping Journal",
+"description":"The Danish carrier said vessels due to transit the Bab el-Mandeb would be diverted around the Cape of Good Hope until further notice.",
+"hours_ago":27
+},
+{
+"title":"Hapag-Lloyd, MSC and CMA CGM follow Maersk in rerouting around Africa",
+"publisher":"Freight & Logistics Times",
+"description":"",
+"hours_ago":25
+},
+{
+"title":"Container giants abandon Red Sea route again",
+"publisher":"London Evening Chronicle",
+"description":"",
+"hours_ago":24
+},
+{
+"title":"US destroyer downs drones as two cargo vessels come under fire off Yemen",
+"publisher":"The Capital Ledger",
+"description":"The Pentagon said the warship intercepted several drones during the attacks, which left one ship with damage to its deck containers.",
+"hours_ago":30
+},
+{
+"title":"Box lines head for the Cape as Red Sea violence flares",
+"publisher":"Shipping Gazette International",
+"description":"",
+"hours_ago":22
+},
+{
+"title":"Shipping stocks surge on Red Sea diversions; Maersk up 8%",
+"publisher":"Market Pulse",
+"description":"",
+"hours_ago":20
+},
+{
+"title":"Asia-Europe freight rates could double after Red Sea strikes, analysts warn",
+"publisher":"Straits Commerce Times",
+"description":"Brokers said spot rates for a 40-foot container from Shanghai to Rotterdam had already jumped as carriers pulled capacity from the Suez route.",
+"hours_ago":18
+},
+{
+"title":"War-risk premiums spike for Red Sea voyages after two ships hit",
+"publisher":"Insurance Market Weekly",
+"description":"",
+"hours_ago":19
+},
+{
+"title":"Suez Canal faces fresh revenue blow as carriers halt Red Sea transits",
+"publisher":"Nile Business Review",
+"description":"Canal receipts, which only recently began recovering, are expected to fall again after major container lines suspended voyages through the Red Sea.",
+"hours_ago":16
+},
+{
+"title":"Indian exporters fear costlier, slower shipments as Red Sea route shuts again",
+"publisher":"Delhi Business Ledger",
+"description":"Exporter bodies said freight to Europe and the US East Coast could rise sharply after container lines diverted ships following the attacks off Yemen.",
+"hours_ago":12
+},
+{
+"title":"Red Sea attacks: Garment, engineering exporters seek freight support from Centre",
+"publisher":"Chennai Daily Herald",
+"description":"",
+"hours_ago":8
+},
+{
+"title":"Indian Navy deploys warships to Gulf of Aden after Houthi attacks on container ships",
+"publisher":"The National Chronicle of India",
+"description":"",
+"hours_ago":10
+},
+{
+"title":"EU's Aspides mission escorts container ship damaged in Red Sea attack to Djibouti",
+"publisher":"Continental Press Agency",
+"description":"",
+"hours_ago":21
+},
+{
+"title":"What the new Red Sea crisis means for Christmas deliveries",
+"publisher":"The Westminster Review",
+"description":"Retailers warn of delays and higher costs as the 10-day detour around Africa hits shipments planned for the holiday season.",
+"hours_ago":6
+},
+{
+"title":"Shipping chaos returns as carriers take 3,500-mile detour after boxship attacks",
+"publisher":"Midwest Courier",
+"description":"",
+"hours_ago":14
+},
+{
+"title":"Ten days longer, millions more: the cost of avoiding Bab el-Mandeb",
+"publisher":"Gulf Business Today",
+"description":"An analysis of how the diversion around the Cape of Good Hope adds fuel, crew and charter costs to each Asia-Europe voyage after the latest attacks on container ships.",
+"hours_ago":4
+},
+{
+"title":"Retailers brace for delays as box carriers reroute around Africa",
+"publisher":"City Retail Week",
+"description":"",
+"hours_ago":11
+}
+]
+},
+{
+"story_id":"aramco-nov-osp-asia",
+"kind":"medium",
+"summary":"Saudi Aramco raises its November official selling price for Arab Light crude to Asian buyers by 40 cents a barrel.",
+"headlines":[
+{
+"title":"Saudi Aramco raises November Arab Light price for Asia",
+"publisher":"Global Wire Service",
+"description":"The state oil company raised its official selling price for Arab Light crude to Asia by 40 cents to a premium of $2.20 a barrel over the Oman/Dubai average.",
+"hours_ago":33
+},
+{
+"title":"Aramco lifts November OSPs to Asia by more than expected",
+"publisher":"Energy Intelligence Daily",
+"description":"",
+"hours_ago":32
+},
+{
+"title":"Saudi crude to cost more for Asian refiners next month",
+"publisher":"Straits Commerce Times",
+"description":"Refiners in China, Japan, South Korea and India had expected a smaller increase in Aramco's monthly pricing for November-loading cargoes.",
+"hours_ago":31
+},
+{
+"title":"Saudi Arabia hikes crude prices for Asia, keeps Europe and US rates largely flat",
+"publisher":"Riyadh Business Post",
+"description":"",
+"hours_ago":30
+},
+{
+"title":"Indian refiners face higher bill as Aramco raises Arab Light premium",
+"publisher":"Mumbai Money Mirror",
+"description":"Indian Oil, Bharat Petroleum and Reliance, which buy Saudi crude under term contracts, will pay more for November cargoes.",
+"hours_ago":26
+},
+{
+"title":"Aramco ups OSP for flagship grade by 40 cents",
+"publisher":"Tokyo Business Wire",
+"description":"",
+"hours_ago":28
+}
+]
+},
+{
+"story_id":"egypt-imf-tranche",
+"kind":"medium",
+"summary":"The IMF executive board completes a review of Egypt's Extended Fund Facility, approving a disbursement of about $1.2 billion.",
+"headlines":[
+{
+"title":"IMF board approves $1.2 billion disbursement for Egypt",
+"publisher":"Global Wire Service",
+"description":"The Fund's executive board completed the latest review of Egypt's $8 billion Extended Fund Facility, allowing the immediate release of about $1.2 billion.",
+"hours_ago":19
+},
+{
+"title":"IMF completes Egypt programme review, unlocking $1.2bn tranche",
+"publisher":"Continental Press Agency",
+"description":"",
+"hours_ago":18
+},
+{
+"title":"Egypt secures IMF go-ahead for next loan instalment",
+"publisher":"Nile Business Review",
+"description":"",
+"hours_ago":17
+},
+{
+"title":"IMF presses Cairo on state asset sales as it releases fresh funds",
+"publisher":"Emerging Markets Monitor",
+"description":"Alongside the approval, the Fund said Egypt needed to accelerate divestment of state-owned companies and level the playing field for private firms.",
+"hours_ago":16
+},
+{
+"title":"Egyptian pound edges up after IMF signs off on latest payout",
+"publisher":"Market Pulse",
+"description":"",
+"hours_ago":11
+},
+{
+"title":"Cairo hails IMF approval, says reform programme 'on track'",
+"publisher":"Gulf Evening Standard",
+"description":"Egypt's finance ministry said the board decision reflected progress on fiscal consolidation and the flexible exchange-rate regime.",
+"hours_ago":13
+}
+]
+},
+{
+"story_id":"qatarenergy-gail-lng",
+"kind":"medium",
+"summary":"QatarEnergy and India's GAIL sign a 15-year agreement for the supply of 2 million tonnes per annum of LNG from 2028.",
+"headlines":[
+{
+"title":"QatarEnergy signs 15-year LNG supply deal with India's GAIL",
+"publisher":"Global Wire Service",
+"description":"QatarEnergy will deliver 2 million tonnes per annum of liquefied natural gas to GAIL from 2028 under the agreement signed in Doha.",
+"hours_ago":23
+},
+{
+"title":"GAIL inks long-term pact with QatarEnergy for 2 MTPA of LNG",
+"publisher":"Indian Financial Daily",
+"description":"",
+"hours_ago":22
+},
+{
+"title":"India locks in 15 years of Qatari gas in fresh supply agreement",
+"publisher":"The National Chronicle of India",
+"description":"",
+"hours_ago":20
+},
+{
+"title":"Qatar deepens energy ties with India through new gas contract",
+"publisher":"Peninsula Daily",
+"description":"QatarEnergy chief executive Saad al-Kaabi said India remained one of the company's most important markets as he signed the GAIL deal.",
+"hours_ago":21
+},
+{
+"title":"GAIL shares gain 3% after Qatar LNG deal",
+"publisher":"Delhi Business Ledger",
+"description":"",
+"hours_ago":3
+},
+{
+"title":"Why GAIL's Qatar deal matters for India's gas-based economy push",
+"publisher":"Bharat Express",
+"description":"The contract adds to India's long-term LNG portfolio as the government targets raising natural gas to 15% of the energy mix by 2030.",
+"hours_ago":5
+},
+{
+"title":"Doha, Delhi seal 2-million-tonne-a-year gas supply agreement",
+"publisher":"Gulf Business Today",
+"description":"",
+"hours_ago":19
+}
+]
+},
+{
+"story_id":"turkey-cbrt-hike",
+"kind":"medium",
+"summary":"Turkey's central bank unexpectedly raises its one-week repo rate by 250 basis points to 38%.",
+"headlines":[
+{
+"title":"Turkey's central bank raises key rate to 38% in surprise move",
+"publisher":"Global Wire Service",
+"description":"The Central Bank of the Republic of Turkey lifted its one-week repo rate by 250 basis points, citing stubborn inflation and pressure on the lira.",
+"hours_ago":28
+},
+{
+"title":"Turkish central bank hikes rates by 250 bps as inflation proves sticky",
+"publisher":"Market Pulse",
+"description":"",
+"hours_ago":27
+},
+{
+"title":"Lira strengthens after CBRT's unexpected tightening",
+"publisher":"Anatolian Markets Report",
+"description":"The Turkish currency gained against the dollar and bank stocks rose after the central bank's surprise rate increase.",
+"hours_ago":26
+},
+{
+"title":"Ankara surprises markets with return to rate hikes",
+"publisher":"Emerging Markets Monitor",
+"description":"",
+"hours_ago":25
+},
+{
+"title":"Karahan's central bank signals more tightening after lifting rate to 38%",
+"publisher":"Continental Press Agency",
+"description":"Governor Fatih Karahan's monetary policy committee said it would tighten further if the inflation outlook deteriorated.",
+"hours_ago":24
+},
+{
+"title":"Turkey lifts one-week repo rate to 38%",
+"publisher":"Gulf Coast Gazette",
+"description":"",
+"hours_ago":26
+}
+]
+},
+{
+"story_id":"iran-hormozgan-quake",
+"kind":"distractor",
+"summary":"A magnitude 5.6 earthquake strikes Iran's southern Hormozgan province near Bandar Abbas, injuring dozens but causing no deaths.",
+"headlines":[
+{
+"title":"Magnitude 5.6 earthquake strikes southern Iran, no deaths reported",
+"publisher":"Global Wire Service",
+"description":"",
+"hours_ago":9
+},
+{
+"title":"Quake jolts Iran's Hormozgan province, buildings damaged",
+"publisher":"Gulf Evening Standard",
+"description":"The tremor was felt in Bandar Abbas and parts of the UAE, but Iranian officials said there were no immediate reports of fatalities.",
+"hours_ago":8
+},
+{
+"title":"Iran: dozens injured as earthquake hits near Bandar Abbas",
+"publisher":"Asia Pacific Wire",
+"description":"",
+"hours_ago":7
+}
+]
+},
+{
+"story_id":"bank-of-israel-hold",
+"kind":"distractor",
+"summary":"The Bank of Israel keeps its benchmark interest rate unchanged at 4.25%.",
+"headlines":[
+{
+"title":"Bank of Israel holds benchmark rate at 4.25%",
+"publisher":"Levant Dispatch",
+"description":"Governor Amir Yaron said the monetary committee would keep policy restrictive until inflation returns firmly to the 1-3% target range.",
+"hours_ago":30
+},
+{
+"title":"Israel's central bank keeps rates steady, flags inflation risks",
+"publisher":"Market Pulse",
+"description":"",
+"hours_ago":29
+}
+]
+},
+{
+"story_id":"trump-apec-china-trip",
+"kind":"distractor",
+"summary":"The White House confirms President Trump will attend the APEC summit in Shenzhen, China, next month and meet Xi Jinping.",
+"headlines":[
+{
+"title":"Trump says he will attend APEC summit in Shenzhen next month",
+"publisher":"The Capital Ledger",
+"description":"",
+"hours_ago":12
+},
+{
+"title":"White House confirms Trump trip to China for APEC leaders' meeting",
+"publisher":"Atlantic Herald",
+"description":"A White House spokesperson said the president would hold a bilateral meeting with Xi Jinping on the sidelines of the summit.",
+"hours_ago":11
+},
+{
+"title":"Trump to meet Xi on sidelines of APEC summit, officials say",
+"publisher":"Global Wire Service",
+"description":"",
+"hours_ago":10
+}
+]
+},
+{
+"story_id":"yemen-prisoner-swap",
+"kind":"distractor",
+"summary":"Yemen's Houthis and the internationally recognised government agree a UN-brokered exchange of 300 prisoners after talks in Muscat.",
+"headlines":[
+{
+"title":"Yemen's warring parties agree to swap 300 prisoners, UN envoy says",
+"publisher":"Global Wire Service",
+"description":"UN special envoy Hans Grundberg said the Houthis and the Saudi-backed government reached the deal after a week of talks in Muscat.",
+"hours_ago":15
+},
+{
+"title":"Houthis, Yemeni government strike prisoner exchange deal in Oman",
+"publisher":"Arabian Gulf Herald",
+"description":"",
+"hours_ago":14
+}
+]
+},
+{
+"story_id":"maersk-new-cfo",
+"kind":"distractor",
+"summary":"A.P. Moller-Maersk announces the appointment of a new chief financial officer from January 1.",
+"headlines":[
+{
+"title":"Maersk names new chief financial officer",
+"publisher":"Nordic Shipping Journal",
+"description":"",
+"hours_ago":33
+},
+{
+"title":"A.P. Moller-Maersk appoints new CFO, effective January 1",
+"publisher":"Freight & Logistics Times",
+"description":"The Copenhagen-based group said the incoming finance chief would join its executive board at the start of next year.",
+"hours_ago":32
+}
+]
+},
+{
+"story_id":"aramco-bond-sale",
+"kind":"distractor",
+"summary":"Saudi Aramco raises $5 billion through a multi-tranche international dollar bond sale.",
+"headlines":[
+{
+"title":"Saudi Aramco raises $5 billion from bond sale",
+"publisher":"Global Wire Service",
+"description":"",
+"hours_ago":20
+},
+{
+"title":"Aramco taps debt markets with $5bn multi-tranche bond",
+"publisher":"Riyadh Business Post",
+"description":"The oil giant's offering drew orders of more than $20 billion across five-, 10- and 30-year tranches, according to people familiar with the deal.",
+"hours_ago":19
+},
+{
+"title":"Investors pile into Aramco's dollar bonds",
+"publisher":"Straits Commerce Times",
+"description":"",
+"hours_ago":17
+}
+]
+},
+{
+"story_id":"egypt-sept-inflation",
+"kind":"distractor",
+"summary":"Egypt's annual urban consumer inflation slows to 11.8% in September, CAPMAS data show.",
+"headlines":[
+{
+"title":"Egypt's urban inflation eases to 11.8% in September",
+"publisher":"Nile Business Review",
+"description":"Figures from state statistics agency CAPMAS showed food price growth slowing for a third consecutive month.",
+"hours_ago":31
+},
+{
+"title":"Egyptian inflation slows for third straight month",
+"publisher":"Market Pulse",
+"description":"",
+"hours_ago":30
+}
+]
+},
+{
+"story_id":"pakistan-imf-tranche",
+"kind":"distractor",
+"summary":"The IMF executive board completes a review of Pakistan's $7 billion loan program, releasing about $1 billion.",
+"headlines":[
+{
+"title":"IMF board approves $1 billion tranche for Pakistan",
+"publisher":"Global Wire Service",
+"description":"The executive board completed its review of Pakistan's $7 billion Extended Fund Facility, allowing an immediate disbursement of about $1 billion.",
+"hours_ago":4
+},
+{
+"title":"Pakistan gets IMF nod for next loan payment after board review",
+"publisher":"Karachi Commerce Journal",
+"description":"",
+"hours_ago":3
+},
+{
+"title":"Islamabad welcomes IMF approval, vows to stay the course on reforms",
+"publisher":"Asia Pacific Wire",
+"description":"",
+"hours_ago":2
+}
+]
+},
+{
+"story_id":"qatarenergy-jera-lng",
+"kind":"distractor",
+"summary":"QatarEnergy signs a 20-year LNG supply agreement with Japan's JERA for 3 million tonnes a year from 2029.",
+"headlines":[
+{
+"title":"QatarEnergy signs 20-year LNG supply deal with Japan's JERA",
+"publisher":"Tokyo Business Wire",
+"description":"The Japanese utility will buy 3 million tonnes a year from Qatar's North Field expansion starting in 2029.",
+"hours_ago":30
+},
+{
+"title":"JERA agrees long-term LNG purchase from Qatar",
+"publisher":"Asia Pacific Wire",
+"description":"",
+"hours_ago":29
+}
+]
+},
+{
+"story_id":"russia-rate-cut",
+"kind":"distractor",
+"summary":"The Bank of Russia cuts its key interest rate by 100 basis points to 15%.",
+"headlines":[
+{
+"title":"Bank of Russia cuts key rate to 15% as inflation cools",
+"publisher":"Global Wire Service",
+"description":"",
+"hours_ago":27
+},
+{
+"title":"Russian central bank trims rates by 100 basis points",
+"publisher":"Emerging Markets Monitor",
+"description":"Governor Elvira Nabiullina said slowing price growth gave room for further gradual easing.",
+"hours_ago":26
+}
+]
+},
+{
+"story_id":"erdogan-sharaa-ankara",
+"kind":"distractor",
+"summary":"Turkish President Erdogan hosts Syrian President al-Sharaa in Ankara, where the two sides sign trade and transport agreements.",
+"headlines":[
+{
+"title":"Erdogan hosts Syria's al-Sharaa in Ankara, signs trade and transport deals",
+"publisher":"Anatolian Markets Report",
+"description":"",
+"hours_ago":7
+},
+{
+"title":"Turkey and Syria agree to boost trade, restore Aleppo-Gaziantep rail link",
+"publisher":"Levant Dispatch",
+"description":"The agreements were signed during the Syrian president's visit to the Turkish capital.",
+"hours_ago":6
+}
+]
+},
+{
+"story_id":"indian-navy-frigate",
+"kind":"distractor",
+"summary":"The Indian Navy commissions a new indigenously built stealth frigate at the naval dockyard in Mumbai.",
+"headlines":[
+{
+"title":"Indian Navy commissions new stealth frigate in Mumbai",
+"publisher":"The National Chronicle of India",
+"description":"",
+"hours_ago":16
+},
+{
+"title":"Navy inducts indigenously built stealth frigate; Defence Minister calls it milestone",
+"publisher":"Chennai Daily Herald",
+"description":"The guided-missile frigate, built by Mazagon Dock Shipbuilders, was commissioned at a ceremony at the naval dockyard in Mumbai.",
+"hours_ago":15
+}
+]
+},
+{
+"story_id":"s-foxconn-sept-revenue",
+"kind":"singleton",
+"summary":"Foxconn reports an 11% rise in September revenue driven by AI server demand.",
+"headlines":[
+{
+"title":"Foxconn September revenue rises 11% on AI server demand",
+"publisher":"Taipei Tech Business",
+"description":"The Taiwanese contract manufacturer said sales of cloud and networking products more than offset softer smartphone shipments.",
+"hours_ago":25
+}
+]
+},
+{
+"story_id":"s-india-nz-cricket",
+"kind":"singleton",
+"summary":"Shubman Gill scores a century as India beat New Zealand by six wickets.",
+"headlines":[
+{
+"title":"Gill hits century as India beat New Zealand by six wickets",
+"publisher":"Sportsline Daily",
+"description":"",
+"hours_ago":5
+}
+]
+},
+{
+"story_id":"s-dane-county-bond",
+"kind":"singleton",
+"summary":"Dane County board approves a $40 million bond for a courthouse expansion.",
+"headlines":[
+{
+"title":"Dane County board approves $40 million bond for courthouse expansion",
+"publisher":"Great Lakes Observer",
+"description":"",
+"hours_ago":13
+}
+]
+},
+{
+"story_id":"s-tesla-model-y-recall",
+"kind":"singleton",
+"summary":"Tesla recalls 12,000 Model Y vehicles over a rear camera software glitch.",
+"headlines":[
+{
+"title":"Tesla recalls 12,000 Model Y vehicles over rear camera software glitch",
+"publisher":"Pacific Coast Courier",
+"description":"The automaker said an over-the-air update would fix the issue, which can delay the rear-view image when the vehicle is put in reverse.",
+"hours_ago":28
+}
+]
+},
+{
+"story_id":"s-rbi-coop-bank-penalty",
+"kind":"singleton",
+"summary":"The RBI fines two cooperative banks for KYC lapses.",
+"headlines":[
+{
+"title":"RBI imposes monetary penalty on two cooperative banks for KYC lapses",
+"publisher":"Indian Financial Daily",
+"description":"",
+"hours_ago":18
+}
+]
+},
+{
+"story_id":"s-japan-core-cpi",
+"kind":"singleton",
+"summary":"Japan's core consumer inflation slows to 2.6% in September.",
+"headlines":[
+{
+"title":"Japan's core consumer inflation slows to 2.6% in September",
+"publisher":"Tokyo Business Wire",
+"description":"",
+"hours_ago":20
+}
+]
+},
+{
+"story_id":"s-netflix-earnings",
+"kind":"singleton",
+"summary":"Netflix quarterly revenue beats estimates on ad-tier growth.",
+"headlines":[
+{
+"title":"Netflix revenue tops estimates as ad-supported tier grows",
+"publisher":"Wall Street Brief",
+"description":"The streaming company also raised its full-year operating margin forecast.",
+"hours_ago":34
+}
+]
+},
+{
+"story_id":"s-spacex-starlink-launch",
+"kind":"singleton",
+"summary":"SpaceX launches 24 Starlink satellites from Vandenberg.",
+"headlines":[
+{
+"title":"SpaceX launches 24 Starlink satellites from Vandenberg",
+"publisher":"Golden State Tribune",
+"description":"",
+"hours_ago":15
+}
+]
+},
+{
+"story_id":"s-kerala-rain",
+"kind":"singleton",
+"summary":"Heavy rain in Kerala forces school closures in five districts.",
+"headlines":[
+{
+"title":"Heavy rain lashes Kerala; schools shut in five districts",
+"publisher":"Kerala Morning Post",
+"description":"The India Meteorological Department issued an orange alert for Idukki, Pathanamthitta, Kottayam, Ernakulam and Thrissur.",
+"hours_ago":7
+}
+]
+},
+{
+"story_id":"s-uk-retail-sales",
+"kind":"singleton",
+"summary":"UK retail sales fall 0.6% in September.",
+"headlines":[
+{
+"title":"UK retail sales fall 0.6% in September as shoppers rein in spending",
+"publisher":"London Evening Chronicle",
+"description":"",
+"hours_ago":33
+}
+]
+},
+{
+"story_id":"s-bundestag-pension",
+"kind":"singleton",
+"summary":"Germany's Bundestag approves a pension reform package.",
+"headlines":[
+{
+"title":"Bundestag approves pension reform package after heated debate",
+"publisher":"Continental Press Agency",
+"description":"",
+"hours_ago":24
+}
+]
+},
+{
+"story_id":"s-eternal-q2-profit",
+"kind":"singleton",
+"summary":"Zomato parent Eternal reports a 30% rise in Q2 profit.",
+"headlines":[
+{
+"title":"Eternal's Q2 profit jumps 30% on quick commerce growth",
+"publisher":"Delhi Business Ledger",
+"description":"The Zomato and Blinkit parent said Blinkit's gross order value rose sharply as it added more dark stores.",
+"hours_ago":21
+}
+]
+},
+{
+"story_id":"s-chile-copper-output",
+"kind":"singleton",
+"summary":"Chile's copper output falls 3% in September.",
+"headlines":[
+{
+"title":"Chile's copper output falls 3% in September",
+"publisher":"Andes Mining Report",
+"description":"",
+"hours_ago":30
+}
+]
+},
+{
+"story_id":"s-toronto-bike-lane",
+"kind":"singleton",
+"summary":"Toronto city council votes to extend the Bloor Street bike lane pilot.",
+"headlines":[
+{
+"title":"Toronto council votes to extend Bloor Street bike lane pilot",
+"publisher":"Northern Metro Times",
+"description":"",
+"hours_ago":17
+}
+]
+},
+{
+"story_id":"s-santa-barbara-wildfire",
+"kind":"singleton",
+"summary":"A wildfire near Santa Barbara forces the evacuation of 2,000 homes.",
+"headlines":[
+{
+"title":"Wildfire near Santa Barbara forces evacuation of 2,000 homes",
+"publisher":"Golden State Tribune",
+"description":"Cal Fire said the blaze, fanned by strong offshore winds, had burned about 4,500 acres by late evening.",
+"hours_ago":3
+}
+]
+},
+{
+"story_id":"s-samsung-q3-guidance",
+"kind":"singleton",
+"summary":"Samsung Electronics forecasts a 20% rise in Q3 operating profit.",
+"headlines":[
+{
+"title":"Samsung Electronics forecasts 20% rise in third-quarter operating profit",
+"publisher":"Han River Economic Daily",
+"description":"",
+"hours_ago":32
+}
+]
+},
+{
+"story_id":"s-kenya-evisa",
+"kind":"singleton",
+"summary":"Kenya launches a new digital visa system for tourists.",
+"headlines":[
+{
+"title":"Kenya rolls out new digital visa system for tourists",
+"publisher":"East Africa Daily Monitor",
+"description":"",
+"hours_ago":23
+}
+]
+},
+{
+"story_id":"s-mumbai-coastal-road",
+"kind":"singleton",
+"summary":"BMC approves a Rs 2,100 crore extension of the Mumbai coastal road.",
+"headlines":[
+{
+"title":"BMC approves Rs 2,100 crore extension of Mumbai coastal road",
+"publisher":"Mumbai Civic Times",
+"description":"",
+"hours_ago":19
+}
+]
+},
+{
+"story_id":"s-philippines-typhoon",
+"kind":"singleton",
+"summary":"A typhoon makes landfall in the northern Philippines, prompting 50,000 evacuations.",
+"headlines":[
+{
+"title":"Typhoon makes landfall in northern Philippines; 50,000 evacuated",
+"publisher":"Asia Pacific Wire",
+"description":"The storm brought winds of up to 150 km/h to Cagayan and Isabela provinces, cutting power to several towns.",
+"hours_ago":1
+}
+]
+},
+{
+"story_id":"s-djokovic-paris-withdrawal",
+"kind":"singleton",
+"summary":"Novak Djokovic withdraws from the Paris Masters with a shoulder injury.",
+"headlines":[
+{
+"title":"Djokovic withdraws from Paris Masters citing shoulder injury",
+"publisher":"Sportsline Daily",
+"description":"",
+"hours_ago":2
+}
+]
+},
+{
+"story_id":"s-deep-sea-octopus",
+"kind":"singleton",
+"summary":"Scientists discover a new species of deep-sea octopus off Chile.",
+"headlines":[
+{
+"title":"Scientists discover new species of deep-sea octopus off Chile",
+"publisher":"Science Frontier News",
+"description":"Researchers aboard a Schmidt Ocean Institute vessel found the animal at a depth of more than 3,000 metres on a seamount chain.",
+"hours_ago":26
+}
+]
+},
+{
+"story_id":"s-arsenal-brighton",
+"kind":"singleton",
+"summary":"Arsenal beat Brighton 2-0 to stay top of the Premier League.",
+"headlines":[
+{
+"title":"Arsenal beat Brighton 2-0 to stay top of Premier League",
+"publisher":"Weekend Sports Review",
+"description":"",
+"hours_ago":0
+}
+]
+},
+{
+"story_id":"s-ohio-bus-driver-pay",
+"kind":"singleton",
+"summary":"The Ohio Senate passes a bill to raise school bus driver pay.",
+"headlines":[
+{
+"title":"Ohio Senate passes bill to raise school bus driver pay",
+"publisher":"Buckeye State Journal",
+"description":"",
+"hours_ago":22
+}
+]
+},
+{
+"story_id":"s-bengaluru-ai-signals",
+"kind":"singleton",
+"summary":"Bengaluru traffic police roll out AI-based traffic signals at 50 junctions.",
+"headlines":[
+{
+"title":"Bengaluru traffic police roll out AI-based signals at 50 junctions",
+"publisher":"Bengaluru Metro Post",
+"description":"",
+"hours_ago":9
+}
+]
+},
+{
+"story_id":"s-norway-wealth-fund",
+"kind":"singleton",
+"summary":"Norway's sovereign wealth fund reports an $80 billion third-quarter gain.",
+"headlines":[
+{
+"title":"Norway's sovereign wealth fund posts $80 billion third-quarter gain",
+"publisher":"Nordic Finance Wire",
+"description":"",
+"hours_ago":11
+}
+]
+}
+]
+},
+{
+"day":"day4",
+"stories":[
+{
+"story_id":"ecb-rate-cut",
+"kind":"big",
+"summary":"The ECB cuts its deposit rate by 25 basis points to 1.75%, and Lagarde leaves the door open to further easing.",
+"headlines":[
+{
+"title":"ECB cuts deposit rate to 1.75% as euro zone growth falters",
+"publisher":"Global Wire Service",
+"description":"The European Central Bank lowered its deposit rate by a quarter percentage point on Thursday, citing weakening growth and inflation running below its 2% target.",
+"hours_ago":15
+},
+{
+"title":"ECB cuts deposit rate to 1.75% as euro zone growth falters",
+"publisher":"Midwest Courier",
+"description":"",
+"hours_ago":14
+},
+{
+"title":"ECB cuts deposit rate to 1.75% as eurozone growth falters",
+"publisher":"Gulf Daily Standard",
+"description":"The European Central Bank lowered its deposit rate by a quarter point on Thursday, citing weakening growth and below-target inflation.",
+"hours_ago":13
+},
+{
+"title":"ECB cuts again",
+"publisher":"Morning Markets Brief",
+"description":"The euro area's central bank trimmed its key rate to 1.75%, its first move since June.",
+"hours_ago":15
+},
+{
+"title":"Lagarde leaves door open to more easing after quarter-point cut",
+"publisher":"Continental Finance Review",
+"description":"",
+"hours_ago":12
+},
+{
+"title":"European Central Bank lowers borrowing costs, citing trade headwinds and weak demand",
+"publisher":"Atlantic Herald",
+"description":"",
+"hours_ago":13
+},
+{
+"title":"Frankfurt trims again: euro area's benchmark rate slips to 1.75%",
+"publisher":"The Continental",
+"description":"",
+"hours_ago":11
+},
+{
+"title":"Euro slides against dollar after ECB reduction",
+"publisher":"Market Pulse",
+"description":"The single currency fell 0.6% as traders priced in a further cut by March following the central bank's decision.",
+"hours_ago":12
+},
+{
+"title":"Bund yields fall as ECB signals easing cycle may not be over",
+"publisher":"City Markets Daily",
+"description":"",
+"hours_ago":11
+},
+{
+"title":"What the ECB's rate cut means for Indian exporters and the rupee",
+"publisher":"Delhi Business Ledger",
+"description":"Lower euro-area rates could soften the euro against the rupee, squeezing margins for Indian textile and engineering exporters, analysts say.",
+"hours_ago":8
+},
+{
+"title":"European shares extend gains after rate cut from Frankfurt; banks lag",
+"publisher":"Bourse Watch",
+"description":"",
+"hours_ago":10
+},
+{
+"title":"Lagarde says downside inflation risks justified Thursday's cut",
+"publisher":"Euro Politics Today",
+"description":"Speaking at her post-meeting press conference, the ECB president said the Governing Council saw inflation risks as tilted to the downside.",
+"hours_ago":12
+},
+{
+"title":"Relief for euro zone borrowers as ECB eases policy once more",
+"publisher":"Dublin Morning Post",
+"description":"",
+"hours_ago":9
+},
+{
+"title":"ECB delivers expected 25bp cut; staff now see 2027 inflation at 1.7%",
+"publisher":"Asia Markets Wire",
+"description":"New staff projections published with the decision show inflation below the ECB's 2% target in 2027, while growth forecasts were trimmed.",
+"hours_ago":13
+},
+{
+"title":"Euro area's central bank reduces key interest rate by a quarter point",
+"publisher":"Pacific Times",
+"description":"",
+"hours_ago":10
+},
+{
+"title":"ECB policymakers split over pace of further easing after Thursday's move - sources",
+"publisher":"Global Wire Service",
+"description":"Several Governing Council members wanted to signal a pause after the cut, while others pushed for guidance on more reductions, according to people familiar with the discussion.",
+"hours_ago":6
+},
+{
+"title":"GIFT Nifty points to firm open as ECB rate cut lifts risk appetite",
+"publisher":"Mumbai Market Mirror",
+"description":"",
+"hours_ago":2
+},
+{
+"title":"Analysis: Another ECB cut buys time, but not growth",
+"publisher":"Financial Observer",
+"description":"The latest reduction will ease financing costs at the margin, yet economists doubt it can offset weak investment and fading export demand.",
+"hours_ago":5
+},
+{
+"title":"Savers lose out as European Central Bank reduces deposit rate",
+"publisher":"London Evening Gazette",
+"description":"",
+"hours_ago":9
+},
+{
+"title":"Euro softens, gold edges higher after ECB trims rates",
+"publisher":"Commodities Desk Daily",
+"description":"",
+"hours_ago":11
+},
+{
+"title":"Italy's Giorgetti welcomes ECB cut, says more support needed",
+"publisher":"Rome Financial Daily",
+"description":"Italian Finance Minister Giancarlo Giorgetti said the European Central Bank's quarter-point reduction was welcome but urged further support for the economy.",
+"hours_ago":10
+},
+{
+"title":"ECB Rate Cut Explained: 5 Things To Know About Lagarde's Latest Move",
+"publisher":"The Economic Standard",
+"description":"From the size of the cut to the outlook for 2027, here is what Thursday's decision by the European Central Bank means.",
+"hours_ago":7
+},
+{
+"title":"Eurozone monetary easing continues with fresh 0.25-point reduction",
+"publisher":"Gulf Business Times",
+"description":"",
+"hours_ago":12
+}
+]
+},
+{
+"story_id":"france-govt-falls",
+"kind":"big",
+"summary":"The French government loses a no-confidence (censure) vote in the National Assembly over its budget, and the prime minister has to resign.",
+"headlines":[
+{
+"title":"French government falls after losing no-confidence vote over budget",
+"publisher":"Global Wire Service",
+"description":"French lawmakers backed a censure motion with 312 votes, well above the 289 needed, forcing the prime minister to tender the government's resignation.",
+"hours_ago":8
+},
+{
+"title":"French government falls after losing no-confidence vote over budget",
+"publisher":"Riverside Tribune",
+"description":"",
+"hours_ago":7
+},
+{
+"title":"French government falls after losing no confidence vote over budget",
+"publisher":"Bay Area Ledger",
+"description":"French lawmakers backed a censure motion with 312 votes, forcing the prime minister to tender the government's resignation.",
+"hours_ago":6
+},
+{
+"title":"France plunged into fresh political crisis as PM ousted",
+"publisher":"London Evening Gazette",
+"description":"",
+"hours_ago":7
+},
+{
+"title":"National Assembly topples cabinet in 312-vote rebuke",
+"publisher":"Euro Politics Today",
+"description":"",
+"hours_ago":8
+},
+{
+"title":"Macron must find new prime minister after censure motion passes",
+"publisher":"Atlantic Herald",
+"description":"The French president is expected to begin consultations with party leaders after parliament brought down the government.",
+"hours_ago":6
+},
+{
+"title":"French bond spreads widen as Paris government collapses",
+"publisher":"City Markets Daily",
+"description":"",
+"hours_ago":7
+},
+{
+"title":"OAT-Bund spread hits widest in months after French censure vote",
+"publisher":"Bourse Watch",
+"description":"The premium investors demand to hold French 10-year debt over German Bunds jumped to 92 basis points after the government was voted out.",
+"hours_ago":6
+},
+{
+"title":"Left and far right join forces to bring down French government",
+"publisher":"The Continental",
+"description":"",
+"hours_ago":7
+},
+{
+"title":"Bardella demands snap election after French government is voted out",
+"publisher":"Euro Politics Today",
+"description":"",
+"hours_ago":5
+},
+{
+"title":"What France's government collapse means for the euro and India-EU trade ties",
+"publisher":"Delhi Business Ledger",
+"description":"Analysts say renewed political uncertainty in Paris could weigh on the euro and delay ratification steps on the India-EU trade deal.",
+"hours_ago":3
+},
+{
+"title":"CAC 40 slides as French cabinet loses confidence motion",
+"publisher":"Market Pulse",
+"description":"",
+"hours_ago":8
+},
+{
+"title":"PM hands resignation to Élysée after defeat in Assembly",
+"publisher":"Gulf Daily Standard",
+"description":"",
+"hours_ago":5
+},
+{
+"title":"Paris in limbo: 2027 budget in doubt after censure",
+"publisher":"Financial Observer",
+"description":"With no government in place, the spending plan that triggered the vote must be withdrawn, raising the prospect of a stopgap special law.",
+"hours_ago":4
+},
+{
+"title":"France: censure motion carried, budget plans scrapped",
+"publisher":"Asia Markets Wire",
+"description":"",
+"hours_ago":6
+},
+{
+"title":"Explainer: How France's no-confidence motions work and what happens next",
+"publisher":"The Economic Standard",
+"description":"A censure motion needs an absolute majority of 289 votes in the 577-seat National Assembly; once it passes, the government must resign.",
+"hours_ago":2
+},
+{
+"title":"Macron's camp stunned as lawmakers vote out government",
+"publisher":"Pacific Times",
+"description":"",
+"hours_ago":6
+},
+{
+"title":"Euro under pressure as French political crisis deepens",
+"publisher":"Gulf Business Times",
+"description":"The single currency fell against the dollar and the Swiss franc after French lawmakers voted out the government.",
+"hours_ago":5
+},
+{
+"title":"Another French government toppled as budget row boils over",
+"publisher":"Northern Echo",
+"description":"",
+"hours_ago":4
+},
+{
+"title":"Medef warns of 'paralysis' after French government falls",
+"publisher":"Business Europe Daily",
+"description":"France's main employers' federation urged parties to agree quickly on a budget to avoid damaging investment.",
+"hours_ago":4
+},
+{
+"title":"Berlin urges swift return to stability after French government's defeat",
+"publisher":"Berlin Morning Report",
+"description":"",
+"hours_ago":3
+},
+{
+"title":"Censured: French PM becomes latest casualty of hung parliament",
+"publisher":"Atlantic Sunday Review",
+"description":"",
+"hours_ago":5
+}
+]
+},
+{
+"story_id":"germany-industrial-output",
+"kind":"medium",
+"summary":"Destatis data show German industrial production fell 1.8% month-on-month in August.",
+"headlines":[
+{
+"title":"German industrial output falls 1.8% in August",
+"publisher":"Global Wire Service",
+"description":"Production in Germany's industrial sector dropped 1.8% from July, statistics office Destatis said, far worse than the 0.5% decline economists had forecast.",
+"hours_ago":27
+},
+{
+"title":"German industrial output falls 1.8% in August",
+"publisher":"Rhine Valley Tribune",
+"description":"",
+"hours_ago":26
+},
+{
+"title":"Germany's factories stumble again as production slumps",
+"publisher":"Continental Finance Review",
+"description":"",
+"hours_ago":25
+},
+{
+"title":"Car makers drag down German production in August, Destatis says",
+"publisher":"Bourse Watch",
+"description":"",
+"hours_ago":26
+},
+{
+"title":"German factory output data dash hopes of third-quarter rebound",
+"publisher":"Financial Observer",
+"description":"The steep fall in August output raises the risk that Europe's largest economy contracted again in the third quarter.",
+"hours_ago":22
+},
+{
+"title":"Europe's largest economy posts steepest factory output drop since January",
+"publisher":"Asia Markets Wire",
+"description":"",
+"hours_ago":24
+},
+{
+"title":"Germany: industrial production down 1.8% m/m, energy-intensive sectors weak",
+"publisher":"Market Pulse",
+"description":"",
+"hours_ago":27
+}
+]
+},
+{
+"story_id":"uk-autumn-budget",
+"kind":"medium",
+"summary":"The UK Chancellor presents the autumn budget, which extends the income tax threshold freeze, freezes fuel duty and raises gambling duty.",
+"headlines":[
+{
+"title":"Chancellor extends income tax threshold freeze in autumn budget",
+"publisher":"Global Wire Service",
+"description":"The Chancellor told the House of Commons that personal tax thresholds would stay frozen until 2030, raising about £8bn a year by the end of the decade.",
+"hours_ago":19
+},
+{
+"title":"UK budget: fuel duty frozen again, gambling levy raised",
+"publisher":"London Evening Gazette",
+"description":"The Chancellor kept fuel duty unchanged for another year and increased remote gaming duty to help fund NHS spending.",
+"hours_ago":18
+},
+{
+"title":"UK Budget 2026: what it means for your pay packet",
+"publisher":"Northern Echo",
+"description":"Frozen thresholds mean more workers will be pulled into higher tax bands as wages rise.",
+"hours_ago":16
+},
+{
+"title":"Gilts rally as UK budget sticks to fiscal rules",
+"publisher":"City Markets Daily",
+"description":"",
+"hours_ago":17
+},
+{
+"title":"Treasury unveils £22bn of tax rises in Commons budget statement",
+"publisher":"Atlantic Herald",
+"description":"",
+"hours_ago":18
+},
+{
+"title":"OBR trims UK growth forecast as Chancellor presents budget",
+"publisher":"Financial Observer",
+"description":"The Office for Budget Responsibility now expects the economy to grow 1.1% next year, down from 1.4%.",
+"hours_ago":18
+},
+{
+"title":"UK Budget 2026: Key takeaways for Indian investors and NRIs",
+"publisher":"The Economic Standard",
+"description":"",
+"hours_ago":12
+}
+]
+},
+{
+"story_id":"eu-ai-act-meta-proceedings",
+"kind":"medium",
+"summary":"The European Commission opens formal AI Act proceedings against Meta over the obligations that apply to its general-purpose AI models.",
+"headlines":[
+{
+"title":"EU opens first AI Act proceedings against Meta",
+"publisher":"Global Wire Service",
+"description":"The European Commission said it had opened formal proceedings to assess whether Meta's Llama models meet the AI Act's transparency and documentation duties for general-purpose AI.",
+"hours_ago":21
+},
+{
+"title":"Brussels takes aim at Meta in landmark AI Act test case",
+"publisher":"The Continental",
+"description":"",
+"hours_ago":20
+},
+{
+"title":"Meta faces EU investigation over AI model transparency rules",
+"publisher":"Tech Frontier",
+"description":"",
+"hours_ago":20
+},
+{
+"title":"Commission's AI Office launches formal probe into Meta's Llama",
+"publisher":"Digital Policy Brief",
+"description":"",
+"hours_ago":21
+},
+{
+"title":"Meta says it will cooperate with EU review of its AI models",
+"publisher":"Silicon Valley Dispatch",
+"description":"The company said it believed its models complied with European law and would engage constructively with the Commission's AI Office after proceedings were opened.",
+"hours_ago":17
+},
+{
+"title":"AI Act gets teeth: What the Meta case means for Indian AI startups eyeing Europe",
+"publisher":"Bengaluru Tech Times",
+"description":"",
+"hours_ago":9
+},
+{
+"title":"EU regulators open AI Act case against Meta; fines could reach 3% of turnover",
+"publisher":"Gulf Business Times",
+"description":"",
+"hours_ago":19
+}
+]
+},
+{
+"story_id":"poland-safe-defence-loan",
+"kind":"medium",
+"summary":"Poland signs a €43.7 billion defence loan agreement with the European Commission under the EU's SAFE programme.",
+"headlines":[
+{
+"title":"Poland signs €43.7 billion EU defence loan deal",
+"publisher":"Global Wire Service",
+"description":"Poland became the first member state to sign a loan agreement under the EU's SAFE defence instrument, securing €43.7 billion for military procurement.",
+"hours_ago":23
+},
+{
+"title":"Warsaw secures biggest slice of EU's SAFE defence fund",
+"publisher":"Euro Politics Today",
+"description":"",
+"hours_ago":22
+},
+{
+"title":"Tusk hails 'historic' defence financing agreement with Brussels",
+"publisher":"Baltic Observer",
+"description":"",
+"hours_ago":21
+},
+{
+"title":"Poland to spend EU defence billions on air defence, drones and ammunition",
+"publisher":"Defence Insight",
+"description":"The defence ministry said after the signing that most of the SAFE loan will go to air and missile defence, drone programmes and artillery shells.",
+"hours_ago":20
+},
+{
+"title":"Kosiniak-Kamysz: SAFE money will go to Polish arms makers first",
+"publisher":"Warsaw Business Journal",
+"description":"",
+"hours_ago":20
+},
+{
+"title":"Poland, European Commission ink defence loan pact under SAFE scheme",
+"publisher":"Asia Markets Wire",
+"description":"",
+"hours_ago":22
+}
+]
+},
+{
+"story_id":"ecb-digital-euro-vendors",
+"kind":"distractor",
+"summary":"The ECB picks technology providers for the digital euro's offline payment and fraud-detection components.",
+"headlines":[
+{
+"title":"ECB picks firms to build digital euro offline payment system",
+"publisher":"Global Wire Service",
+"description":"The European Central Bank named the companies that will develop offline payment and fraud-detection components for a possible digital euro.",
+"hours_ago":30
+},
+{
+"title":"Digital euro moves a step closer as ECB awards technical contracts",
+"publisher":"Continental Finance Review",
+"description":"",
+"hours_ago":29
+},
+{
+"title":"ECB names vendors for digital euro offline payments and fraud checks",
+"publisher":"Fintech Daily",
+"description":"",
+"hours_ago":28
+}
+]
+},
+{
+"story_id":"nbp-poland-rate-cut",
+"kind":"distractor",
+"summary":"The National Bank of Poland cuts its reference rate by 25 basis points to 4.25%.",
+"headlines":[
+{
+"title":"Poland's central bank cuts benchmark rate by 25 basis points",
+"publisher":"Global Wire Service",
+"description":"The National Bank of Poland lowered its reference rate to 4.25%, citing easing domestic inflation.",
+"hours_ago":31
+},
+{
+"title":"NBP trims reference rate to 4.25%; Glapiński signals pause",
+"publisher":"Warsaw Business Journal",
+"description":"",
+"hours_ago":29
+},
+{
+"title":"Zloty steady after Polish rate cut",
+"publisher":"Market Pulse",
+"description":"",
+"hours_ago":30
+}
+]
+},
+{
+"story_id":"germany-ppi-september",
+"kind":"distractor",
+"summary":"Destatis says German producer prices fell 0.4% in September.",
+"headlines":[
+{
+"title":"German producer prices fall 0.4% in September",
+"publisher":"Global Wire Service",
+"description":"Factory-gate prices in Germany dropped for a fourth straight month, driven by cheaper energy, the Destatis statistics office said.",
+"hours_ago":33
+},
+{
+"title":"Destatis: German factory-gate prices decline again on cheaper energy",
+"publisher":"Bourse Watch",
+"description":"",
+"hours_ago":32
+},
+{
+"title":"Germany's producer price index drops more than expected",
+"publisher":"Asia Markets Wire",
+"description":"",
+"hours_ago":31
+}
+]
+},
+{
+"story_id":"uk-cpi-september",
+"kind":"distractor",
+"summary":"The ONS says UK consumer price inflation eased to 3.1% in September.",
+"headlines":[
+{
+"title":"UK inflation eases to 3.1% in September",
+"publisher":"Global Wire Service",
+"description":"Consumer price inflation slowed from 3.4% in August, the Office for National Statistics said, helped by lower petrol prices.",
+"hours_ago":34
+},
+{
+"title":"Cheaper petrol pulls down UK inflation, ONS figures show",
+"publisher":"London Evening Gazette",
+"description":"",
+"hours_ago":33
+},
+{
+"title":"Sterling dips after softer-than-expected UK inflation print",
+"publisher":"Market Pulse",
+"description":"",
+"hours_ago":32
+}
+]
+},
+{
+"story_id":"eu-parliament-ai-act-delay-vote",
+"kind":"distractor",
+"summary":"European Parliament committees vote, under the digital omnibus package, to delay the AI Act's obligations for high-risk AI systems by one year.",
+"headlines":[
+{
+"title":"EU lawmakers back one-year delay to AI Act high-risk rules",
+"publisher":"Euro Politics Today",
+"description":"MEPs on the internal market and civil liberties committees voted to push back obligations for high-risk AI systems as part of the digital omnibus simplification package.",
+"hours_ago":15
+},
+{
+"title":"European Parliament committees vote to simplify AI rules under digital omnibus",
+"publisher":"Digital Policy Brief",
+"description":"",
+"hours_ago":14
+},
+{
+"title":"Tech groups welcome MEPs' vote to postpone parts of AI Act",
+"publisher":"Tech Frontier",
+"description":"",
+"hours_ago":12
+}
+]
+},
+{
+"story_id":"france-farmers-mercosur-protest",
+"kind":"distractor",
+"summary":"French farmers drive tractors into Paris to protest the EU-Mercosur trade agreement.",
+"headlines":[
+{
+"title":"French farmers drive tractors into Paris to protest EU-Mercosur deal",
+"publisher":"Global Wire Service",
+"description":"Hundreds of tractors converged on the French capital as farm unions demanded that the EU-Mercosur trade agreement be blocked.",
+"hours_ago":26
+},
+{
+"title":"Tractor convoys snarl Paris ring road as farmers vent anger over trade pact",
+"publisher":"London Evening Gazette",
+"description":"",
+"hours_ago":25
+},
+{
+"title":"FNSEA-led farm protests spread across France against South American trade pact",
+"publisher":"The Continental",
+"description":"",
+"hours_ago":24
+}
+]
+},
+{
+"story_id":"india-france-amca-engine",
+"kind":"distractor",
+"summary":"India and France sign an agreement for Safran and DRDO to jointly develop a jet engine for the AMCA fighter.",
+"headlines":[
+{
+"title":"India, France seal deal to co-develop engine for AMCA fighter jet",
+"publisher":"Delhi Business Ledger",
+"description":"Safran and DRDO's Gas Turbine Research Establishment will jointly design a 120 kN engine for the Advanced Medium Combat Aircraft.",
+"hours_ago":16
+},
+{
+"title":"Safran, DRDO sign pact on next-generation fighter engine",
+"publisher":"The Economic Standard",
+"description":"",
+"hours_ago":15
+},
+{
+"title":"Paris and New Delhi deepen defence ties with jet engine partnership",
+"publisher":"Gulf Daily Standard",
+"description":"",
+"hours_ago":13
+}
+]
+},
+{
+"story_id":"rbi-policy-hold",
+"kind":"distractor",
+"summary":"The RBI's Monetary Policy Committee keeps the repo rate unchanged at 5.25%.",
+"headlines":[
+{
+"title":"RBI holds repo rate at 5.25%, retains neutral stance",
+"publisher":"Mumbai Market Mirror",
+"description":"The Reserve Bank of India's Monetary Policy Committee voted unanimously to keep the policy rate unchanged.",
+"hours_ago":28
+},
+{
+"title":"Malhotra-led MPC keeps interest rates on hold as inflation stays benign",
+"publisher":"The Economic Standard",
+"description":"",
+"hours_ago":27
+},
+{
+"title":"Reserve Bank of India leaves key rate unchanged",
+"publisher":"Asia Markets Wire",
+"description":"",
+"hours_ago":28
+}
+]
+},
+{
+"story_id":"meta-whatsapp-ai-india",
+"kind":"distractor",
+"summary":"Meta launches WhatsApp business tools powered by Meta AI for small merchants in India.",
+"headlines":[
+{
+"title":"Meta rolls out AI-powered WhatsApp tools for small businesses in India",
+"publisher":"Bengaluru Tech Times",
+"description":"The new features let merchants use Meta AI to answer customer queries and manage catalogues in Hindi and other Indian languages.",
+"hours_ago":11
+},
+{
+"title":"WhatsApp Business gets Meta AI agents for Indian merchants",
+"publisher":"Tech Frontier",
+"description":"",
+"hours_ago":10
+}
+]
+},
+{
+"story_id":"merz-tusk-berlin-talks",
+"kind":"distractor",
+"summary":"German Chancellor Merz and Polish PM Tusk meet in Berlin to discuss border checks and cross-border rail links.",
+"headlines":[
+{
+"title":"Merz and Tusk discuss border checks, rail links at Berlin meeting",
+"publisher":"Global Wire Service",
+"description":"",
+"hours_ago":18
+},
+{
+"title":"Poland, Germany pledge to ease border controls by spring",
+"publisher":"Baltic Observer",
+"description":"After talks in Berlin, the two leaders said they aimed to wind down temporary checks at their shared frontier.",
+"hours_ago":17
+},
+{
+"title":"Tusk in Berlin: Polish leader presses Merz on cross-border infrastructure",
+"publisher":"Warsaw Business Journal",
+"description":"",
+"hours_ago":16
+}
+]
+},
+{
+"story_id":"s-tata-compact-ev",
+"kind":"singleton",
+"summary":"Tata Motors unveils a compact electric SUV priced under ₹10 lakh.",
+"headlines":[
+{
+"title":"Tata Motors unveils compact electric SUV priced under ₹10 lakh",
+"publisher":"Delhi Business Ledger",
+"description":"The carmaker said the new model offers a 300 km range and will go on sale before Diwali.",
+"hours_ago":20
+}
+]
+},
+{
+"story_id":"s-mumbai-metro3-extension",
+"kind":"singleton",
+"summary":"MMRCL says the Mumbai Metro Line 3 extension will open next month.",
+"headlines":[
+{
+"title":"Mumbai Metro Line 3 extension to open next month, MMRCL says",
+"publisher":"Mumbai Market Mirror",
+"description":"",
+"hours_ago":14
+}
+]
+},
+{
+"story_id":"s-dubai-airport-record",
+"kind":"singleton",
+"summary":"Dubai airport handles a record 8.2 million passengers in September.",
+"headlines":[
+{
+"title":"Dubai airport handles record 8.2 million passengers in September",
+"publisher":"Gulf Daily Standard",
+"description":"",
+"hours_ago":22
+}
+]
+},
+{
+"story_id":"s-nikkei-record",
+"kind":"singleton",
+"summary":"Japan's Nikkei closes at a record high as chip stocks rally.",
+"headlines":[
+{
+"title":"Nikkei hits record high as chip stocks rally",
+"publisher":"Asia Markets Wire",
+"description":"",
+"hours_ago":3
+}
+]
+},
+{
+"story_id":"s-webb-super-earth-water",
+"kind":"singleton",
+"summary":"The Webb telescope detects water vapour in the atmosphere of a nearby super-Earth.",
+"headlines":[
+{
+"title":"Webb telescope spots water vapour in atmosphere of nearby super-Earth",
+"publisher":"Science Weekly",
+"description":"Astronomers said the detection on a planet 48 light-years away is the clearest yet for a rocky world outside the solar system.",
+"hours_ago":24
+}
+]
+},
+{
+"story_id":"s-ohio-school-levy",
+"kind":"singleton",
+"summary":"An Ohio county board puts a school levy on the November ballot.",
+"headlines":[
+{
+"title":"Franklin County board puts school levy on November ballot",
+"publisher":"Midwest Courier",
+"description":"",
+"hours_ago":29
+}
+]
+},
+{
+"story_id":"s-india-australia-odi",
+"kind":"singleton",
+"summary":"India beat Australia by six wickets to level the ODI series.",
+"headlines":[
+{
+"title":"India beat Australia by six wickets to level ODI series 1-1",
+"publisher":"Sports Arena India",
+"description":"",
+"hours_ago":9
+}
+]
+},
+{
+"story_id":"s-lakers-guard-signing",
+"kind":"singleton",
+"summary":"The Lakers sign a veteran guard to a one-year deal.",
+"headlines":[
+{
+"title":"Lakers sign veteran guard to one-year deal ahead of season opener",
+"publisher":"West Coast Sports Wire",
+"description":"",
+"hours_ago":4
+}
+]
+},
+{
+"story_id":"s-aramco-lng-japan",
+"kind":"singleton",
+"summary":"Saudi Aramco signs a long-term LNG supply deal with a Japanese utility.",
+"headlines":[
+{
+"title":"Saudi Aramco signs long-term LNG supply deal with Japanese utility",
+"publisher":"Gulf Business Times",
+"description":"The 15-year agreement covers up to 2 million tonnes a year starting in 2029.",
+"hours_ago":25
+}
+]
+},
+{
+"story_id":"s-infosys-guidance",
+"kind":"singleton",
+"summary":"Infosys raises its FY27 revenue growth guidance after second-quarter results.",
+"headlines":[
+{
+"title":"Infosys raises FY27 revenue growth guidance after Q2 beat",
+"publisher":"The Economic Standard",
+"description":"The IT services company now expects constant-currency revenue growth of 3-4% for the year, helped by large deal wins.",
+"hours_ago":30
+}
+]
+},
+{
+"story_id":"s-chennai-floods",
+"kind":"singleton",
+"summary":"Heavy rain floods Chennai suburbs and schools are shut.",
+"headlines":[
+{
+"title":"Heavy rain floods Chennai suburbs; schools shut for two days",
+"publisher":"Chennai Chronicle",
+"description":"Low-lying areas in Tambaram and Velachery were waterlogged after more than 15 cm of rain fell overnight.",
+"hours_ago":6
+}
+]
+},
+{
+"story_id":"s-honda-camera-recall",
+"kind":"singleton",
+"summary":"Honda recalls 120,000 SUVs in the US over a rearview camera software issue.",
+"headlines":[
+{
+"title":"Honda recalls 120,000 SUVs in US over rearview camera software",
+"publisher":"North American Wire",
+"description":"",
+"hours_ago":21
+}
+]
+},
+{
+"story_id":"s-austin-stadium",
+"kind":"singleton",
+"summary":"Austin's city council approves a plan for a downtown soccer stadium.",
+"headlines":[
+{
+"title":"Austin council approves downtown soccer stadium plan",
+"publisher":"Lone Star Gazette",
+"description":"",
+"hours_ago":31
+}
+]
+},
+{
+"story_id":"s-ancient-wheat-genome",
+"kind":"singleton",
+"summary":"Scientists sequence the genome of 4,000-year-old wheat from an Indus Valley site.",
+"headlines":[
+{
+"title":"Scientists sequence genome of 4,000-year-old wheat from Indus Valley site",
+"publisher":"Science Weekly",
+"description":"The study sheds light on how early farmers in South Asia adapted the crop to hotter, drier conditions.",
+"hours_ago":27
+}
+]
+},
+{
+"story_id":"s-bitcoin-90k",
+"kind":"singleton",
+"summary":"Bitcoin climbs above $90,000 as ETF inflows pick up.",
+"headlines":[
+{
+"title":"Bitcoin climbs above $90,000 as ETF inflows pick up",
+"publisher":"Crypto Ledger",
+"description":"",
+"hours_ago":1
+}
+]
+},
+{
+"story_id":"s-nsw-bushfire-season",
+"kind":"singleton",
+"summary":"An early bushfire season prompts warnings across New South Wales.",
+"headlines":[
+{
+"title":"Early bushfire season prompts warnings across New South Wales",
+"publisher":"Pacific Times",
+"description":"Fire authorities raised danger ratings in several districts as temperatures topped 35C.",
+"hours_ago":19
+}
+]
+},
+{
+"story_id":"s-ontario-smr-site",
+"kind":"singleton",
+"summary":"Ontario picks a site for new small modular nuclear reactors.",
+"headlines":[
+{
+"title":"Ontario picks site for new small modular reactors",
+"publisher":"North American Wire",
+"description":"",
+"hours_ago":23
+}
+]
+},
+{
+"story_id":"s-brazil-amazon-protected",
+"kind":"singleton",
+"summary":"Brazil expands protected areas in the Amazon by new decree.",
+"headlines":[
+{
+"title":"Brazil expands Amazon protected areas under new decree",
+"publisher":"Global Wire Service",
+"description":"",
+"hours_ago":32
+}
+]
+},
+{
+"story_id":"s-samsung-seoul-shares",
+"kind":"singleton",
+"summary":"Seoul shares fall after Samsung's quarterly profit misses estimates.",
+"headlines":[
+{
+"title":"Seoul shares fall as Samsung quarterly profit misses estimates",
+"publisher":"Asia Markets Wire",
+"description":"The KOSPI dropped 1.2% after the chipmaker's preliminary operating profit came in below analyst forecasts.",
+"hours_ago":26
+}
+]
+},
+{
+"story_id":"s-mta-fare-increase",
+"kind":"singleton",
+"summary":"New York's MTA board approves a subway fare increase for 2027.",
+"headlines":[
+{
+"title":"MTA board approves 2027 subway fare increase",
+"publisher":"Metro Daily NY",
+"description":"",
+"hours_ago":15
+}
+]
+},
+{
+"story_id":"s-nairobi-expressway-toll",
+"kind":"singleton",
+"summary":"Kenya opens a new toll section on the Nairobi expressway.",
+"headlines":[
+{
+"title":"Kenya opens new toll section on Nairobi expressway",
+"publisher":"Africa Business Report",
+"description":"",
+"hours_ago":28
+}
+]
+},
+{
+"story_id":"s-pakistan-imf-review",
+"kind":"singleton",
+"summary":"Pakistan and the IMF reach a staff-level agreement on a loan programme review.",
+"headlines":[
+{
+"title":"Pakistan, IMF reach staff-level agreement on loan review",
+"publisher":"South Asia Monitor",
+"description":"The deal, subject to board approval, would unlock a further tranche of about $1 billion.",
+"hours_ago":11
+}
+]
+},
+{
+"story_id":"s-apple-hyderabad-store",
+"kind":"singleton",
+"summary":"Apple opens a retail store in Hyderabad.",
+"headlines":[
+{
+"title":"Apple opens retail store in Hyderabad",
+"publisher":"Bengaluru Tech Times",
+"description":"",
+"hours_ago":8
+}
+]
+},
+{
+"story_id":"s-qatar-airways-lisbon",
+"kind":"singleton",
+"summary":"Qatar Airways adds daily Doha-Lisbon flights from December.",
+"headlines":[
+{
+"title":"Qatar Airways adds daily Doha-Lisbon flights from December",
+"publisher":"Gulf Daily Standard",
+"description":"",
+"hours_ago":17
+}
+]
+},
+{
+"story_id":"s-caribbean-tropical-storm",
+"kind":"singleton",
+"summary":"A tropical storm forms in the Caribbean and could strengthen.",
+"headlines":[
+{
+"title":"Tropical storm forms in Caribbean, forecasters say it could strengthen",
+"publisher":"Southern Coastal Times",
+"description":"The storm is expected to move west-northwest over warm waters through the weekend.",
+"hours_ago":2
+}
+]
+}
+]
+},
+{
+"day":"day5",
+"stories":[
+{
+"story_id":"chip-fab-subsidy-kaiyuan-dholera",
+"kind":"big",
+"summary":"Union Cabinet approves 50% central fiscal support for a ₹68,000-crore ($8.1 bn) semiconductor fab in Dholera, Gujarat, to be built by Taiwan's Kaiyuan Semiconductor under India Semiconductor Mission 2.0",
+"headlines":[
+{
+"title":"India approves $8.1 billion chip plant with Taiwan's Kaiyuan Semiconductor",
+"publisher":"Global Wire Service",
+"description":"India's cabinet approved fiscal support for an $8.1 billion semiconductor fabrication plant in Gujarat to be built with Taiwan's Kaiyuan Semiconductor, the government said.",
+"hours_ago":9
+},
+{
+"title":"India approves $8.1 bln chip plant with Taiwan's Kaiyuan Semiconductor",
+"publisher":"Midwest Courier",
+"description":"India's cabinet approved fiscal support for an $8.1 billion semiconductor fabrication plant in Gujarat to be built with Taiwan's Kaiyuan Semiconductor, the government said.",
+"hours_ago":8
+},
+{
+"title":"India OKs $8.1 billion chip plant with Taiwan's Kaiyuan",
+"publisher":"Prairie Sentinel",
+"description":"",
+"hours_ago":7.5
+},
+{
+"title":"Cabinet clears ₹68,000-crore Dholera fab; Centre to fund half the project cost",
+"publisher":"Delhi Business Ledger",
+"description":"The Union Cabinet approved 50% fiscal support under India Semiconductor Mission 2.0 for a 28-90nm fab to be set up by Taiwan's Kaiyuan Semiconductor in Gujarat.",
+"hours_ago":10
+},
+{
+"title":"Kaiyuan fab gets Cabinet nod; Gujarat to chip in with 20% capital subsidy",
+"publisher":"Bombay Financial Daily",
+"description":"",
+"hours_ago":9
+},
+{
+"title":"Vaishnaw: Dholera fab to roll out first 'Made in India' wafers by 2029",
+"publisher":"The Indian Chronicle",
+"description":"Electronics and IT minister Ashwini Vaishnaw told reporters after the Cabinet meeting that the Taiwan-partnered plant is expected to start commercial production in late 2029.",
+"hours_ago":8
+},
+{
+"title":"Second mega fab for India: What the Kaiyuan deal means for the chip supply chain",
+"publisher":"Bengaluru Tech Dispatch",
+"description":"",
+"hours_ago":4
+},
+{
+"title":"Kaiyuan Semiconductor wins Indian state backing for first overseas foundry",
+"publisher":"Taipei Commerce Daily",
+"description":"The Hsinchu-based foundry said the Gujarat plant will make mature-node chips for automotive, power-management and consumer electronics customers.",
+"hours_ago":7
+},
+{
+"title":"Kaiyuan shares jump 6% in Taipei after New Delhi approves fab subsidy",
+"publisher":"Asian Markets Monitor",
+"description":"",
+"hours_ago":2
+},
+{
+"title":"New Delhi bets big on silicon with aid for Taiwan-backed plant",
+"publisher":"Gulf Business Review",
+"description":"",
+"hours_ago":6
+},
+{
+"title":"Modi govt sweetens chip push: 50% capex support for Gujarat wafer plant",
+"publisher":"Hindustan Daily Post",
+"description":"",
+"hours_ago":9
+},
+{
+"title":"ISM 2.0 lands its first fab: 50,000 wafer starts a month at 28-90nm",
+"publisher":"Electronics Supply Chain Today",
+"description":"The plant approved by India's cabinet will target automotive microcontrollers, display drivers and power ICs, with Kaiyuan transferring process technology.",
+"hours_ago":3
+},
+{
+"title":"Dholera to get another chip plant; 25,000 jobs promised",
+"publisher":"Sabarmati Times",
+"description":"",
+"hours_ago":8
+},
+{
+"title":"India lures Taiwanese foundry with generous state aid",
+"publisher":"London Financial Gazette",
+"description":"",
+"hours_ago":5
+},
+{
+"title":"Semiconductor-linked stocks rally after Cabinet approves Taiwan-partnered fab",
+"publisher":"Capital Markets Daily",
+"description":"Shares of electronics manufacturing and specialty chemicals firms rose on expectations of orders from the new Dholera fab.",
+"hours_ago":6
+},
+{
+"title":"India, Taiwan's Kaiyuan seal fab deal backed by government subsidy",
+"publisher":"Singapore Straits Ledger",
+"description":"",
+"hours_ago":7
+},
+{
+"title":"Explained: How the Centre's fiscal support for the Kaiyuan fab will be disbursed",
+"publisher":"Policy Watch India",
+"description":"",
+"hours_ago":2
+},
+{
+"title":"Kaiyuan to build mature-node foundry in Gujarat with Indian government aid",
+"publisher":"ChipWorld Insider",
+"description":"",
+"hours_ago":6
+},
+{
+"title":"Chip subsidy bill: Centre's share in Dholera fab pegged at ₹34,000 crore",
+"publisher":"MoneyLine India",
+"description":"Disbursement will be pari-passu with project milestones, officials said, with the Gujarat government providing additional land and power concessions.",
+"hours_ago":9
+},
+{
+"title":"Congress asks Centre to disclose terms of Kaiyuan fab subsidy",
+"publisher":"Deccan Morning Star",
+"description":"",
+"hours_ago":3
+},
+{
+"title":"Taiwan chipmaker picks India over Southeast Asia for new plant after subsidy offer",
+"publisher":"Hong Kong Business Post",
+"description":"Kaiyuan had also evaluated sites in Malaysia and Vietnam before India's cabinet approved covering half the project cost, executives said.",
+"hours_ago":4
+},
+{
+"title":"India steps up semiconductor ambitions with Gujarat plant approval",
+"publisher":"Atlantic Times",
+"description":"",
+"hours_ago":7
+}
+]
+},
+{
+"story_id":"up-assembly-election-results",
+"kind":"big",
+"summary":"Uttar Pradesh assembly election results: BJP-led NDA wins 271 of 403 seats, Yogi Adityanath set for third term as chief minister",
+"headlines":[
+{
+"title":"India's ruling BJP retains power in Uttar Pradesh, the country's most populous state",
+"publisher":"Global Wire Service",
+"description":"Prime Minister Narendra Modi's Bharatiya Janata Party and its allies won a clear majority in the 403-seat Uttar Pradesh assembly, election officials said.",
+"hours_ago":3
+},
+{
+"title":"India's ruling BJP retains power in Uttar Pradesh, country's most populous state",
+"publisher":"Midwest Courier",
+"description":"Prime Minister Narendra Modi's Bharatiya Janata Party and its allies won a clear majority in the 403-seat Uttar Pradesh state assembly, election officials said.",
+"hours_ago":2.5
+},
+{
+"title":"BJP retains power in Uttar Pradesh, India's most populous state",
+"publisher":"Hometown Gazette",
+"description":"",
+"hours_ago":1.5
+},
+{
+"title":"Modi's party keeps hold of Uttar Pradesh in key state vote",
+"publisher":"Dubai Evening Herald",
+"description":"",
+"hours_ago":3
+},
+{
+"title":"Yogi hat-trick: Saffron sweep as BJP crosses 270 in UP",
+"publisher":"The Lucknow Ledger",
+"description":"",
+"hours_ago":4
+},
+{
+"title":"Akhilesh accepts verdict, says SP will play the role of a strong Opposition",
+"publisher":"Awadh Samachar English",
+"description":"Samajwadi Party chief Akhilesh Yadav congratulated the winners of the Uttar Pradesh assembly polls and said his party would introspect on its performance in western UP.",
+"hours_ago":2
+},
+{
+"title":"UP Election Results LIVE: NDA way past majority mark of 202, SP alliance trails",
+"publisher":"North India Express",
+"description":"",
+"hours_ago":6
+},
+{
+"title":"Markets cheer UP verdict; Sensex gains 600 points on political continuity",
+"publisher":"Delhi Business Ledger",
+"description":"The BSE Sensex rose about 0.7% as investors welcomed the BJP's victory in Uttar Pradesh, seen as a sign of policy stability.",
+"hours_ago":5
+},
+{
+"title":"'Victory of development and good governance': PM Modi thanks voters of Uttar Pradesh",
+"publisher":"Hindustan Daily Post",
+"description":"",
+"hours_ago":1
+},
+{
+"title":"What the Uttar Pradesh mandate means for the 2029 Lok Sabha race",
+"publisher":"The Indian Chronicle",
+"description":"With 80 Lok Sabha seats, UP sets the tone for national politics, and the scale of the NDA's assembly win reshapes opposition strategy.",
+"hours_ago":1
+},
+{
+"title":"BSP slumps to single digits in UP as Mayawati's vote share erodes further",
+"publisher":"Kolkata Evening Tribune",
+"description":"The Bahujan Samaj Party finished with 7 seats in the 403-member Uttar Pradesh assembly.",
+"hours_ago":3
+},
+{
+"title":"BJP wins Uttar Pradesh, boosting Modi ahead of national polls",
+"publisher":"London Financial Gazette",
+"description":"",
+"hours_ago":2
+},
+{
+"title":"Modi's BJP wins big in India's largest state election",
+"publisher":"Atlantic Times",
+"description":"",
+"hours_ago":2
+},
+{
+"title":"BJP-led alliance secures two-thirds majority in Uttar Pradesh assembly",
+"publisher":"Asia Pacific Newswire",
+"description":"The NDA won 271 seats, while the Samajwadi Party-led bloc won 118, according to Election Commission data.",
+"hours_ago":1
+},
+{
+"title":"Explained: Five factors behind the BJP's third straight win in UP",
+"publisher":"Policy Watch India",
+"description":"",
+"hours_ago":0.5
+},
+{
+"title":"Congress manages just 4 seats in Uttar Pradesh despite SP tie-up",
+"publisher":"Chennai Courier",
+"description":"",
+"hours_ago":3
+},
+{
+"title":"Yogi Adityanath wins Gorakhpur Urban by over 1 lakh votes",
+"publisher":"Purvanchal Post",
+"description":"",
+"hours_ago":5
+},
+{
+"title":"UP poll outcome: Analysts see policy continuity for expressways, industrial corridors",
+"publisher":"MoneyLine India",
+"description":"",
+"hours_ago":2
+},
+{
+"title":"Dalal Street rallies after BJP's emphatic Uttar Pradesh win",
+"publisher":"Bombay Financial Daily",
+"description":"",
+"hours_ago":4
+},
+{
+"title":"Saffron surge in Hindi heartland: BJP sweeps UP again",
+"publisher":"Deccan Morning Star",
+"description":"",
+"hours_ago":3
+},
+{
+"title":"Indian PM's party wins crucial northern state poll",
+"publisher":"Singapore Straits Ledger",
+"description":"The BJP-led alliance won 271 of 403 seats in Uttar Pradesh, home to more than 240 million people.",
+"hours_ago":2
+},
+{
+"title":"Celebrations at BJP's Lucknow office as counting trends firm up",
+"publisher":"The Lucknow Ledger",
+"description":"Party workers distributed sweets and burst crackers as early trends showed the NDA comfortably ahead in Uttar Pradesh.",
+"hours_ago":6
+},
+{
+"title":"Yogi Adityanath to be sworn in for third term; legislature party to meet tomorrow",
+"publisher":"Hindustan Daily Post",
+"description":"",
+"hours_ago":0
+}
+]
+},
+{
+"story_id":"adani-ports-dollar-bond",
+"kind":"medium",
+"summary":"Adani Ports and SEZ prices an $800 million 10-year dollar bond at 5.95%, with orders about 3.5 times the issue size",
+"headlines":[
+{
+"title":"Adani Ports raises $800 million in dollar bond sale on strong demand",
+"publisher":"Global Wire Service",
+"description":"Adani Ports and Special Economic Zone priced 10-year notes at 5.95% after drawing orders of about $2.8 billion, according to people familiar with the deal.",
+"hours_ago":11
+},
+{
+"title":"APSEZ's $800-million bond issue oversubscribed 3.5 times",
+"publisher":"Bombay Financial Daily",
+"description":"",
+"hours_ago":10
+},
+{
+"title":"Adani group returns to offshore debt market with Ports deal priced at 5.95%",
+"publisher":"Asian Markets Monitor",
+"description":"",
+"hours_ago":12
+},
+{
+"title":"Adani Ports prices 10-year notes tighter than initial guidance",
+"publisher":"Delhi Business Ledger",
+"description":"Final pricing on the $800 million issue came in about 30 basis points inside initial price talk, bankers said.",
+"hours_ago":9
+},
+{
+"title":"Why global investors lined up for Adani's latest dollar paper",
+"publisher":"Capital Markets Daily",
+"description":"",
+"hours_ago":4
+},
+{
+"title":"Gulf funds among top buyers in Adani Ports' $800m bond",
+"publisher":"Gulf Business Review",
+"description":"",
+"hours_ago":6
+},
+{
+"title":"Adani Ports to use bond proceeds to refinance debt, fund port expansion",
+"publisher":"MoneyLine India",
+"description":"The company said proceeds from the dollar notes will retire existing borrowings and fund capacity additions at Mundra and overseas terminals.",
+"hours_ago":8
+}
+]
+},
+{
+"story_id":"kharif-first-advance-estimates",
+"kind":"medium",
+"summary":"Agriculture ministry's first advance estimates project record kharif foodgrain output of 173 million tonnes after an above-normal monsoon",
+"headlines":[
+{
+"title":"Kharif foodgrain output seen at record 173 million tonnes after bumper monsoon",
+"publisher":"The Indian Chronicle",
+"description":"The agriculture ministry's first advance estimates put 2026-27 kharif foodgrain production 4.5% higher than last year, driven by rice and maize.",
+"hours_ago":14
+},
+{
+"title":"Rice production to hit all-time high of 124 mt: Agriculture Ministry",
+"publisher":"Hindustan Daily Post",
+"description":"",
+"hours_ago":13
+},
+{
+"title":"Good rains, good harvest: First advance estimates put kharif crop at record",
+"publisher":"Kisan Times English",
+"description":"",
+"hours_ago":12
+},
+{
+"title":"Pulses output dips despite record kharif harvest, govt data show",
+"publisher":"Delhi Business Ledger",
+"description":"Tur and urad production is estimated lower due to excess rain in parts of Maharashtra and Karnataka, the first advance estimates showed.",
+"hours_ago":11
+},
+{
+"title":"Bumper kharif crop to ease food inflation, say economists",
+"publisher":"MoneyLine India",
+"description":"",
+"hours_ago":7
+},
+{
+"title":"India's summer-sown grain harvest set for record on strong monsoon",
+"publisher":"Asia Pacific Newswire",
+"description":"India's foodgrain output from crops planted during the June-September monsoon season is expected to rise to a record, the farm ministry said.",
+"hours_ago":13
+},
+{
+"title":"Shivraj Chouhan credits farmers as kharif output estimate hits new high",
+"publisher":"Agri Markets Weekly",
+"description":"",
+"hours_ago":10
+}
+]
+},
+{
+"story_id":"sebi-fo-eligibility-norms",
+"kind":"medium",
+"summary":"SEBI board approves mandatory proficiency test and income/net-worth eligibility criteria for retail investors trading futures and options",
+"headlines":[
+{
+"title":"Sebi makes proficiency test mandatory for new F&O traders",
+"publisher":"Bombay Financial Daily",
+"description":"The markets regulator's board approved rules requiring first-time derivatives traders to clear an online assessment from April 1.",
+"hours_ago":16
+},
+{
+"title":"India's markets regulator tightens entry rules for retail derivatives traders",
+"publisher":"Global Wire Service",
+"description":"The Securities and Exchange Board of India approved minimum income and net-worth criteria for individuals seeking to trade futures and options.",
+"hours_ago":15
+},
+{
+"title":"F&O curbs: Sebi links trading access to income, net worth",
+"publisher":"Delhi Business Ledger",
+"description":"",
+"hours_ago":15
+},
+{
+"title":"Broker stocks slide as Sebi board clears fresh F&O eligibility norms",
+"publisher":"Capital Markets Daily",
+"description":"Shares of discount brokers and exchanges fell as analysts flagged a likely drop in new options accounts.",
+"hours_ago":5
+},
+{
+"title":"Tuhin Kanta Pandey: New F&O framework aims to protect small investors, not curb volumes",
+"publisher":"MoneyLine India",
+"description":"",
+"hours_ago":14
+},
+{
+"title":"Explained: Who can still trade futures and options under Sebi's new norms",
+"publisher":"Policy Watch India",
+"description":"",
+"hours_ago":10
+},
+{
+"title":"India's SEBI sets entry bar for options trading as retail losses mount",
+"publisher":"Asian Markets Monitor",
+"description":"",
+"hours_ago":13
+}
+]
+},
+{
+"story_id":"india-china-wmcc-border-talks",
+"kind":"medium",
+"summary":"India and China hold a WMCC round of border talks in New Delhi, discussing boundary delimitation, de-escalation and resumption of border trade",
+"headlines":[
+{
+"title":"India, China hold border talks in New Delhi, agree to maintain peace along LAC",
+"publisher":"Global Wire Service",
+"description":"Diplomats from both countries met under the Working Mechanism for Consultation and Coordination on India-China Border Affairs, the foreign ministry said.",
+"hours_ago":19
+},
+{
+"title":"WMCC meet: India, China discuss 'early harvest' in boundary delimitation",
+"publisher":"The Indian Chronicle",
+"description":"",
+"hours_ago":18
+},
+{
+"title":"New Delhi, Beijing agree to step up border management talks",
+"publisher":"Asia Pacific Newswire",
+"description":"",
+"hours_ago":17
+},
+{
+"title":"MEA calls latest WMCC round with China 'constructive and forward-looking'",
+"publisher":"Hindustan Daily Post",
+"description":"",
+"hours_ago":18
+},
+{
+"title":"China says border consultations with India were 'candid and in-depth'",
+"publisher":"Hong Kong Business Post",
+"description":"Beijing's foreign ministry said both sides agreed at the New Delhi meeting to keep up communication through diplomatic and military channels.",
+"hours_ago":12
+},
+{
+"title":"India, China review de-escalation, border trade via Lipulekh and Shipki La",
+"publisher":"Deccan Morning Star",
+"description":"",
+"hours_ago":16
+}
+]
+},
+{
+"story_id":"assam-osat-trial-production",
+"kind":"distractor",
+"summary":"A semiconductor assembly and test (OSAT) unit at Jagiroad, Assam begins trial production",
+"headlines":[
+{
+"title":"Jagiroad chip assembly plant starts trial runs; first packaged chips by December",
+"publisher":"Brahmaputra Herald",
+"description":"The outsourced assembly and test unit in Morigaon district has begun trial production lines, officials said.",
+"hours_ago":22
+},
+{
+"title":"Assam's semiconductor packaging unit enters trial production",
+"publisher":"Asia Pacific Newswire",
+"description":"",
+"hours_ago":21
+},
+{
+"title":"Himanta Biswa Sarma inspects OSAT facility as trial production begins",
+"publisher":"Guwahati Daily Chronicle",
+"description":"",
+"hours_ago":20
+}
+]
+},
+{
+"story_id":"taiwan-september-export-orders",
+"kind":"distractor",
+"summary":"Taiwan's September export orders jump 28% on AI server demand, economics ministry data show",
+"headlines":[
+{
+"title":"Taiwan export orders surge 28% in September on AI server demand",
+"publisher":"Global Wire Service",
+"description":"Orders for electronics and information-communication products drove the gain, Taiwan's economics ministry said.",
+"hours_ago":25
+},
+{
+"title":"AI boom lifts Taiwan's export orders to record",
+"publisher":"Taipei Commerce Daily",
+"description":"",
+"hours_ago":24
+}
+]
+},
+{
+"story_id":"railways-festive-special-trains",
+"kind":"distractor",
+"summary":"Railway minister Ashwini Vaishnaw announces over 12,000 special trains for the Diwali-Chhath festive rush",
+"headlines":[
+{
+"title":"Railways to run over 12,000 special trains for Diwali, Chhath rush: Vaishnaw",
+"publisher":"Hindustan Daily Post",
+"description":"",
+"hours_ago":27
+},
+{
+"title":"Vaishnaw reviews festive travel arrangements, orders holding areas at major stations",
+"publisher":"North India Express",
+"description":"The railway minister said more than 12,000 special services would run between October and mid-November to clear the festive rush.",
+"hours_ago":26
+},
+{
+"title":"Festive season: Railways plans record number of special trains to Bihar, UP",
+"publisher":"Patna Morning Mail",
+"description":"",
+"hours_ago":25
+}
+]
+},
+{
+"story_id":"rabi-msp-hike",
+"kind":"distractor",
+"summary":"Cabinet raises minimum support prices for rabi crops for the 2027-28 marketing season; wheat MSP up ₹150 to ₹2,735 per quintal",
+"headlines":[
+{
+"title":"Centre hikes wheat MSP by ₹150 to ₹2,735 a quintal for 2027-28 season",
+"publisher":"The Indian Chronicle",
+"description":"The Cabinet Committee on Economic Affairs approved higher minimum support prices for six rabi crops ahead of the sowing season.",
+"hours_ago":31
+},
+{
+"title":"Rabi MSP: Safflower, lentil see biggest increases as Cabinet approves hikes",
+"publisher":"Agri Markets Weekly",
+"description":"",
+"hours_ago":30
+},
+{
+"title":"Farm unions term wheat MSP increase inadequate, seek legal guarantee",
+"publisher":"Kisan Times English",
+"description":"",
+"hours_ago":29
+}
+]
+},
+{
+"story_id":"up-police-constable-result",
+"kind":"distractor",
+"summary":"Uttar Pradesh Police Recruitment and Promotion Board declares final results of constable recruitment",
+"headlines":[
+{
+"title":"UP Police Constable Result declared; 32,679 candidates selected",
+"publisher":"Exam Times India",
+"description":"The Uttar Pradesh Police Recruitment and Promotion Board released the final selection list for constable posts on its official website.",
+"hours_ago":33
+},
+{
+"title":"UP Police constable final result out: How to check merit list, cut-off",
+"publisher":"North India Express",
+"description":"",
+"hours_ago":32
+},
+{
+"title":"Recruitment board publishes constable selection list; joining letters next month",
+"publisher":"The Lucknow Ledger",
+"description":"",
+"hours_ago":31
+}
+]
+},
+{
+"story_id":"ec-bypoll-schedule",
+"kind":"distractor",
+"summary":"Election Commission announces by-elections to 8 assembly seats across five states on November 24, counting on November 27",
+"headlines":[
+{
+"title":"EC announces bypolls to 8 assembly seats across five states on November 24",
+"publisher":"Policy Watch India",
+"description":"",
+"hours_ago":32
+},
+{
+"title":"By-elections in Kerala, Punjab, Karnataka seats on Nov 24; counting on Nov 27",
+"publisher":"Chennai Courier",
+"description":"The Election Commission said the model code of conduct comes into force immediately in the districts concerned.",
+"hours_ago":31
+},
+{
+"title":"Election Commission sets bypoll dates for eight vacant constituencies",
+"publisher":"Deccan Morning Star",
+"description":"",
+"hours_ago":30
+}
+]
+},
+{
+"story_id":"adani-green-khavda-commissioning",
+"kind":"distractor",
+"summary":"Adani Green Energy commissions 1,250 MW at the Khavda renewable park in Gujarat, taking operational capacity past 18 GW",
+"headlines":[
+{
+"title":"Adani Green adds 1.25 GW at Khavda; operational capacity crosses 18 GW",
+"publisher":"Bombay Financial Daily",
+"description":"The company said the new solar and wind capacity at the Khavda park in Gujarat was commissioned in phases over the past fortnight.",
+"hours_ago":23
+},
+{
+"title":"Adani Green Energy shares rise after Khavda capacity addition",
+"publisher":"Capital Markets Daily",
+"description":"",
+"hours_ago":21
+}
+]
+},
+{
+"story_id":"imd-northeast-monsoon-onset",
+"kind":"distractor",
+"summary":"IMD declares southwest monsoon withdrawal complete and forecasts northeast monsoon onset over Tamil Nadu around October 20",
+"headlines":[
+{
+"title":"Northeast monsoon likely to set in over Tamil Nadu around October 20: IMD",
+"publisher":"Chennai Courier",
+"description":"The India Meteorological Department said the southwest monsoon has withdrawn from the entire country.",
+"hours_ago":20
+},
+{
+"title":"Southwest monsoon exits country; IMD flags heavy rain for Chennai next week",
+"publisher":"Deccan Morning Star",
+"description":"",
+"hours_ago":19
+},
+{
+"title":"IMD issues heavy rain alert for coastal Tamil Nadu ahead of northeast monsoon onset",
+"publisher":"Coastal Daily News",
+"description":"",
+"hours_ago":18
+}
+]
+},
+{
+"story_id":"sebi-ipo-approvals",
+"kind":"distractor",
+"summary":"SEBI approves IPOs of six companies worth about ₹9,500 crore",
+"headlines":[
+{
+"title":"Sebi gives go-ahead to six IPOs worth ₹9,500 crore",
+"publisher":"MoneyLine India",
+"description":"The approvals, issued as observation letters, cover companies in renewable energy, logistics and consumer lending.",
+"hours_ago":26
+},
+{
+"title":"IPO pipeline swells as markets regulator clears six draft papers",
+"publisher":"Capital Markets Daily",
+"description":"",
+"hours_ago":24
+}
+]
+},
+{
+"story_id":"india-antidumping-chinese-solar-glass",
+"kind":"distractor",
+"summary":"India imposes a five-year anti-dumping duty on solar glass imports from China",
+"headlines":[
+{
+"title":"India slaps anti-dumping duty on Chinese solar glass for five years",
+"publisher":"Global Wire Service",
+"description":"",
+"hours_ago":33
+},
+{
+"title":"Finance ministry notifies duty of up to $640 a tonne on solar glass imports from China",
+"publisher":"Delhi Business Ledger",
+"description":"The levy follows a recommendation by the Directorate General of Trade Remedies, which found imports were hurting domestic manufacturers.",
+"hours_ago":32
+},
+{
+"title":"Module makers fret over costs as India levies duty on Chinese glass",
+"publisher":"Renewables India Weekly",
+"description":"",
+"hours_ago":30
+}
+]
+},
+{
+"story_id":"china-rare-earth-licences-india",
+"kind":"distractor",
+"summary":"China grants rare earth magnet export licences to several Indian auto component makers",
+"headlines":[
+{
+"title":"China clears rare earth magnet export licences for Indian auto parts makers",
+"publisher":"Asia Pacific Newswire",
+"description":"Several Indian suppliers received licences after months of delays, industry officials said.",
+"hours_ago":27
+},
+{
+"title":"Relief for automakers as Beijing approves magnet shipments to India",
+"publisher":"Auto Industry Daily",
+"description":"",
+"hours_ago":25
+}
+]
+},
+{
+"story_id":"s-infosys-guidance",
+"kind":"singleton",
+"summary":"Infosys raises full-year revenue growth guidance after Q2 results",
+"headlines":[
+{
+"title":"Infosys raises FY27 revenue growth guidance after steady Q2",
+"publisher":"Bengaluru Tech Dispatch",
+"description":"The IT services company now expects constant-currency revenue growth of 3-4% for the fiscal year.",
+"hours_ago":15
+}
+]
+},
+{
+"story_id":"s-india-women-t20-series",
+"kind":"singleton",
+"summary":"India women win T20I series against South Africa",
+"headlines":[
+{
+"title":"India women clinch T20I series against South Africa with 7-wicket win",
+"publisher":"Sports Desk India",
+"description":"",
+"hours_ago":18
+}
+]
+},
+{
+"story_id":"s-isro-cryogenic-test",
+"kind":"singleton",
+"summary":"ISRO completes hot test of upgraded cryogenic stage",
+"headlines":[
+{
+"title":"ISRO completes hot test of upgraded cryogenic stage for heavy-lift launcher",
+"publisher":"Science Frontier Daily",
+"description":"The 720-second test at Mahendragiri validated a higher-thrust version of the stage, the space agency said.",
+"hours_ago":20
+}
+]
+},
+{
+"story_id":"s-bengaluru-metro-ridership",
+"kind":"singleton",
+"summary":"Bengaluru metro Yellow Line daily ridership crosses 1 lakh",
+"headlines":[
+{
+"title":"Namma Metro's Yellow Line ridership crosses 1 lakh a day",
+"publisher":"Bengaluru City Herald",
+"description":"",
+"hours_ago":9
+}
+]
+},
+{
+"story_id":"s-mumbai-coastal-road",
+"kind":"singleton",
+"summary":"BMC approves coastal road extension contract",
+"headlines":[
+{
+"title":"BMC standing committee approves ₹2,300-crore coastal road extension contract",
+"publisher":"Mumbai Civic Times",
+"description":"",
+"hours_ago":22
+}
+]
+},
+{
+"story_id":"s-rupee-close",
+"kind":"singleton",
+"summary":"Rupee slips against US dollar on importer demand",
+"headlines":[
+{
+"title":"Rupee slips 8 paise to 88.79 against US dollar on importer demand",
+"publisher":"MoneyLine India",
+"description":"",
+"hours_ago":30
+}
+]
+},
+{
+"story_id":"s-gold-record-dhanteras",
+"kind":"singleton",
+"summary":"Gold prices hit a record ahead of Dhanteras",
+"headlines":[
+{
+"title":"Gold climbs to fresh record as jewellers stock up ahead of Dhanteras",
+"publisher":"Bombay Financial Daily",
+"description":"Spot gold in Mumbai rose for a fourth straight session as festive demand and global cues lifted prices.",
+"hours_ago":12
+}
+]
+},
+{
+"story_id":"s-delhi-air-quality",
+"kind":"singleton",
+"summary":"Delhi air quality slips to 'poor' as stubble burning rises",
+"headlines":[
+{
+"title":"Delhi's air quality slips to 'poor' as stubble fires rise in Punjab, Haryana",
+"publisher":"North India Express",
+"description":"The city's AQI touched 248 on Thursday evening, with calm winds trapping pollutants, CPCB data showed.",
+"hours_ago":8
+}
+]
+},
+{
+"story_id":"s-maruti-festive-bookings",
+"kind":"singleton",
+"summary":"Maruti Suzuki reports higher festive season bookings",
+"headlines":[
+{
+"title":"Maruti Suzuki says festive bookings up 18% on strong rural demand",
+"publisher":"Auto Industry Daily",
+"description":"The carmaker said small cars and compact SUVs led bookings during Navratri.",
+"hours_ago":16
+}
+]
+},
+{
+"story_id":"s-fed-waller-remarks",
+"kind":"singleton",
+"summary":"Fed Governor Waller signals openness to further rate cuts",
+"headlines":[
+{
+"title":"Fed's Waller says further rate cuts may be warranted as labour market cools",
+"publisher":"Global Wire Service",
+"description":"Federal Reserve Governor Christopher Waller said in a speech that softening job gains justified additional easing.",
+"hours_ago":14
+}
+]
+},
+{
+"story_id":"s-uk-inflation-september",
+"kind":"singleton",
+"summary":"UK consumer price inflation eases in September",
+"headlines":[
+{
+"title":"UK inflation eases to 3.1% in September",
+"publisher":"London Financial Gazette",
+"description":"",
+"hours_ago":26
+}
+]
+},
+{
+"story_id":"s-sabarimala-bookings",
+"kind":"singleton",
+"summary":"Sabarimala virtual queue bookings open for pilgrimage season",
+"headlines":[
+{
+"title":"Sabarimala virtual queue bookings open for Mandala-Makaravilakku season",
+"publisher":"Kerala Morning News",
+"description":"The Travancore Devaswom Board said up to 70,000 pilgrims a day can book darshan slots online.",
+"hours_ago":23
+}
+]
+},
+{
+"story_id":"s-kerala-blasters-coach",
+"kind":"singleton",
+"summary":"Kerala Blasters appoint new head coach",
+"headlines":[
+{
+"title":"Kerala Blasters appoint Spanish coach on two-year deal",
+"publisher":"Sports Desk India",
+"description":"",
+"hours_ago":31
+}
+]
+},
+{
+"story_id":"s-djokovic-paris-withdrawal",
+"kind":"singleton",
+"summary":"Djokovic withdraws from Paris Masters",
+"headlines":[
+{
+"title":"Djokovic pulls out of Paris Masters citing schedule",
+"publisher":"Global Sports Wire",
+"description":"",
+"hours_ago":11
+}
+]
+},
+{
+"story_id":"s-western-ghats-frog",
+"kind":"singleton",
+"summary":"Researchers describe a new frog species from the Western Ghats",
+"headlines":[
+{
+"title":"Researchers describe new species of night frog from Western Ghats",
+"publisher":"Science Frontier Daily",
+"description":"The frog, found in leaf litter near a stream in Kerala's Wayanad district, was identified using genetic and acoustic analysis.",
+"hours_ago":28
+}
+]
+},
+{
+"story_id":"s-eternal-q2-results",
+"kind":"singleton",
+"summary":"Eternal reports higher Q2 profit",
+"headlines":[
+{
+"title":"Eternal Q2 profit rises as quick commerce losses narrow",
+"publisher":"Capital Markets Daily",
+"description":"",
+"hours_ago":3
+}
+]
+},
+{
+"story_id":"s-air-india-winter-schedule",
+"kind":"singleton",
+"summary":"Air India adds Southeast Asia routes in winter schedule",
+"headlines":[
+{
+"title":"Air India adds Southeast Asia routes in winter schedule",
+"publisher":"Travel Trade Asia",
+"description":"",
+"hours_ago":19
+}
+]
+},
+{
+"story_id":"s-kolkata-durga-puja",
+"kind":"singleton",
+"summary":"Kolkata Durga Puja pandals draw record crowds",
+"headlines":[
+{
+"title":"Kolkata's Durga Puja pandals draw record crowds on Saptami",
+"publisher":"Kolkata Evening Tribune",
+"description":"Police deployed additional personnel and extended metro services past midnight to manage the crowds.",
+"hours_ago":4
+}
+]
+},
+{
+"story_id":"s-neeraj-chopra-meet",
+"kind":"singleton",
+"summary":"Neeraj Chopra to headline javelin meet in Bengaluru",
+"headlines":[
+{
+"title":"Neeraj Chopra to headline invitational javelin meet in Bengaluru",
+"publisher":"Sports Desk India",
+"description":"",
+"hours_ago":33
+}
+]
+},
+{
+"story_id":"s-bundestag-pension-reform",
+"kind":"singleton",
+"summary":"German parliament passes pension reform",
+"headlines":[
+{
+"title":"German parliament passes pension reform after heated debate",
+"publisher":"Euro Business Wire",
+"description":"",
+"hours_ago":21
+}
+]
+},
+{
+"story_id":"s-ikea-pune-store",
+"kind":"singleton",
+"summary":"IKEA to open first Pune store",
+"headlines":[
+{
+"title":"IKEA to open first Pune store next month",
+"publisher":"Pune City Chronicle",
+"description":"",
+"hours_ago":17
+}
+]
+},
+{
+"story_id":"s-patna-airport-traffic",
+"kind":"singleton",
+"summary":"Patna airport's new terminal records highest single-day passenger traffic",
+"headlines":[
+{
+"title":"Patna airport's new terminal handles record 18,000 passengers in a day",
+"publisher":"Patna Morning Mail",
+"description":"",
+"hours_ago":13
+}
+]
+},
+{
+"story_id":"s-pakistan-imf-review",
+"kind":"singleton",
+"summary":"Pakistan and IMF reach staff-level agreement on loan review",
+"headlines":[
+{
+"title":"Pakistan, IMF reach staff-level agreement on latest loan review",
+"publisher":"Dubai Evening Herald",
+"description":"The agreement, subject to IMF board approval, would unlock about $1 billion under Pakistan's extended fund facility.",
+"hours_ago":29
+}
+]
+},
+{
+"story_id":"s-tn-breakfast-scheme",
+"kind":"singleton",
+"summary":"Tamil Nadu expands chief minister's breakfast scheme to higher classes",
+"headlines":[
+{
+"title":"Tamil Nadu expands chief minister's breakfast scheme to Classes 6-8",
+"publisher":"Chennai Courier",
+"description":"",
+"hours_ago":34
+}
+]
+},
+{
+"story_id":"s-japan-exports",
+"kind":"singleton",
+"summary":"Japan's exports rise for a third straight month",
+"headlines":[
+{
+"title":"Japan's exports rise for third straight month on car shipments to Asia",
+"publisher":"Tokyo Economic Wire",
+"description":"",
+"hours_ago":32
+}
+]
+}
+]
+}
+]
+}

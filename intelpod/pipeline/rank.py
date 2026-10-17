@@ -13,8 +13,36 @@ from collections import Counter
 
 from ..config import RankingConfig
 from ..schemas import EXACT_DATE_SOURCES, Article, EventCandidate, EventReview, RankedEvent, ScoreComponent
-from ..textutil import Taxonomy
-from .cluster import article_text
+from ..labels import topic_label
+from ..textutil import COUNTRY_TOKEN_PREFIX, Taxonomy, canonical_term
+from .cluster import PAIR_PREFIX, article_text, combine_similarity, cosine, independent_publishers
+
+
+DUPLICATE_ENTITY_WEIGHT = 0.3
+DUPLICATE_MIN_TOPICAL = 0.15  # shared vocabulary beyond country names
+
+
+def event_similarity(a: EventCandidate, b: EventCandidate) -> float:
+    """How likely two events are one story: centroid cosine plus overlap of countries and names.
+
+    Returns 0 unless the events also share topic words beyond country names: two India-China
+    stories (a tariff and a border meeting) share countries, not a story."""
+    def topical(v: dict[str, float]) -> dict[str, float]:
+        return {t: w for t, w in v.items() if not t.startswith((COUNTRY_TOKEN_PREFIX, PAIR_PREFIX))}
+
+    ta, tb = topical(a.centroid), topical(b.centroid)
+    na = math.sqrt(sum(w * w for w in ta.values())) or 1.0
+    nb = math.sqrt(sum(w * w for w in tb.values())) or 1.0
+    if cosine(ta, tb) / (na * nb) < DUPLICATE_MIN_TOPICAL:
+        return 0.0
+    ea = {f"country:{c.lower()}" for c in a.countries} | {f"ent:{e.lower()}" for e in a.entities}
+    eb = {f"country:{c.lower()}" for c in b.countries} | {f"ent:{e.lower()}" for e in b.entities}
+    ent = len(ea & eb) / len(ea | eb) if ea | eb else 0.0
+    return combine_similarity(cosine(a.centroid, b.centroid), ent, DUPLICATE_ENTITY_WEIGHT)
+
+
+def plural(n: int, word: str) -> str:
+    return f"{n} {word if n == 1 else word + 's'}"
 
 GEO_TOPICS = {"geopolitics", "defense", "elections_politics"}
 ECON_TOPICS = {"macroeconomy", "trade_policy", "energy_commodities", "markets_monetary"}
@@ -55,13 +83,19 @@ class Ranker:
         def coverage(topics: set[str]) -> str:
             hit = Counter(t for mt in member_topics for t in mt & topics)
             k = sum(1 for mt in member_topics if mt & topics)
-            return f"{k}/{n} reports on {', '.join(sorted(hit)) or 'these topics'}" if k else f"0/{n} reports on these topics"
+            names = ", ".join(topic_label(t).lower() for t in sorted(hit)) or "these topics"
+            return f"{k} of {plural(n, 'report')} on {names}" if k else f"0 of {plural(n, 'report')} on these topics"
 
         def sig(dim: str) -> list[str]:
+            # "tariff"/"tariffs" count as one term; the evidence shows the commonest wording.
             c: Counter = Counter()
+            forms: dict[str, Counter] = {}
             for t in texts:
-                c.update(set(self.tax.significance_hits(dim, t)))
-            return [term for term, _ in c.most_common()]
+                hits = self.tax.significance_hits(dim, t)
+                for h in hits:
+                    forms.setdefault(canonical_term(h, self.tax.label_aliases), Counter())[h] += 1
+                c.update({canonical_term(h, self.tax.label_aliases) for h in hits})
+            return [forms[k].most_common(1)[0][0] for k, _ in c.most_common()]
 
         w = self.cfg.weights
         comps: list[ScoreComponent] = []
@@ -94,7 +128,7 @@ class Ranker:
         indian_pubs = sorted({a.source_name for a in articles if (a.country or "").upper() in {"IN", "INDIA"}})
         india = 0.6 * (india_members / n) + 0.25 * sat(len(india_hits), 1.5) + (0.15 if "India" in ev.countries else 0)
         comps.append(ScoreComponent(name="india", value=round(_clamp(india), 3), weight=w.india, evidence=[
-            f"{india_members}/{n} reports mention India-related terms" + (f": {', '.join(t for t, _ in india_hits.most_common(5))}" if india_hits else ""),
+            f"{india_members} of {plural(n, 'report')} mention India-related terms" + (f": {', '.join(t for t, _ in india_hits.most_common(5))}" if india_hits else ""),
             f"Indian publishers covering it: {', '.join(indian_pubs) or 'none'}"]))
 
         if ev.is_continuing:
@@ -118,9 +152,10 @@ class Ranker:
         if official:
             corr = max(corr, 0.5)
         comps.append(ScoreComponent(name="corroboration", value=round(_clamp(corr), 3), weight=w.corroboration,
-                                    evidence=[f"{indep} independent publisher(s) of {len(ev.publishers)} total; "
-                                              f"{len(articles)} reports (syndicated copies counted once)",
-                                              f"publishers: {', '.join(ev.publishers[:8])}"]))
+                                    evidence=[f"{plural(indep, 'independent source')} among "
+                                              f"{plural(len(articles), 'report')} from {plural(len(ev.publishers), 'publisher')} "
+                                              f"(copies of the same wire story count once)",
+                                              "independent sources: " + ", ".join(independent_publishers(articles)[:8])]))
 
         unc_terms = sig("uncertainty")
         unc = sat(len(unc_terms), 1.5) * max(geo, econ, biz)
@@ -144,11 +179,11 @@ class Ranker:
         soft_members = sum(1 for t in texts if self.tax.soft_hits(t))
         if soft_members / n >= 0.5 and frac(HARD_TOPICS) < 0.5:
             importance *= self.cfg.soft_news_penalty
-            penalties.append(f"soft news (x{self.cfg.soft_news_penalty}): {soft_members}/{n} reports match sports/entertainment/lifestyle terms")
+            penalties.append(f"soft news (×{self.cfg.soft_news_penalty}): {soft_members} of {plural(n, 'report')} match sports/entertainment/lifestyle terms")
             flags.append("soft_news")
         elif review is not None and review.soft_news:
             importance *= self.cfg.soft_news_penalty
-            penalties.append(f"soft news (x{self.cfg.soft_news_penalty}): judged sports/entertainment/lifestyle by {review.model}")
+            penalties.append(f"soft news (×{self.cfg.soft_news_penalty}): judged sports/entertainment/lifestyle by {review.model}")
             flags.append("soft_news")
         if review is not None and review.outlier_article_ids:
             flags.append("model_removed_outliers")
@@ -156,12 +191,13 @@ class Ranker:
             flags.append("model_text_rejected")
         if indep <= 1 and not official:
             importance *= self.cfg.single_source_penalty
-            penalties.append(f"single source (x{self.cfg.single_source_penalty}): not yet independently corroborated")
+            penalties.append(f"single source (×{self.cfg.single_source_penalty}): not yet independently corroborated")
             flags.append("single_source")
         if ev.topic == "other":
             flags.append("off_taxonomy")
-        if any(a.date_source not in EXACT_DATE_SOURCES for a in articles):
-            flags.append("some_dates_approximate")
+        if articles and not any(a.date_source in EXACT_DATE_SOURCES for a in articles):
+            # Only when no report carries a publisher timestamp (e.g. GDELT "first seen" times only).
+            flags.append("dates_approximate")
 
         title, headline = ev.title, None
         if review is not None and review.title and review.title.strip() != ev.title.strip():
@@ -182,9 +218,20 @@ class Ranker:
         scored = [self.score(ev, [articles_by_id[a] for a in ev.article_ids if a in articles_by_id],
                              reviews.get(ev.event_id), review_weight) for ev in events]
         scored.sort(key=lambda r: (-r.importance, -r.independent_sources, r.event_id))
+        by_id = {ev.event_id: ev for ev in events}
         selected: list[RankedEvent] = []
         per_topic: Counter = Counter()
         reasons: dict[str, str] = {}
+
+        def same_story_as(r: RankedEvent) -> tuple[RankedEvent, float] | None:
+            """An already selected event this one most likely duplicates (a fragment of the same story
+            that clustering kept apart), so the briefing does not spend two slots on one story."""
+            thr = self.cfg.duplicate_similarity
+            if not thr:
+                return None
+            best = max(((s, event_similarity(by_id[r.event_id], by_id[s.event_id])) for s in selected),
+                       key=lambda x: x[1], default=None)
+            return best if best and best[1] >= thr else None
 
         def try_select(r: RankedEvent, floor: float, fill: bool) -> None:
             if r.selected:
@@ -192,11 +239,16 @@ class Ranker:
             if r.importance < floor:
                 reasons.setdefault(r.event_id, f"score {r.importance} below threshold {floor}")
                 return
-            if per_topic[r.topic] >= self.cfg.max_per_topic:
-                reasons[r.event_id] = f"topic cap reached ({self.cfg.max_per_topic} {r.topic} stories already selected)"
-                return
             if "soft_news" in r.flags:
                 reasons[r.event_id] = "soft news is excluded from the briefing"
+                return
+            dup = same_story_as(r)
+            if dup:
+                reasons[r.event_id] = (f"probably the same story as the selected event \"{dup[0].title}\" "
+                                       f"(similarity {dup[1]:.2f})")
+                return
+            if per_topic[r.topic] >= self.cfg.max_per_topic:
+                reasons[r.event_id] = f"topic cap reached ({self.cfg.max_per_topic} {r.topic} stories already selected)"
                 return
             r.selected = True
             if fill:

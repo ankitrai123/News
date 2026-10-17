@@ -22,27 +22,31 @@ ingestion:
   lookback_hours: 36             # articles considered for today's events
   feeds_file: config/feeds.yaml
   max_description_chars: 400     # store short extracts only, never full articles
+  feed_pause_after_failures: 5   # skip a feed after this many failed runs in a row...
+  feed_retry_paused_after_hours: 24  # ...retrying it once a day (robots.txt refusals too)
   providers:
     rss:
       enabled: true
+      max_workers: 6             # feeds fetched in parallel (different hosts)
     gdelt:
       enabled: true
-      # GDELT asks clients to keep to roughly one request every 5 seconds.
-      min_interval_seconds: 6
+      # GDELT throttles heavy users. IntelPod spaces requests, and after a refusal (HTTP 429 or
+      # "Please limit requests") waits cooldown_seconds (doubling) before retrying once; after
+      # stop_after_refusals refused queries it skips GDELT for that run instead of grinding on.
+      min_interval_seconds: 10
+      cooldown_seconds: 30
+      max_cooldown_seconds: 120
+      stop_after_refusals: 2
       timespan: 1d
-      max_records: 75            # GDELT ArtList maximum is 250
+      max_records: 150           # GDELT ArtList maximum is 250
       sort: HybridRel
       language_filter: "sourcelang:english"
-      queries:
-        - {topic: geopolitics, query: '(sanctions OR ceasefire OR invasion OR "peace talks" OR summit)'}
-        - {topic: trade_policy, query: '(tariff OR tariffs OR "export controls" OR "trade deal" OR "trade war")'}
-        - {topic: markets_monetary, query: '("central bank" OR "interest rate" OR "rate cut" OR "rate hike" OR inflation)'}
-        - {topic: energy_commodities, query: '(OPEC OR "oil prices" OR "crude oil" OR LNG OR "natural gas")'}
-        - {topic: semiconductors_minerals, query: '(semiconductor OR chipmaker OR "rare earth" OR "critical minerals")'}
+      queries:                   # few broad queries: every request risks a refusal
+        - {topic: geopolitics, query: '(sanctions OR ceasefire OR invasion OR "peace talks" OR summit OR missile OR NATO OR military)'}
+        - {topic: trade_policy, query: '(tariff OR tariffs OR "export controls" OR "trade deal" OR semiconductor OR chipmaker OR "rare earth" OR "critical minerals")'}
+        - {topic: markets_monetary, query: '("central bank" OR "interest rate" OR inflation OR OPEC OR "oil prices" OR LNG OR "natural gas")'}
         - {topic: india, query: '(India OR RBI OR "New Delhi") (economy OR policy OR trade OR government)'}
-        - {topic: technology_ai, query: '("artificial intelligence" OR "AI regulation" OR "data center")'}
-        - {topic: supply_chain, query: '("supply chain" OR shipping OR freight OR "Red Sea")'}
-        - {topic: defense, query: '(military OR missile OR defence OR defense OR NATO)'}
+        - {topic: technology_ai, query: '("artificial intelligence" OR "AI regulation" OR "data center" OR "supply chain" OR shipping OR "Red Sea")'}
     newsdata:
       # NewsData.io free tier: needs a free key in NEWSDATA_API_KEY (skipped without it).
       # 200 credits/day, 30 per 15 minutes, 1 credit per request of up to 10 articles,
@@ -75,9 +79,14 @@ clustering:
   max_time_gap_hours: 72
   link_lookback_days: 7          # link to ongoing events from earlier runs
   link_threshold: 0.38
+  # Countries count as words: Russian/Moscow/Kremlin -> one token, plus a token for each pair of
+  # countries in a headline (US + Russia). `drop` restores the older, more fragmented behaviour.
+  country_tokens: canonical      # canonical | drop
+  country_token_weight: 1.2
+  country_pair_weight: 1.0
   embeddings:
     # Semantic similarity to catch paraphrases. NVIDIA (needs NVIDIA_API_KEY) or local Ollama.
-    # Without a working provider, clustering silently uses lexical similarity only.
+    # Without a working provider, clustering falls back to lexical similarity (the briefing says why).
     enabled: true
     provider: nvidia             # nvidia | ollama
     nvidia_model: nvidia/nemotron-3-embed-1b      # 2048 dims; never send a `dimensions` other than 2048
@@ -109,6 +118,8 @@ ranking:
   single_source_penalty: 0.85    # multiplier when only one independent publisher
   soft_news_penalty: 0.3         # multiplier for sports/celebrity/lifestyle clusters
   corroboration_cap: 8           # independent publishers needed for full score
+  duplicate_similarity: 0.45     # skip an event this similar to one already selected (same story
+                                 # split across events); shown as the reason it was not selected. 0 = off
 
 llm:
   # Language model used to review the top events (title, summary, outliers, significance).

@@ -103,6 +103,67 @@ def test_gdelt_rate_limit_text_is_an_error_not_a_crash():
     assert res.items == [] and not res.fetches[0].ok and "non-JSON" in res.fetches[0].error
 
 
+def gdelt_multi(sleeps, n=4, **kw):
+    cfg = GdeltProviderConfig(min_interval_seconds=0, cooldown_seconds=30, max_cooldown_seconds=120,
+                              queries=[GdeltQuery(topic="t", query=f"(q{i})") for i in range(n)], **kw)
+    http = HttpClient(HttpConfig(max_retries=3, backoff_base_seconds=0, per_host_min_interval_seconds=0,
+                                 respect_robots_txt=False), "t", sleep=lambda s: None)
+    return GdeltProvider(http, cfg, sleep=sleeps.append)
+
+
+@respx.mock
+def test_gdelt_429_cools_down_then_succeeds_without_blind_retries():
+    sleeps = []
+    route = respx.get(GDELT_DOC_URL).mock(side_effect=[httpx.Response(429, text="Too Many Requests"),
+                                                       httpx.Response(200, text=sn.gdelt_json())]
+                                          + [httpx.Response(200, text=sn.gdelt_json())] * 3)
+    res = gdelt_multi(sleeps).fetch()
+    assert route.call_count == 5            # 1 refused + 1 retry + 3 other queries; no HTTP-level 429 retries
+    assert sleeps == [30]                   # one cool-down
+    assert sum(f.ok for f in res.fetches) == 4 and len(res.items) == 8
+
+
+@respx.mock
+def test_gdelt_honours_retry_after_and_doubles_cooldown():
+    sleeps = []
+    respx.get(GDELT_DOC_URL).mock(side_effect=[httpx.Response(429, headers={"Retry-After": "45"}),
+                                               httpx.Response(200, text=sn.gdelt_json()),
+                                               httpx.Response(429), httpx.Response(200, text=sn.gdelt_json())]
+                                  + [httpx.Response(200, text=sn.gdelt_json())] * 2)
+    gdelt_multi(sleeps).fetch()
+    assert sleeps == [45, 60]
+
+
+@respx.mock
+def test_gdelt_stops_after_repeated_refusals():
+    sleeps = []
+    route = respx.get(GDELT_DOC_URL).respond(429)
+    p = gdelt_multi(sleeps, n=5, stop_after_refusals=2)
+    res = p.fetch()
+    assert route.call_count == 4 and len(sleeps) == 2   # two queries x (try + retry), then stop
+    assert "skipped 3 remaining queries" in p.skipped_reason and res.items == []
+
+
+def test_gdelt_title_punctuation_repaired():
+    from intelpod.textutil import repair_gdelt_title as r
+    assert r("Deal Worth $44 . 4 Billion") == "Deal Worth $44.4 Billion"
+    assert r("US - Ukraine Minerals Pact") == "US-Ukraine Minerals Pact"
+    assert r("Russia : Former Minister Detained") == "Russia: Former Minister Detained"
+    assert r("Trump ' s Tariff Plan") == "Trump's Tariff Plan"
+    assert r("U . S . - led Coalition") == "U.S.-led Coalition"
+    assert r("Up 5 % , Jobs Cut By 1 , 200") == "Up 5%, Jobs Cut By 1,200"
+
+
+@respx.mock
+def test_gdelt_items_get_repaired_titles():
+    import json
+    body = json.dumps({"articles": [{"url": "https://g.test/a", "title": "Deal Worth $44 . 4 Billion : Report",
+                                     "seendate": "20261017T030000Z", "domain": "g.test", "language": "English"}]})
+    respx.get(GDELT_DOC_URL).respond(200, text=body)
+    res = gdelt().fetch()
+    assert res.items[0].title == "Deal Worth $44.4 Billion: Report"
+
+
 def test_gdelt_parsers():
     assert parse_artlist("") == []
     assert parse_artlist('{"articles": [{"url": "u"}, 5]}') == [{"url": "u"}]

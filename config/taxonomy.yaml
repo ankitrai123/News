@@ -14,7 +14,8 @@ topics:
     deficit, "public debt", fiscal, budget, imf, "world bank", stimulus, "consumer prices", productivity, wages]
   trade_policy: [tariff, tariffs, "trade war", "trade deal", "trade agreement", "export controls", "export ban",
     imports, exports, wto, "industrial policy", subsidies, subsidy, "anti-dumping", "free trade",
-    "trade talks", "trade deficit", embargo, "customs duty", duties]
+    "trade talks", "trade deficit", embargo, "customs duty", duties, "commercial deal", "commercial deals",
+    "trade pact", "economic partnership", "investment pact", "investment treaty", "market access"]
   energy_commodities: [oil, crude, opec, "opec+", "natural gas", lng, brent, coal, "power grid", electricity,
     renewable, renewables, solar, uranium, gold, copper, wheat, commodity, commodities, "energy prices",
     pipeline, refinery]
@@ -70,6 +71,19 @@ soft_news: [football, soccer, cricket, tennis, "premier league", nba, nfl, "worl
   tournament, celebrity, film, movie, album, actor, actress, singer, fashion, recipe, horoscope,
   "box office", "tv show", "reality show", "red carpet", "royal wedding", grammy, oscars, oscar, bollywood,
   "ipl", lifestyle, travel, "weight loss", dating]
+
+# One label per concept in subtopics ("ai" and "artificial intelligence" are the same subject).
+label_aliases:
+  ai: artificial intelligence
+  generative ai: artificial intelligence
+  "opec+": opec
+  fed: federal reserve
+  defence: defense
+  data centre: data center
+  rare earths: rare earth
+  chipmaker: chip
+  semiconductor: chip
+  semiconductors: chip
 
 # Multi-word phrases folded into one token before clustering.
 phrase_synonyms:

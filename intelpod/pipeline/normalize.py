@@ -5,7 +5,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 
 from ..schemas import Article, RawItem
-from ..textutil import (canonicalize_url, domain_of, normalize_title, stable_hash, strip_html,
+from ..textutil import (canonicalize_url, domain_of, looks_like_table, normalize_title, stable_hash, strip_html,
                         strip_publisher_suffix)
 
 log = logging.getLogger(__name__)
@@ -49,6 +49,8 @@ def normalize_item(item: RawItem, now: datetime | None = None, max_description_c
     desc = strip_html(item.description or "") or None
     if desc and normalize_title(desc) == norm:
         desc = None  # many feeds repeat the title as the description
+    if desc and looks_like_table(desc):
+        desc = None  # a flattened table of figures is not a summary (and confuses topic/country tagging)
     if desc and len(desc) > max_description_chars:
         desc = desc[:max_description_chars].rsplit(" ", 1)[0] + "…"
 

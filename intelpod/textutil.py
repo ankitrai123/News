@@ -53,6 +53,29 @@ def domain_of(url: str) -> str | None:
 
 
 # --- titles ---------------------------------------------------------------
+_GDELT_FIXES = [
+    (re.compile(r"(\d) \. (\d)"), r"\1.\2"),                        # "$44 . 4 Billion" -> "$44.4 Billion"
+    (re.compile(r"(\d) , (\d{3})\b"), r"\1,\2"),                    # "1 , 200" -> "1,200"
+    (re.compile(r"\b([A-Z]) \. ([A-Z]) \.(?= |$)"), r"\1.\2."),        # "U . S ." -> "U.S."
+    (re.compile(r"(\w) ['’] (s|t|re|ve|ll|d|m)\b", re.I), r"\1'\2"),  # "Trump ' s" -> "Trump's"
+    (re.compile(r"([\w.]) - (?=\w)"), r"\1-"),                        # "US - Ukraine" -> "US-Ukraine"
+    (re.compile(r"\$ (?=\d)"), "$"),                                  # "$ 5" -> "$5"
+    (re.compile(r"(?<=\d) %"), "%"),                                   # "5 %" -> "5%"
+    (re.compile(r" ([,:;!?)\]])"), r"\1"),                             # "Russia : Former" -> "Russia: Former"
+    (re.compile(r"([(\[]) "), r"\1"),
+]
+
+
+def repair_gdelt_title(title: str) -> str:
+    """GDELT returns titles with spaces around punctuation ("$44 . 4 Billion",
+    "US - Ukraine", "Russia : Former", "Trump ' s"). Undo that; "$44 . 4" otherwise
+    reads as a different number."""
+    t = _WS.sub(" ", title or "").strip()
+    for _ in range(2):  # some patterns overlap (e.g. "U . S . - led")
+        for pat, rep in _GDELT_FIXES:
+            t = pat.sub(rep, t)
+    return t
+
 _TITLE_SEPARATORS = re.compile(r"\s+(?:[-|–—:]|::)\s+")
 _PUNCT = re.compile(r"[^\w\s]", re.UNICODE)
 
@@ -141,6 +164,7 @@ class Taxonomy:
     synonyms: dict[str, str]
     figurative_phrases: list[str] = field(default_factory=list)
     phrase_synonyms: dict[str, str] = field(default_factory=dict)
+    label_aliases: dict[str, str] = field(default_factory=dict)
     _patterns: dict[str, re.Pattern] = field(default_factory=dict, repr=False)
 
     def __post_init__(self):
@@ -180,6 +204,39 @@ class Taxonomy:
         return self._match("soft", text)
 
 
+_NO_SINGULAR = ("ss", "us", "is", "ics", "talks", "news", "gas", "arms", "series", "species", "earnings", "proceeds", "savings", "goods", "outskirts")
+
+
+def canonical_term(term: str, aliases: dict[str, str] | None = None) -> str:
+    """One label per concept: "tariffs" -> "tariff", "rare earths" -> "rare earth",
+    "ai" -> "artificial intelligence" (via taxonomy `label_aliases`)."""
+    t = " ".join(term.lower().split())
+    if aliases and t in aliases:
+        return aliases[t]
+    if t.endswith(_NO_SINGULAR) or len(t) <= 3:
+        return t
+    if t.endswith("ies") and len(t) > 4:
+        return t[:-3] + "y"
+    if t.endswith("s"):
+        t = t[:-1]
+    return aliases.get(t, t) if aliases else t
+
+
+def looks_like_table(text: str | None) -> bool:
+    """True for descriptions that are data dumps (tables of figures) rather than prose,
+    e.g. an RBI balance-of-payments release flattened by the feed."""
+    if not text:
+        return False
+    tokens = text.split()
+    if len(tokens) < 8:
+        return False
+    numeric = sum(1 for t in tokens if re.fullmatch(r"[-+(]?[\d.,%$₹€£]+[)%]?", t))
+    letters = sum(c.isalpha() for c in text)
+    visible = sum(not c.isspace() for c in text) or 1
+    pipes = text.count("|") + text.count("\t")
+    return numeric / len(tokens) > 0.35 or letters / visible < 0.55 or pipes >= 4
+
+
 def load_taxonomy(path: Path) -> Taxonomy:
     data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     return Taxonomy(
@@ -190,6 +247,7 @@ def load_taxonomy(path: Path) -> Taxonomy:
         synonyms={str(k).lower(): str(v).lower() for k, v in (data.get("synonyms") or {}).items()},
         figurative_phrases=[str(t) for t in data.get("figurative_phrases") or []],
         phrase_synonyms={str(k).lower(): str(v).lower() for k, v in (data.get("phrase_synonyms") or {}).items()},
+        label_aliases={str(k).lower(): str(v).lower() for k, v in (data.get("label_aliases") or {}).items()},
     )
 
 
@@ -276,7 +334,8 @@ def _country_patterns() -> tuple[re.Pattern, re.Pattern, dict[str, str]]:
             (sensitive if alias in _CASE_SENSITIVE else insensitive).append(alias)
     pat_i = _phrase_regex(insensitive)
     alts = sorted({a.upper() for a in sensitive}, key=len, reverse=True)
-    pat_s = re.compile(r"(?<![\w.])(" + "|".join(re.escape(a) for a in alts) + r")(?![\w])")
+    # "US$ 5bn" / "US $5bn" is a currency, not the country.
+    pat_s = re.compile(r"(?<![\w.])(" + "|".join(re.escape(a) for a in alts) + r")(?![\w$])(?! \$)")
     return pat_i, pat_s, lookup
 
 
@@ -293,6 +352,29 @@ def country_alias_tokens() -> frozenset[str]:
             words.update(parts if len(parts) == 1 else [w for w in parts if w not in generic])
     # "united states" is the most common multi-word alias; drop both words explicitly.
     return frozenset(words | {"united", "states"})
+
+
+COUNTRY_TOKEN_PREFIX = "ctry"  # no English word starts with "ctry" (unlike "cc": cctv, ccp)
+
+
+def country_token(country: str) -> str:
+    """Lexical token standing for a country in clustering vectors, e.g. "ctryunitedstates"."""
+    return COUNTRY_TOKEN_PREFIX + re.sub(r"[^a-z]", "", country.lower())
+
+
+def fold_countries(text: str) -> str:
+    """Replace every country alias (Russian, Moscow, Kremlin, U.S., Washington...) by one token
+    per country, so paraphrases that name a country differently still share a term."""
+    pat_i, pat_s, lookup = _country_patterns()
+    text = pat_s.sub(lambda m: f" {country_token(lookup[m.group(0).lower()])} ", text)
+    return pat_i.sub(lambda m: f" {country_token(lookup[m.group(0).lower()])} ", text)
+
+
+def is_country_alias(phrase: str) -> bool:
+    """True for a name that only refers to a country ("Kremlin", "U.S.", "Russian", "New Delhi")."""
+    words = [w for w in re.split(r"[\s.\-]+", phrase.lower()) if w]  # "India-Canada" too
+    aliases = country_alias_tokens()
+    return bool(words) and all(w in aliases for w in words)
 
 
 def find_countries(text: str) -> list[str]:
@@ -314,13 +396,15 @@ _ENTITY_STOP = {"The", "A", "An", "In", "On", "At", "As", "Why", "How", "What", 
 
 
 def find_named_entities(text: str) -> list[str]:
-    """Cheap proper-noun phrase extraction (capitalised sequences). Not NER; good enough for overlap."""
-    out: dict[str, None] = {}
+    """Cheap proper-noun phrase extraction (capitalised sequences). Not NER; good enough for overlap.
+    Returns phrases in their original casing ("IMF", "Fed"), de-duplicated case-insensitively;
+    callers compare them lower-cased."""
+    out: dict[str, str] = {}
     for m in _CAP_PHRASE.findall(text):
         words = [w for w in m.split() if w not in _ENTITY_STOP]
         if not words:
             continue
         phrase = " ".join(words).strip(".-")
         if len(phrase) >= 3 and not phrase.isupper() or len(phrase) in range(2, 6) and phrase.isupper():
-            out.setdefault(phrase.lower(), None)
-    return list(out)
+            out.setdefault(phrase.lower(), phrase)
+    return list(out.values())

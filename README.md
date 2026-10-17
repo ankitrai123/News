@@ -75,10 +75,18 @@ The report is written to `data/runs/<run_id>/phase1_events.md` (and `.json`).
 
 ### Upgrading an existing `config/config.yaml`
 
-`intelpod init` never overwrites your config. New sections (`ingestion.providers.newsdata`,
-`clustering.embeddings`, `llm`) have working defaults when absent, but a Phase-1 config that sets
-`clustering.embeddings.enabled: false` keeps embeddings off — compare with
-`config/config.example.yaml` and copy what you want.
+`intelpod init` never overwrites your config. New settings have working defaults when absent,
+but values your file *does* set win. Compare with `config/config.example.yaml`, in particular:
+
+* `clustering.embeddings.enabled: false` (older configs) keeps embeddings off. Embeddings are
+  the biggest help against one story being split into many events; turn them on and set
+  `NVIDIA_API_KEY` (or use Ollama). The briefing page says whether they were used.
+* `ingestion.providers.gdelt`: older configs list 9 queries 6 seconds apart,
+  which GDELT throttles (HTTP 429). The example now uses 5 broad queries, 10 s spacing and a
+  cool-down; copy that section.
+* New, defaulted when absent: `clustering.country_tokens` / `country_token_weight` /
+  `country_pair_weight`, `ranking.duplicate_similarity`, `ingestion.feed_pause_after_failures`,
+  `ingestion.providers.rss.max_workers`.
 
 ### Running each stage on its own
 
@@ -97,12 +105,14 @@ intelpod runs                                  # run history, stage status, requ
 
 ```bash
 pip install -e ".[dev]"
-pytest                 # 142 offline tests (HTTP mocked with respx, synthetic fixtures; real keys ignored)
+pytest                 # 172 offline tests (HTTP mocked with respx, synthetic fixtures; real keys ignored)
 pytest -m live -v      # 5 real-network tests: GDELT, a feed, NewsData (1 credit), NVIDIA chat + embeddings
 ```
 
 Offline tests use **synthetic** fixtures (fictional publishers on `.test` domains), clearly
-separated from the real-network tests in `tests/test_live.py`.
+separated from the real-network tests in `tests/test_live.py`. Clustering quality is measured on
+`tests/fixtures/clustering_corpus.json` (627 model-written headlines with known story labels);
+`python -m tests.test_cluster_corpus [key=value ...]` prints the scores for a setting.
 
 ## Configuration
 

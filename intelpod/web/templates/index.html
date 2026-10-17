@@ -3,35 +3,55 @@
 {% block content %}
 <div class="row" style="align-items:center;margin-bottom:8px">
   <div class="grow"><h1>Daily briefing</h1>
-  {% if run %}<div class="muted small">Run {{ run.run_id }} · {{ run.started_at|dt }} UTC · status {{ run.status }}
-   · {{ cluster.get('articles','?') }} articles → {{ cluster.get('events','?') }} events → {{ selected|length }} selected</div>{% endif %}</div>
-  <form method="post" action="/runs/start"><button {% if running %}disabled{% endif %}>Run now</button></form>
+  {% if run %}<div class="muted small">Run {{ run.run_id }} · started {{ run.started_at|dt }} · status {{ run.status }}
+   {% if scored %}· {{ plural(cluster.get('articles', 0), 'article') }} → {{ plural(cluster.get('events', 0), 'event') }} → {{ selected|length }} selected{% endif %}</div>{% endif %}</div>
+  <form method="post" action="/runs/start"><button {% if running %}disabled title="A run is already in progress"{% endif %}>Run now</button></form>
 </div>
-{% for w in ingest.get('warnings', []) %}<div class="banner">{{ w }}</div>{% endfor %}
-{% if cluster.get('embeddings') %}<div class="small muted" style="margin-bottom:4px">Embeddings: {{ cluster.embeddings }}</div>{% endif %}
-{% if review and review.get('status') == 'completed' %}<div class="small muted" style="margin-bottom:10px">Model review: {{ review.reviewed }} top events reviewed by <b>{{ review.model }}</b>; scores blend keyword analysis with the model. {{ review.outliers_removed }} off-topic reports removed, {{ review.titles_rejected + review.summaries_rejected }} model texts rejected as unsupported.</div>
-{% elif review %}<div class="small muted" style="margin-bottom:10px">Model review not used: {{ review.get('reason', review.get('status')) }}. Keyword ranking only.</div>{% endif %}
-{% if not run %}<div class="card">No completed runs yet. Click <b>Run now</b> or run <code>intelpod run</code>.</div>{% endif %}
-{% if run and selected|length < 5 %}<div class="banner">Only {{ selected|length }} event(s) met the selection threshold. Quiet day or limited source coverage.</div>{% endif %}
+
+{% if running and active_run and (not run or active_run.run_id != run.run_id) %}
+<div class="banner info" role="status">Run {{ active_run.run_id }} is in progress{% if active_stage %} (stage: {{ active_stage }}){% endif %}. Showing the latest completed run; this page refreshes every 10 seconds.</div>
+{% endif %}
+
+{% if not run %}
+<div class="card">No runs yet. Click <b>Run now</b> or run <code>intelpod run</code>.</div>
+{% elif not scored %}
+  {% if run.status == 'running' %}
+  <div class="card" role="status"><b>This run is still in progress</b>{% if run_stage %} — current stage: {{ run_stage }}{% endif %}.
+  Events appear once ranking finishes. This page refreshes every 10 seconds.</div>
+  {% elif run.status in ('failed', 'paused') %}
+  <div class="card"><b>This run {{ 'failed' if run.status == 'failed' else 'was paused' }}</b>{% if run_stage %} at stage {{ run_stage }}{% endif %}.
+  {% if run.error %}<div class="small bad">{{ run.error }}</div>{% endif %}
+  <form method="post" action="/runs/start" style="margin-top:8px"><input type="hidden" name="resume" value="1"><button class="secondary" {% if running %}disabled{% endif %}>Resume it</button></form></div>
+  {% else %}
+  <div class="card">This run produced no ranked events.</div>
+  {% endif %}
+{% else %}
+  {% for w in ingest.get('warnings', []) %}<div class="banner">{{ w }}</div>{% endfor %}
+  {% if cluster.get('embeddings') %}<div class="small muted" style="margin-bottom:4px">Embeddings: {{ cluster.embeddings }}</div>{% endif %}
+  {% if review and review.get('status') == 'completed' %}<div class="small muted" style="margin-bottom:10px">Model review: {{ plural(review.reviewed, 'top event') }} reviewed by <b>{{ (review.models or [review.model])|join(', ') }}</b>; scores blend keyword analysis with the model. {{ plural(review.outliers_removed or 0, 'off-topic report') }} removed, {{ plural((review.titles_rejected or 0) + (review.summaries_rejected or 0), 'model text') }} rejected as unsupported.</div>
+  {% elif review %}<div class="small muted" style="margin-bottom:10px">Model review not used: {{ review.get('reason', review.get('status')) }}. Keyword ranking only.</div>{% endif %}
+  {% if run.status == 'completed' and selected|length < 5 %}<div class="banner">Only {{ plural(selected|length, 'event') }} met the selection threshold: a quiet day or limited source coverage.</div>{% endif %}
+{% endif %}
+
 {% for r in selected %}
 <div class="card">
   <div class="row">
-    <div class="score">{{ r.importance }}</div>
+    <div class="score" aria-label="Importance {{ r.importance }} out of 100">{{ r.importance }}</div>
     <div class="grow">
       <h2>{{ r.rank }}. <a href="/events/{{ r.event_id }}?run={{ run.run_id }}">{{ r.title }}</a></h2>
       <div class="small muted">
-        <span class="pill">{{ r.topic }}{% if r.subtopic %} / {{ r.subtopic }}{% endif %}</span>
+        <span class="pill">{{ r.topic|topic(r.subtopic) }}</span>
         {% for c in r.countries[:5] %}<span class="pill">{{ c }}</span>{% endfor %}
-        {{ r.article_count }} reports · {{ r.independent_sources }} independent publishers
+        {{ plural(r.article_count, 'report') }} · {{ plural(r.independent_sources, 'independent source') }}
         {% if r.is_continuing %}· <b>continuing story</b>{% endif %}
-        {% for f in r.flags %}<span class="pill warn">{{ f }}</span>{% endfor %}
+        {% for f in r.flags %}<span class="pill warn" title="{{ f|flag_help }}">{{ f|flag }}</span>{% endfor %}
       </div>
       {% if r.headline %}<div class="small muted">Title by {{ r.review.model }} · publisher headline: “{{ r.headline }}”</div>{% endif %}
       {% if r.summary %}<p><b>Summary</b> <span class="small muted">({{ r.review.model }}, checked against the reports)</span>: {{ r.summary }}</p>{% endif %}
       {% if r.description %}<p>{{ r.description }}</p>{% endif %}
       <p class="small">{{ r.rationale }}</p>
-      <table class="comp">{% for c in r.components %}<tr><td style="width:190px">{{ c.name }}</td>
-        <td style="width:140px"><div class="bar"><i style="width:{{ (c.value*100)|round }}%"></i></div></td>
+      <table class="comp">{% for c in r.components %}<tr><td style="width:190px">{{ c.name|replace('_', ' ') }}</td>
+        <td style="width:170px"><span class="bar" role="img" aria-label="{{ c.name|replace('_', ' ') }} {{ '%.2f'|format(c.value) }} of 1"><i style="width:{{ (c.value*100)|round }}%"></i></span><span class="barval small">{{ '%.2f'|format(c.value) }}</span></td>
         <td class="muted">{{ c.evidence|join('; ') }}</td></tr>{% endfor %}</table>
     </div>
   </div>

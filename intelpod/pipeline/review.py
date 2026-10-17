@@ -183,7 +183,7 @@ def pick_events_to_review(ranked: list[RankedEvent], limit: int) -> list[str]:
 
 
 def drop_outliers(cand: EventCandidate, review: EventReview, articles_by_id: dict[str, Article],
-                  taxonomy: Taxonomy | None = None) -> EventCandidate:
+                  taxonomy: Taxonomy | None = None, ccfg=None) -> EventCandidate:
     """Remove model-identified outliers and recompute every field that depends on membership
     (sources, times, and - when a taxonomy is given - countries, entities, topic, centroid)."""
     if not review.outlier_article_ids:
@@ -202,7 +202,7 @@ def drop_outliers(cand: EventCandidate, review: EventReview, articles_by_id: dic
     }
     if taxonomy is not None:
         cl = Cluster()
-        for d in build_docs(arts, taxonomy):
+        for d in build_docs(arts, taxonomy, cfg=ccfg):
             cl.add(d)
         summ = summarize_cluster(cl, taxonomy)
         update.update({"topic": summ["topic"], "subtopic": summ["subtopic"], "topics": summ["topics"],
@@ -220,7 +220,7 @@ def regroup_outliers(removed: list[Article], taxonomy: Taxonomy, ccfg) -> list[E
     clustered among themselves, instead of silently disappearing from the briefing."""
     if not removed:
         return []
-    clusters = Clusterer(ccfg).cluster(build_docs(removed, taxonomy))
+    clusters = Clusterer(ccfg).cluster(build_docs(removed, taxonomy, cfg=ccfg))
     return build_candidates(clusters, taxonomy, ccfg)
 
 

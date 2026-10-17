@@ -83,7 +83,7 @@ class Repository:
                 for ea in s.scalars(select(EventArticleRow).where(EventArticleRow.event_id.in_([e.event_id for e in events]))):
                     links.setdefault(ea.event_id, set()).add(ea.article_id)
             return [PriorEvent(event_id=e.event_id, centroid=e.centroid or {},
-                               entities=[f"country:{c.lower()}" for c in e.countries or []] + [f"ent:{x}" for x in e.entities or []],
+                               entities=[f"country:{c.lower()}" for c in e.countries or []] + [f"ent:{x.lower()}" for x in e.entities or []],
                                first_seen_at=e.first_seen_at, article_ids=links.get(e.event_id, set()))
                     for e in events]
 
@@ -308,3 +308,24 @@ class Repository:
     def embeddings_prune(self, older_than: datetime) -> int:
         with self.db.session() as s:
             return s.execute(delete(EmbeddingCacheRow).where(EmbeddingCacheRow.created_at < older_than)).rowcount or 0
+
+    def run_event_article_ids(self, run_id: str, event_id: str) -> list[str] | None:
+        """Article ids an event had in a given run (from that run's persisted candidates),
+        so the event page matches the briefing it was opened from."""
+        stages = self.stages(run_id)
+        for name in ("review", "cluster"):
+            st = stages.get(name)
+            cands = (st.output or {}).get("candidates") if st and st.status == "completed" else None
+            if cands:
+                for c in cands:
+                    if c.get("event_id") == event_id:
+                        return list(c.get("article_ids") or [])
+        return None
+
+    def current_stage(self, run_id: str) -> str | None:
+        """Name of the stage currently running (or last started) for a run."""
+        stages = self.stages(run_id)
+        running = [k for k, v in stages.items() if v.status == "running"]
+        if running:
+            return running[-1]
+        return list(stages)[-1] if stages else None

@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
@@ -48,6 +49,13 @@ class StageError(Exception):
 
 class RunInProgress(Exception):
     pass
+
+
+class NothingToResume(ValueError):
+    """The run asked to resume is already complete (or there is no run)."""
+
+
+RESUMABLE = ("failed", "paused")
 
 
 @dataclass
@@ -93,7 +101,12 @@ class Phase1Pipeline:
         if resume:
             row = self.repo.get_run(run_id) if run_id else self.repo.latest_run(status=None)
             if row is None:
-                raise ValueError(f"no run to resume ({run_id or 'none found'})")
+                raise NothingToResume(f"no run to resume ({run_id or 'no runs yet'})")
+            if row.status == "completed":
+                raise NothingToResume(f"nothing to resume: run {row.run_id} already completed; start a new run instead")
+            if row.status == "running" and not force:
+                raise RunInProgress(f"run {row.run_id} is still marked running; if it was interrupted, "
+                                    f"resume it with --resume --force")
             run_id = row.run_id
             ctx = RunContext(run_id=run_id, now=datetime.fromisoformat(row.params["now"]), params=row.params)
             self.repo.set_run_status(run_id, "running")
@@ -156,14 +169,38 @@ class Phase1Pipeline:
         raise RuntimeError("unreachable")
 
     # -- providers --------------------------------------------------------------
+    def _active_feeds(self, feeds):
+        """Skip feeds that keep failing (or whose robots.txt forbids access); retry each paused
+        feed once every `feed_retry_paused_after_hours` so a fixed feed comes back by itself."""
+        cfg = self.settings.ingestion
+        states = self.repo.feed_states()
+        now = datetime.now(timezone.utc)
+        active, paused = [], []
+        for f in feeds:
+            st = states.get(f.url)
+            failing = st is not None and (st.consecutive_failures or 0) >= cfg.feed_pause_after_failures
+            robots = st is not None and "robots.txt" in (st.last_error or "")
+            due = st is None or st.last_checked_at is None or \
+                now - st.last_checked_at >= timedelta(hours=cfg.feed_retry_paused_after_hours)
+            if (failing or robots) and not due:
+                paused.append(f.name)
+            else:
+                active.append(f)
+        return active, paused
+
     def build_providers(self, http: HttpClient) -> list[NewsProvider]:
         cfg = self.settings.ingestion
-        feeds = load_feeds(self.settings.resolve(cfg.feeds_file))
-        domain_publishers = {f.domain: f.publisher for f in feeds if f.domain}
+        all_feeds = load_feeds(self.settings.resolve(cfg.feeds_file))
+        domain_publishers = {f.domain: f.publisher for f in all_feeds if f.domain}
+        feeds, paused = self._active_feeds(all_feeds)
+        if paused:
+            self._provider_notes["rss"] = (f"{len(paused)} feed(s) paused after repeated failures or robots.txt refusal: "
+                                           + ", ".join(paused[:8]) + ("…" if len(paused) > 8 else ""))
         providers: list[NewsProvider] = []
         if cfg.providers.rss.enabled and feeds:
             providers.append(RssProvider(http, feeds, validators=self.repo.feed_validators,
-                                         max_description_chars=cfg.max_description_chars))
+                                         max_description_chars=cfg.max_description_chars,
+                                         max_workers=cfg.providers.rss.max_workers))
         if cfg.providers.gdelt.enabled and cfg.providers.gdelt.queries:
             providers.append(GdeltProvider(http, cfg.providers.gdelt, domain_publishers))
         nd = cfg.providers.newsdata
@@ -189,14 +226,25 @@ class Phase1Pipeline:
             raise StageError("no news providers enabled; enable rss and/or gdelt in config")
         stats: dict[str, dict] = {}
         all_new = []
+
+        def fetch_one(p):
+            t0 = time.monotonic()
+            try:
+                return p.fetch(), None, time.monotonic() - t0
+            except Exception as e:  # noqa: BLE001 - a broken provider must not sink the run
+                log.exception("provider %s crashed", p.name)
+                return None, e, time.monotonic() - t0
+
         try:
-            for p in providers:
-                try:
-                    res = p.fetch()
-                except Exception as e:  # noqa: BLE001 - a broken provider must not sink the run
-                    log.exception("provider %s crashed", p.name)
+            # Providers talk to different hosts, so they run concurrently: a slow or throttled
+            # GDELT no longer adds its time to RSS and NewsData. Results are processed in order.
+            with ThreadPoolExecutor(max_workers=max(1, len(providers)), thread_name_prefix="ingest") as pool:
+                fetched = list(pool.map(fetch_one, providers))
+            for p, (res, err, took) in zip(providers, fetched):
+                if err is not None:
+                    e = err
                     res_fetches = [FetchRecord(provider=p.name, target="(provider)", started_at=ctx.now,
-                                               duration_ms=0, ok=False, error=f"{type(e).__name__}: {e}")]
+                                               duration_ms=int(took * 1000), ok=False, error=f"{type(e).__name__}: {e}")]
                     self.repo.log_fetches(ctx.run_id, res_fetches)
                     stats[p.name] = {"requests": 1, "ok": 0, "items": 0, "errors": [str(e)[:200]]}
                     continue
@@ -209,7 +257,7 @@ class Phase1Pipeline:
                 stats[p.name] = {
                     "requests": len(res.fetches), "ok": sum(f.ok for f in res.fetches),
                     "not_modified": sum(f.not_modified for f in res.fetches), "items": len(res.items),
-                    "normalized": len(normalized),
+                    "normalized": len(normalized), "seconds": round(took, 1),
                     "errors": [f"{f.target}: {f.error}" for f in res.fetches if not f.ok][:20],
                 }
                 if skipped:
@@ -230,12 +278,14 @@ class Phase1Pipeline:
         kept, dstats = deduplicate(all_new, existing)
         inserted = self.repo.save_articles(kept)
         ok_requests = sum(s["ok"] for s in stats.values())
+        requests = sum(s["requests"] for s in stats.values())
         window = self._window(ctx)
         in_window = len(self.repo.articles_in_window(*window))
         out = {"providers": stats, "dedup": dstats.as_dict(), "inserted": inserted,
                "articles_in_window": in_window, "warnings": []}
-        if ok_requests == 0:
-            msg = "every provider request failed (network blocked or sources down) - see fetch log"
+        if ok_requests == 0 and not all_new:
+            msg = ("every provider request failed (network blocked or sources down) - see fetch log" if requests
+                   else "no source was fetched (all feeds disabled, paused or skipped) - see Sources")
             if in_window == 0:
                 raise StageError(msg)
             out["warnings"].append(msg + "; continuing with previously stored articles (stale data)")
@@ -257,7 +307,7 @@ class Phase1Pipeline:
             embedder = self._make_embedder()
             if embedder is None and self._embed_skip_reason:
                 embed_note = self._embed_skip_reason
-        docs = build_docs(articles, self.taxonomy, embedder)
+        docs = build_docs(articles, self.taxonomy, embedder, ccfg)
         if embedder is not None:
             if any(d.dense for d in docs):
                 embed_note = f"used ({getattr(embedder, 'model', '?')}; {getattr(embedder, 'hits', 0)} cached, " \
@@ -334,7 +384,7 @@ class Phase1Pipeline:
                 if not rev.outlier_article_ids:
                     continue
                 removed = [articles[a] for a in rev.outlier_article_ids if a in articles]
-                candidates[eid] = drop_outliers(candidates[eid], rev, articles, self.taxonomy)
+                candidates[eid] = drop_outliers(candidates[eid], rev, articles, self.taxonomy, self.settings.clustering)
                 self.repo.unlink_articles(eid, rev.outlier_article_ids)
                 fresh = regroup_outliers(removed, self.taxonomy, self.settings.clustering)
                 fresh = [c for c in fresh if c.event_id not in candidates]

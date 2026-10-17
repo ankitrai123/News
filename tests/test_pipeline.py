@@ -117,3 +117,29 @@ def test_concurrent_run_rejected(settings):
     pipe.repo.create_run("run_x", "phase1", {"now": sn.NOW.isoformat()})
     with pytest.raises(runner_mod.RunInProgress):
         pipe.run(now=sn.NOW)
+
+
+def test_providers_fetch_concurrently(settings):
+    import time as _t
+    from intelpod.providers.base import FetchRecord, ProviderResult
+
+    class Slow:
+        def __init__(self, name):
+            self.name = name
+
+        def fetch(self):
+            _t.sleep(0.4)
+            return ProviderResult(fetches=[FetchRecord(provider=self.name, target="x", started_at=sn.NOW,
+                                                       duration_ms=400, ok=True)])
+
+    with respx.mock as router:
+        mock_sources(router)
+        pipe = Phase1Pipeline(settings, stage_retry_delay=0)
+        from intelpod.http import HttpClient
+        pipe._providers = pipe.build_providers(HttpClient(settings.http, "t")) + [Slow("slow_a"), Slow("slow_b")]
+        t0 = _t.monotonic()
+        run_id = pipe.run(now=sn.NOW, stop_after="ingest")
+        took = _t.monotonic() - t0
+    out = pipe.repo.stages(run_id)["ingest"].output
+    assert out["providers"]["slow_a"]["ok"] == 1 and out["providers"]["slow_b"]["ok"] == 1
+    assert took < 0.75, took  # 2 x 0.4 s would take >= 0.8 s sequentially

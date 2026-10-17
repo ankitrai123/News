@@ -43,16 +43,30 @@ class GdeltQuery(BaseModel):
 
 class RssProviderConfig(BaseModel):
     enabled: bool = True
+    max_workers: int = Field(6, ge=1, le=16)       # feeds fetched in parallel (different hosts)
 
 
 class GdeltProviderConfig(BaseModel):
     enabled: bool = True
-    min_interval_seconds: float = 6.0
+    min_interval_seconds: float = 10.0             # GDELT asks for >= 5 s; it refuses bursts and repeat offenders
+    cooldown_seconds: float = 30.0                 # wait after a refusal (doubles per refusal, capped)
+    max_cooldown_seconds: float = 120.0
+    stop_after_refusals: int = Field(2, ge=1)      # queries refused even after a cool-down -> skip GDELT this run
     timespan: str = "1d"
-    max_records: int = Field(75, ge=1, le=250)
+    max_records: int = Field(150, ge=1, le=250)
     sort: str = "HybridRel"
     language_filter: str = "sourcelang:english"
-    queries: list[GdeltQuery] = Field(default_factory=list)
+    queries: list[GdeltQuery] = Field(default_factory=lambda: [q.model_copy() for q in DEFAULT_GDELT_QUERIES])
+
+
+# Few, broad queries: each request risks a refusal, so 5 x 150 records beats 9 x 75.
+DEFAULT_GDELT_QUERIES = [
+    GdeltQuery(topic="geopolitics", query='(sanctions OR ceasefire OR invasion OR "peace talks" OR summit OR missile OR NATO OR military)'),
+    GdeltQuery(topic="trade_policy", query='(tariff OR tariffs OR "export controls" OR "trade deal" OR semiconductor OR chipmaker OR "rare earth" OR "critical minerals")'),
+    GdeltQuery(topic="markets_monetary", query='("central bank" OR "interest rate" OR inflation OR OPEC OR "oil prices" OR LNG OR "natural gas")'),
+    GdeltQuery(topic="india", query='(India OR RBI OR "New Delhi") (economy OR policy OR trade OR government)'),
+    GdeltQuery(topic="technology_ai", query='("artificial intelligence" OR "AI regulation" OR "data center" OR "supply chain" OR shipping OR "Red Sea")'),
+]
 
 
 class NewsdataQuery(BaseModel):
@@ -104,6 +118,8 @@ class IngestionConfig(BaseModel):
     lookback_hours: int = 36
     feeds_file: str = "config/feeds.yaml"
     max_description_chars: int = 400
+    feed_pause_after_failures: int = Field(5, ge=1)   # skip a feed after N failed runs in a row
+    feed_retry_paused_after_hours: float = 24         # then try it again once a day
     providers: ProvidersConfig = Field(default_factory=ProvidersConfig)
 
 
@@ -130,6 +146,12 @@ class ClusteringConfig(BaseModel):
     max_time_gap_hours: float = 72
     link_lookback_days: int = 7
     link_threshold: float = 0.38
+    # Countries as words: "canonical" folds Russian/Moscow/Kremlin into one token per country
+    # (and adds a token for each pair of countries named together); "drop" ignores country words
+    # and compares countries only as entities (the pre-October-2026 behaviour, more fragmented).
+    country_tokens: str = Field("canonical", pattern="^(drop|canonical)$")
+    country_token_weight: float = Field(1.2, ge=0, le=3)
+    country_pair_weight: float = Field(1.0, ge=0, le=3)
     embeddings: EmbeddingsConfig = Field(default_factory=EmbeddingsConfig)
 
 
@@ -154,6 +176,7 @@ class RankingConfig(BaseModel):
     single_source_penalty: float = 0.85
     soft_news_penalty: float = 0.3
     corroboration_cap: int = 8
+    duplicate_similarity: float = Field(0.45, ge=0, le=1)  # skip an event this similar to a selected one; 0 = off
 
 
 class LLMProviderConfig(BaseModel):

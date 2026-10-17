@@ -78,14 +78,29 @@ A run in progress blocks a second run (`--force` overrides a stale lock).
 
 * Tokens: title (×2) + description → phrase folding (`electric vehicles→ev`,
   `export controls→exportcontrol`), lowercase, hyphens split, stopwords removed, synonym folding
-  from `taxonomy.yaml` (`semiconductor→chip`, `curbs→restrict`, …), light stemming. Country words
-  are removed from the lexical vector because countries are compared as entities.
+  from `taxonomy.yaml` (`semiconductor→chip`, `curbs→restrict`, …), light stemming.
+* Countries (default `country_tokens: canonical`): every alias is folded into one token per
+  country (Washington/U.S./American → United States, Moscow/Kremlin/Russian → Russia), weighted
+  `country_token_weight`, and each pair of countries named together adds a pair token
+  (`country_pair_weight`), because "US + Russia" identifies a story far better than either
+  country alone. Countries are then *not* also counted as entities, and country names are
+  dropped from the proper-noun entities, so one shared country is never counted two or three
+  times. `drop` (the behaviour before Oct 2026) removes country words and compares countries
+  only as entities.
 * TF-IDF vectors over the batch; cosine similarity.
-* Entities: canonical countries (Washington/American/White House → United States) and
-  capitalised proper-noun phrases.
+* Entities: capitalised proper-noun phrases that are not country names (plus canonical countries
+  in `drop` mode).
 * `similarity = cosine + entity_weight × entity_overlap × gate`, where `gate = min(1, cosine/0.2)`.
   Shared entities are a bonus scaled by lexical agreement, so two unrelated stories that both
   mention "United States" do not merge.
+* Measured on a labelled set of 627 realistic synthetic headlines (`tests/test_cluster_corpus.py`,
+  five days of big/medium stories, look-alike distractors and one-offs), `canonical` vs `drop`:
+  B-cubed F1 0.73 vs 0.64, precision 0.83 vs 0.79, a 20+-report story split into 7.9 vs 11.3
+  events, and repeated stories in five daily briefings 5 vs 10 slots. Lexical similarity cannot
+  match paraphrases that share no words ("Delhi breathes easier as Washington relents on Moscow
+  crude"); that is what embeddings are for. Options tried and dropped for lack of effect:
+  near-identical-title pre-grouping, a member-reassignment pass, a relaxed final merge, and
+  damping or capping country weight.
 * Optional embeddings (NVIDIA `nemotron-3-embed-1b` by default, or Ollama), cached per text and
   model; the model that already covers most of the window is reused, and finished batches are
   kept even if a later batch hits a rate limit. Fewer than 4 vectors → embeddings ignored.
@@ -128,6 +143,10 @@ Eight components, each in [0, 1] with recorded evidence:
 (×0.3, and never selected) and single-source (×0.85). Selection: highest first while
 `importance ≥ min_score`, at most `max_per_topic` per topic and `max_events` in total; if fewer
 than `min_events` qualify, events above `quiet_day_floor` fill in, flagged `quiet_day_fill`.
+An event that looks like another piece of an already selected story (similarity ≥
+`duplicate_similarity`, 0.45, *and* shared topic words beyond country names) is skipped, with
+"probably the same story as the selected event …" as its reason, so one story split by
+clustering does not take several slots. It stays listed under the other events.
 
 **Model review blending.** For reviewed events, each of geopolitical, economic, business, India
 and long-term becomes `(1 − w) × keyword + w × model` (`llm.event_review.weight`, default 0.5);

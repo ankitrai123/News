@@ -62,5 +62,7 @@ feeds:
      country: EU, region: Europe, source_type: official, categories: [markets_monetary], enabled: true, verified: false}
   - {name: RBI Press Releases, publisher: Reserve Bank of India, domain: rbi.org.in, url: "https://www.rbi.org.in/pressreleases_rss.xml",
      country: IN, region: South Asia, source_type: official, categories: [markets_monetary], enabled: true, verified: false}
+  # Disabled: in user testing (Oct 2026) this URL returned 404 and news.un.org's robots.txt
+  # disallows it. Re-enable only with a working, permitted feed URL.
   - {name: UN News, publisher: United Nations, domain: news.un.org, url: "https://news.un.org/feed/subscribe/en/news/all/rss.xml",
-     country: null, region: Global, source_type: international_org, categories: [geopolitics], enabled: true, verified: false}
+     country: null, region: Global, source_type: international_org, categories: [geopolitics], enabled: false, verified: false}

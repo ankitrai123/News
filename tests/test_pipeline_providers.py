@@ -107,7 +107,8 @@ def test_full_run_with_newsdata_and_nvidia(full_settings):
         assert emb.call_count == emb_calls and chat.call_count == chat_calls
         assert "0 new" in pipe.repo.stages(run2)["cluster"].output["embeddings"]
         usage = pipe.repo.llm_usage()
-        assert usage and usage[0]["cached"] >= review["reviewed"]
+        review2 = pipe.repo.stages(run2)["review"].output
+        assert review2["reviewed"] >= 5 and usage and usage[0]["cached"] >= review2["reviewed"]
 
 
 def test_nvidia_down_degrades_to_keyword_ranking(full_settings):
@@ -155,6 +156,10 @@ def test_off_topic_reports_become_their_own_event(full_settings):
             {"index": 0, "message": {"role": "assistant", "content": json.dumps(answer)}, "finish_reason": "stop"}]})
 
     full_settings.clustering.embeddings.enabled = False
+    # Scenario under test: the India piece lands in the OPEC cluster and the model removes it.
+    # Default clustering already keeps it apart (it names India, the OPEC reports do not), so
+    # use the older country handling that merges it.
+    full_settings.clustering.country_tokens = "drop"
     with respx.mock as router:
         mock_sources(router)
         router.get(ND).respond(200, json=sn.newsdata_json())

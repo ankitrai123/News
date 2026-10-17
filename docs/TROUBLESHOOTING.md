@@ -15,8 +15,9 @@ to `data/logs/intelpod.log` (set `app.log_json: true` for JSON lines).
 | GDELT returns 0 articles | query too narrow, or no matching coverage in `timespan` | widen the query or timespan (e.g. `3d`) |
 | `run … is still marked running` | an earlier run was killed | `intelpod run --resume`, or `intelpod run --force` to start fresh |
 | `no articles in the lookback window` | ingestion has never succeeded, or `lookback_hours` too small | run ingestion; increase `--lookback-hours` |
-| Too many tiny one-article events | thresholds too strict for your feed mix | lower `clustering.similarity_threshold` (e.g. 0.26) or enable embeddings |
-| Unrelated stories merged | thresholds too loose | raise `similarity_threshold` / `merge_threshold`, or lower `entity_weight` |
+| Too many tiny one-article events / one story split into many events | headlines word the story differently; no embeddings | set `NVIDIA_API_KEY` (or use Ollama) so embeddings run — the briefing shows `Embeddings: used (…)`; check `clustering.country_tokens: canonical` (older `config.yaml` files lack it but get it by default); then lower `clustering.similarity_threshold` (e.g. 0.27) |
+| Unrelated stories merged | thresholds too loose | raise `similarity_threshold` / `merge_threshold`, or lower `entity_weight` / `country_token_weight` |
+| Same story in several briefing slots | the story was split into several events | see "one story split" above; `ranking.duplicate_similarity` (default 0.45) skips the clearest repeats — lower it (e.g. 0.35) to skip more, at the risk of dropping a related but distinct story |
 | Selection dominated by one topic | many strong events in one area | lower `ranking.max_per_topic`; adjust weights |
 | Few/no events selected | quiet day, few working feeds, or `min_score` too high | check feed health; lower `ranking.min_score`; `intelpod events --all` shows everything scored |
 | Ollama embeddings `unavailable` | Ollama not running or model not pulled | `ollama serve`, `ollama pull nomic-embed-text` |

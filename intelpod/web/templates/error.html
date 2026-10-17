@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}{{ code }} · IntelPod{% endblock %}
+{% block content %}
+<div class="card">
+<h1>{{ 'Not found' if code == 404 else 'Cannot do that right now' }}</h1>
+<p>{{ detail }}</p>
+<p><a href="/">Back to the briefing</a> · <a href="/runs">Runs &amp; status</a></p>
+</div>
+{% endblock %}

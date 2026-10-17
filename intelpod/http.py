@@ -45,6 +45,8 @@ class HttpClient:
         self._host_interval: dict[str, float] = {}
         self._robots: dict[str, RobotFileParser | None] = {}
         self._lock = threading.Lock()
+        self._robots_lock = threading.Lock()
+        self._robots_locks: dict[str, threading.Lock] = {}
         self._sleep = sleep
 
     def close(self) -> None:
@@ -75,9 +77,12 @@ class HttpClient:
             return True
         parts = urlsplit(url)
         origin = f"{parts.scheme}://{parts.netloc}"
-        if origin not in self._robots:
-            self._robots[origin] = self._load_robots(origin)
-        rp = self._robots[origin]
+        with self._robots_lock:
+            origin_lock = self._robots_locks.setdefault(origin, threading.Lock())
+        with origin_lock:  # feeds are fetched in parallel; load each robots.txt once per site
+            if origin not in self._robots:
+                self._robots[origin] = self._load_robots(origin)
+            rp = self._robots[origin]
         return True if rp is None else rp.can_fetch(self.user_agent, url)
 
     def _load_robots(self, origin: str) -> RobotFileParser | None:

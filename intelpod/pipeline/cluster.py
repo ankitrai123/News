@@ -24,7 +24,8 @@ from typing import Callable, Iterable
 
 from ..config import ClusteringConfig
 from ..schemas import Article, EventCandidate
-from ..textutil import Taxonomy, country_alias_tokens, find_countries, find_named_entities, stable_hash, tokenize
+from ..textutil import (COUNTRY_TOKEN_PREFIX, Taxonomy, canonical_term, country_alias_tokens, find_countries, find_named_entities,
+                        fold_countries, is_country_alias, stable_hash, tokenize)
 from .embeddings import dense_cos
 
 Vector = dict[str, float]
@@ -39,6 +40,7 @@ class Doc:
     entities: frozenset[str]
     countries: list[str]
     dense: list[float] | None = None
+    entity_display: dict[str, str] = field(default_factory=dict)
 
     @property
     def time(self) -> datetime:
@@ -64,12 +66,14 @@ class Cluster:
         self.first = doc.time if self.first is None else min(self.first, doc.time)
         self.last = doc.time if self.last is None else max(self.last, doc.time)
 
+
     def absorb(self, other: "Cluster") -> None:
         for d in other.members:
             self.add(d)
 
     def centroid(self) -> Vector:
         return _normalize(self.sum_vec)
+
 
     def entity_share(self) -> dict[str, float]:
         n = len(self.members)
@@ -92,29 +96,67 @@ def article_text(a: Article) -> str:
 
 
 def build_docs(articles: list[Article], taxonomy: Taxonomy,
-               embedder: Callable[[list[str]], list[list[float]] | None] | None = None) -> list[Doc]:
-    exclude = country_alias_tokens()
-    token_lists = [tokenize(taxonomy.fold_phrases(f"{a.title} {a.title} {a.description or ''}"), taxonomy.synonyms, exclude)
-                   for a in articles]
+               embedder: Callable[[list[str]], list[list[float]] | None] | None = None,
+               cfg: ClusteringConfig | None = None) -> list[Doc]:
+    cfg = cfg or ClusteringConfig()
+    canonical = cfg.country_tokens == "canonical"
+    exclude = frozenset() if canonical else country_alias_tokens()
+
+    def text_of(a: Article) -> str:
+        t = taxonomy.fold_phrases(f"{a.title} {a.title} {a.description or ''}")
+        return fold_countries(t) if canonical else t
+
+    token_lists = [tokenize(text_of(a), taxonomy.synonyms, exclude) for a in articles]
+    if canonical and cfg.country_pair_weight > 0:
+        token_lists = [toks + _country_pairs(toks) for toks in token_lists]
     df: Counter = Counter()
     for toks in token_lists:
         df.update(set(toks))
     n = len(articles)
+    country_w = cfg.country_token_weight if canonical else 1.0
     docs = []
     for a, toks in zip(articles, token_lists):
         tf = Counter(toks)
-        vec = {t: (1 + math.log(c)) * (math.log((1 + n) / (1 + df[t])) + 1) for t, c in tf.items()}
+        vec = {t: (1 + math.log(c)) * (math.log((1 + n) / (1 + df[t])) + 1) * _token_weight(t, cfg, country_w)
+               for t, c in tf.items()}
         text = article_text(a)
         countries = find_countries(text)
-        ents = {f"country:{c.lower()}" for c in countries}
-        ents |= {f"ent:{e}" for e in find_named_entities(a.title)}
-        docs.append(Doc(article=a, vec=_normalize(vec), entities=frozenset(ents), countries=countries))
+        # In canonical mode countries are already lexical tokens; adding them as entities too
+        # would count one shared country twice and merge unrelated same-country stories.
+        ents = set() if canonical else {f"country:{c.lower()}" for c in countries}
+        # Country names are compared through `country:` entities (and country tokens); counting
+        # "Kremlin"/"Russian" again as named entities let one shared country merge unrelated stories.
+        named = [e for e in find_named_entities(a.title) if not is_country_alias(e)]
+        ents |= {f"ent:{e.lower()}" for e in named}
+        docs.append(Doc(article=a, vec=_normalize(vec), entities=frozenset(ents), countries=countries,
+                        entity_display={e.lower(): e for e in named}))
     if embedder and docs:
         dense = embedder([article_text(d.article) for d in docs])
         if dense:
             for d, v in zip(docs, dense):
                 d.dense = v
     return docs
+
+
+PAIR_PREFIX = "pair:"  # cannot collide with a word token (":" never survives tokenizing)
+
+
+def _country_pairs(tokens: list[str]) -> list[str]:
+    """One token per pair of countries named together ("pair:ctryrussia+ctryunitedstat").
+
+    A single country says little about which story an article covers (dozens of India
+    stories run every day); two countries named together (US + Russia, India + Canada)
+    usually identify the relationship the story is about."""
+    cc = sorted({t for t in tokens if t.startswith(COUNTRY_TOKEN_PREFIX)})
+    if not 2 <= len(cc) <= 4:  # a list of many countries is a roundup, not a bilateral story
+        return []
+    return [f"{PAIR_PREFIX}{a}+{b}" for i, a in enumerate(cc) for b in cc[i + 1:]]
+
+
+def _token_weight(token: str, cfg: ClusteringConfig, country_w: float) -> float:
+    if token.startswith(PAIR_PREFIX):
+        return cfg.country_pair_weight
+    return country_w if token.startswith(COUNTRY_TOKEN_PREFIX) else 1.0
 
 
 def dense_baseline(docs: list[Doc], max_pairs: int = 3000) -> float:
@@ -277,12 +319,29 @@ def independent_sources(articles: Iterable[Article]) -> int:
     * A headline carried by several publishers (wire/syndicated copy) counts once in
       total, however many outlets republished it.
     """
+    return len(independent_publishers(articles))
+
+
+def independent_publishers(articles: Iterable[Article]) -> list[str]:
+    """Names of the independent sources counted by `independent_sources`, most prolific first.
+
+    Own-reporting publishers are listed by name; each syndicated headline is represented by
+    the outlet that published it first (the most likely originator), so the evidence shows
+    "Reuters-style originator" rather than the local papers that reprinted it."""
+    arts = list(articles)
     by_group: dict[str, set[str]] = defaultdict(set)
-    for a in articles:
+    first_by_group: dict[str, Article] = {}
+    for a in arts:
         by_group[a.syndication_group].add(a.source_name.lower())
-    own_reporting = {next(iter(pubs)) for pubs in by_group.values() if len(pubs) == 1}
-    shared_copies = sum(1 for pubs in by_group.values() if len(pubs) > 1)
-    return len(own_reporting) + shared_copies
+        cur = first_by_group.get(a.syndication_group)
+        if cur is None or a.effective_time < cur.effective_time:
+            first_by_group[a.syndication_group] = a
+    display = {a.source_name.lower(): a.source_name for a in arts}
+    counts = Counter(a.source_name.lower() for a in arts)
+    own = {next(iter(p)) for p in by_group.values() if len(p) == 1}
+    names = sorted(own, key=lambda p: (-counts[p], p))
+    shared = [first_by_group[g].source_name for g, p in by_group.items() if len(p) > 1]
+    return [display[p] for p in names] + [f"{n} (syndicated)" for n in sorted(shared)]
 
 
 @dataclass
@@ -299,18 +358,26 @@ def summarize_cluster(cl: Cluster, taxonomy: Taxonomy, top_terms: int = 40) -> d
     topic_counts: Counter = Counter()
     term_counts: dict[str, Counter] = defaultdict(Counter)
     for a in members:
-        for topic, terms in taxonomy.topic_hits(article_text(a)).items():
-            topic_counts[topic] += 1
-            term_counts[topic].update(terms)
-    # Primary topic: most member articles, then most matched terms, then name (deterministic).
+        in_title = taxonomy.topic_hits(a.title)
+        in_desc = taxonomy.topic_hits(a.description or "")
+        # A headline states what the story is about; a summary may mention side topics.
+        for topic in set(in_title) | set(in_desc):
+            topic_counts[topic] += 2 if topic in in_title else 1
+            term_counts[topic].update(canonical_term(t, taxonomy.label_aliases)
+                                      for t in in_title.get(topic, []) + in_desc.get(topic, []))
+    # Primary topic: most (title-weighted) member hits, then most matched terms, then name.
     topic = min(topic_counts, key=lambda t: (-topic_counts[t], -sum(term_counts[t].values()), t)) if topic_counts else "other"
     subtopic = term_counts[topic].most_common(1)[0][0] if topic in term_counts else None
     country_counts: Counter = Counter(c for d in cl.members for c in d.countries)
     min_share = max(1, math.ceil(0.4 * len(members)))  # country must feature in 40% of reports
     countries = [c for c, n in country_counts.most_common() if n >= min_share]
     ent_counts = Counter(e[4:] for d in cl.members for e in d.entities if e.startswith("ent:"))
+    display = {}
+    for d in cl.members:
+        for k, v in d.entity_display.items():
+            display.setdefault(k, v)
     min_ent = 2 if len(members) >= 3 else 1
-    entities = [e for e, n in ent_counts.most_common(10) if n >= min_ent]
+    entities = [display.get(e, e) for e, n in ent_counts.most_common(10) if n >= min_ent]
     centroid = cl.centroid()
     # Most central report; small bonus for having a description or being a primary source.
     rep = max(cl.members, key=lambda d: (cosine(d.vec, centroid) + 0.1 * bool(d.article.description)
@@ -339,7 +406,7 @@ def build_candidates(clusters: list[Cluster], taxonomy: Taxonomy, cfg: Clusterin
                          if d.article.article_id in article_to_prior)
         for eid, n in shared.items():
             pairs.append((1.0 + n / len(cl.members), i, eid))  # shared articles beat any centroid match
-        ents = {f"country:{c.lower()}" for c in summ["countries"]} | {f"ent:{e}" for e in summ["entities"]}
+        ents = {f"country:{c.lower()}" for c in summ["countries"]} | {f"ent:{e.lower()}" for e in summ["entities"]}
         for p in prior_events:
             if p.event_id in shared:
                 continue

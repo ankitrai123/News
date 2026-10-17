@@ -2,10 +2,16 @@
 {% block title %}Settings · IntelPod{% endblock %}
 {% block content %}
 <h1>Settings</h1>
-<div class="card small"><p>Phase 1 settings are read-only here. Edit <code>config/config.yaml</code> (created by <code>intelpod init</code>)
+{% if placeholder_contact %}<div class="banner">Your User-Agent still contains the placeholder contact <code>set-your-email@example.com</code>.
+Edit <code>app.user_agent</code> in <code>config/config.yaml</code> so publishers can reach you (it is sent to RSS publishers and GDELT only, never to NVIDIA or NewsData).</div>{% endif %}
+<div class="card small"><p>Settings are read-only here. Edit <code>config/config.yaml</code> (created by <code>intelpod init</code>)
 or override with <code>INTELPOD_*</code> environment variables, then restart the dashboard. Ranking weights, thresholds,
-topics and feeds are all configurable. API keys are never displayed (Phase 1 needs none).</p></div>
-{% for section in ['ranking', 'clustering', 'ingestion', 'http', 'app'] %}
+topics and feeds are all configurable.</p>
+<p><b>Optional API keys</b> (read from the environment or <code>.env</code>; values are never displayed):
+{% for name, ok in keys.items() %}<span class="pill {{ 'ok' if ok else '' }}">{{ name }}: {{ 'set' if ok else 'not set' }}</span>{% endfor %}<br>
+<span class="muted">NEWSDATA_API_KEY adds NewsData.io articles (free plan, ~12 h delayed). NVIDIA_API_KEY enables embeddings for clustering and the model review of top events.
+Without them IntelPod runs on RSS and GDELT with keyword analysis.</span></p></div>
+{% for section in ['ranking', 'clustering', 'ingestion', 'llm', 'http', 'app'] %}
 <div class="card"><h3>{{ section }}</h3><pre>{{ cfg[section] | tojson(indent=2) }}</pre></div>
 {% endfor %}
 {% endblock %}

@@ -112,3 +112,31 @@ def test_incidental_country_mention_not_listed(taxonomy):
     _, arts, cands = ranked(taxonomy)
     oil = group_of(cands, arts, "OPEC+ agrees")
     assert "India" not in oil.countries
+
+
+def test_briefing_skips_a_second_fragment_of_the_same_story(taxonomy):
+    """User report (Oct 2026): 3 of 8 briefing slots covered one story split across events."""
+    arts = synthetic_articles()
+    cands = cluster(arts, taxonomy)
+    chip = group_of(cands, arts, "semiconductor export controls")
+    by_id = {a.article_id: a for a in arts}
+    half = len(chip.article_ids) // 2
+    first = chip.model_copy(update={"article_ids": chip.article_ids[:half]})
+    second = chip.model_copy(update={"event_id": "ev_fragment", "article_ids": chip.article_ids[half:]})
+    others = [c for c in cands if c.event_id != chip.event_id]
+    rs = Ranker(RankingConfig(), taxonomy).rank(others + [first, second], by_id)
+    picked = [r for r in rs if r.event_id in (first.event_id, second.event_id)]
+    assert sum(r.selected for r in picked) == 1
+    skipped = next(r for r in picked if not r.selected)
+    assert "probably the same story as the selected event" in skipped.rationale
+    rs = Ranker(RankingConfig(duplicate_similarity=0), taxonomy).rank(others + [first, second], by_id)
+    assert all(r.selected for r in rs if r.event_id in (first.event_id, second.event_id))
+
+
+def test_same_countries_different_story_is_not_a_duplicate(taxonomy):
+    from intelpod.pipeline.rank import event_similarity
+    arts = synthetic_articles()
+    cands = cluster(arts, taxonomy)
+    chip = group_of(cands, arts, "semiconductor export controls")
+    ev = group_of(cands, arts, "electric vehicle")  # both China stories
+    assert event_similarity(chip, ev) < RankingConfig().duplicate_similarity

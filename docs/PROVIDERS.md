@@ -27,7 +27,7 @@ stage is skipped, so ranking is keyword-based. Every run records which of these 
 * Returns article **metadata only**: URL, title, `seendate`, domain, language, source country.
   No description or body text.
 * `seendate` is when GDELT first saw the URL, not the publisher's timestamp; IntelPod stores it
-  with `date_source = "gdelt_seendate"` and flags such events `some_dates_approximate`.
+  with `date_source = "gdelt_seendate"` and flags an event "approximate dates" when none of its reports has a publisher timestamp.
 * Search window: GDELT's blog states that non-timeline modes cover the most recent ~3 months.
 * `maxrecords` up to 250 per request (IntelPod default 75).
 * Rate limiting: GDELT asks clients to throttle and replies with a plain-text notice instead of

@@ -29,7 +29,7 @@ No endpoint returns secrets.
   "independent_sources": 4, "article_count": 5, "importance": 50.4,
   "components": [{"name": "business", "value": 0.79, "weight": 0.8,
                   "evidence": ["terms: semiconductor, export controls", "5/5 reports on …"]}],
-  "penalties": [], "flags": ["some_dates_approximate"],
+  "penalties": [], "flags": ["dates_approximate"],
   "rationale": "Selected #1 with importance 50.4/100. Main drivers: …",
   "headline": "publisher headline when the title was written by the model, else null",
   "summary": "model summary that passed the grounding check, else null",

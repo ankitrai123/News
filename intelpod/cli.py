@@ -159,12 +159,15 @@ def cmd_feeds_check(args) -> int:
 
 
 def cmd_run(args) -> int:
-    from .pipeline.runner import Phase1Pipeline, RunInProgress, StageError
+    from .pipeline.runner import NothingToResume, Phase1Pipeline, RunInProgress, StageError
 
     s = _settings(args)
     pipe = Phase1Pipeline(s)
     try:
         run_id = pipe.run(run_id=args.run_id, resume=args.resume, stop_after=args.stop_after, force=args.force)
+    except NothingToResume as e:
+        print(str(e), file=sys.stderr)
+        return 1
     except (StageError, RunInProgress, ValueError) as e:
         print(f"\nRun failed: {e}", file=sys.stderr)
         print("Inspect with `intelpod runs`; fix the cause, then `intelpod run --resume`.", file=sys.stderr)

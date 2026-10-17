@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from ..labels import date_source_label, flag_label, plural, topic_label
 from ..schemas import EXACT_DATE_SOURCES, Article, RankedEvent
 
 if TYPE_CHECKING:
@@ -50,9 +51,9 @@ def render_markdown(ctx: "RunContext", selected: list[RankedEvent], ranked: list
     for r in selected:
         cand = candidates.get(r.event_id, {})
         lines += [f"## {r.rank}. {r.title}", "",
-                  f"**Importance {r.importance}/100** · topic: `{r.topic}`" + (f" / {r.subtopic}" if r.subtopic else "")
-                  + f" · countries: {', '.join(r.countries) or '—'} · {r.article_count} reports, "
-                  f"{r.independent_sources} independent publishers"
+                  f"**Importance {r.importance}/100** · {topic_label(r.topic, r.subtopic)}"
+                  + f" · countries: {', '.join(r.countries) or '—'} · {plural(r.article_count, 'report')}, "
+                  f"{plural(r.independent_sources, 'independent source')}"
                   + (f" · cluster confidence {r.cluster_confidence}" if r.cluster_confidence is not None else " · single report"),
                   ""]
         if r.headline:
@@ -66,12 +67,13 @@ def render_markdown(ctx: "RunContext", selected: list[RankedEvent], ranked: list
         for c in r.components:
             lines.append(f"| {c.name} | {c.value:.2f} | {c.weight} | {'; '.join(c.evidence)} |")
         if r.flags:
-            lines.append(f"\nFlags: {', '.join(r.flags)}")
+            lines.append(f"\nNotes: {', '.join(flag_label(f) for f in r.flags)}")
         lines += ["", "**Reports:**"]
         for aid in cand.get("article_ids", [])[:12]:
             a = articles.get(aid)
             if a:
-                when = _fmt(a.published_at) + ("" if a.date_source in EXACT_DATE_SOURCES else f" ({a.date_source})")
+                when = _fmt(a.published_at) + ("" if a.date_source in EXACT_DATE_SOURCES
+                                               else f" ({date_source_label(a.date_source)})")
                 lines.append(f"- [{a.title}]({a.source_url}) — {a.source_name}, {when}")
         extra = len(cand.get("article_ids", [])) - 12
         if extra > 0:
