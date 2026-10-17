@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "intelpod"
+version = "0.1.0"
+description = "Local, zero-cost geopolitical & business intelligence podcast agent (Phase 1: ingestion, clustering, ranking)"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = [
+  "fastapi>=0.110",
+  "uvicorn>=0.29",
+  "sqlalchemy>=2.0",
+  "httpx>=0.27",
+  "feedparser>=6.0",
+  "pydantic>=2.6",
+  "pyyaml>=6.0",
+  "jinja2>=3.1",
+  "rapidfuzz>=3.6",
+  "python-multipart>=0.0.9",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "respx>=0.21"]
+
+[project.scripts]
+intelpod = "intelpod.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["intelpod*"]
+
+[tool.setuptools.package-data]
+intelpod = ["web/templates/*.html"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["live: real network integration tests (run with: pytest -m live)"]
+addopts = "-m 'not live'"
+filterwarnings = ["ignore:Using `httpx` with `starlette.testclient`"]

@@ -1,0 +1,135 @@
+# Deterministic keyword taxonomy used before any (optional) model call.
+# Matching is case-insensitive on whole words/phrases in title + description.
+# Edit freely: these lists drive topic tagging and importance scoring.
+
+topics:
+  geopolitics: [war, invasion, ceasefire, truce, sanctions, summit, treaty, diplomat, diplomatic, diplomacy,
+    nato, "united nations", "security council", annex, annexation, conflict, hostage, airstrike, airstrikes,
+    "foreign minister", "foreign ministry", bilateral, alliance, territorial, sovereignty, "peace talks",
+    "peace deal", refugees, embassy, coup, blockade, geopolitical]
+  elections_politics: [election, elections, vote, voters, polls, parliament, "prime minister", president,
+    coalition, referendum, impeachment, cabinet, opposition, campaign, ballot, lawmakers, senate,
+    "no-confidence", "snap election", inauguration]
+  macroeconomy: [inflation, gdp, recession, "economic growth", unemployment, "jobs report", cpi, economy,
+    deficit, "public debt", fiscal, budget, imf, "world bank", stimulus, "consumer prices", productivity, wages]
+  trade_policy: [tariff, tariffs, "trade war", "trade deal", "trade agreement", "export controls", "export ban",
+    imports, exports, wto, "industrial policy", subsidies, subsidy, "anti-dumping", "free trade",
+    "trade talks", "trade deficit", embargo, "customs duty", duties]
+  energy_commodities: [oil, crude, opec, "opec+", "natural gas", lng, brent, coal, "power grid", electricity,
+    renewable, renewables, solar, uranium, gold, copper, wheat, commodity, commodities, "energy prices",
+    pipeline, refinery]
+  markets_monetary: ["central bank", "interest rate", "interest rates", "rate cut", "rate hike", "federal reserve",
+    fed, ecb, rbi, "bank of japan", "bank of england", "bond yields", "treasury yields", treasuries,
+    "stock market", stocks, sensex, nifty, currency, dollar, rupee, yen, yuan, "monetary policy", "repo rate",
+    "bond market", forex]
+  corporate: [merger, acquisition, acquire, earnings, revenue, profit, ipo, layoffs, ceo, shares, "market share",
+    bankruptcy, antitrust, stake, "quarterly results", buyout, conglomerate, startup, valuation]
+  technology_ai: ["artificial intelligence", ai, "generative ai", openai, chatbot, "data center", "data centre",
+    "cloud computing", cyberattack, cybersecurity, software, "ai regulation", "large language model", quantum,
+    "big tech", "tech giant"]
+  semiconductors_minerals: [semiconductor, semiconductors, chip, chips, chipmaker, tsmc, nvidia, foundry,
+    lithium, "rare earth", "rare earths", "critical minerals", cobalt, nickel, gallium, germanium, asml, wafer]
+  supply_chain: ["supply chain", "supply chains", shipping, freight, port, ports, logistics, manufacturing,
+    factory, factories, "red sea", suez, panama canal, container, reshoring, nearshoring, "strait of hormuz",
+    "strait of malacca", shortages]
+  defense: [defence, defense, military, weapons, arms, missile, missiles, drone, drones, navy, army,
+    "air force", nuclear, pentagon, troops, warship, "defence budget", "defense budget", ammunition]
+
+# India is scored as a lens across all topics rather than as a topic of its own.
+india_terms: [india, indian, indians, modi, "new delhi", delhi, mumbai, bengaluru, chennai, kolkata, rbi, sebi,
+  sensex, nifty, rupee, bjp, "congress party", adani, "reliance industries", tata, infosys, wipro, isro,
+  "lok sabha", "rajya sabha", "nirmala sitharaman", "jaishankar", gujarat, maharashtra, "indo-pacific",
+  quad, "make in india", "niti aayog"]
+
+# Raise significance within each scoring dimension.
+significance:
+  geopolitical: [war, invasion, ceasefire, sanctions, nuclear, missile, coup, annex, annexation, treaty,
+    summit, blockade, airstrike, escalation, escalates, mobilisation, mobilization, "security council",
+    "martial law", "state of emergency", assassination, "peace deal", "export controls", "national security",
+    retaliation, retaliate, retaliatory, "strategic rivalry", "tech war"]
+  economic: [inflation, recession, gdp, "interest rate", "interest rates", "central bank", tariff, tariffs,
+    default, "debt crisis", "oil prices", "currency crisis", devaluation, "rate cut", "rate hike",
+    "trade war", stagflation, "sovereign debt", "bailout"]
+  business: [merger, acquisition, earnings, layoffs, "supply chain", investment, "export controls",
+    semiconductor, chipmaker, factory, antitrust, ipo, bankruptcy, "market share", "capital expenditure",
+    capex, shortage, shortages]
+  long_term: [law, legislation, treaty, agreement, ban, "export controls", regulation, regulations, reform,
+    reforms, framework, accord, "long-term", structural, constitution, constitutional, "five-year",
+    "industrial policy", strategy, roadmap, "trade agreement", "free trade agreement"]
+  uncertainty: [could, may, might, threat, threatens, threatened, warns, warning, risk, risks, fears,
+    talks, considering, weighs, proposal, proposed, "plans to", escalation, escalates, uncertain,
+    uncertainty, standoff, "deadline"]
+
+# Figurative phrases removed before geopolitical/defence matching, so "trade war"
+# or "price war" is not read as an armed conflict.
+figurative_phrases: ["trade war", "price war", "tariff war", "currency war", "bidding war", "talent war",
+  "culture war", "war of words", "war chest", "war room", "chip war", "tech war", "streaming wars"]
+
+# Clusters dominated by these are penalised (they rarely belong in this briefing).
+soft_news: [football, soccer, cricket, tennis, "premier league", nba, nfl, "world cup", olympics, match,
+  tournament, celebrity, film, movie, album, actor, actress, singer, fashion, recipe, horoscope,
+  "box office", "tv show", "reality show", "red carpet", "royal wedding", grammy, oscars, oscar, bollywood,
+  "ipl", lifestyle, travel, "weight loss", dating]
+
+# Multi-word phrases folded into one token before clustering.
+phrase_synonyms:
+  electric vehicles: ev
+  electric vehicle: ev
+  electric cars: ev
+  electric car: ev
+  evs: ev
+  interest rates: rate
+  interest rate: rate
+  policy rate: rate
+  repo rate: rate
+  central bank: centralbank
+  reserve bank of india: rbi
+  federal reserve: fed
+  european central bank: ecb
+  rare earths: rareearth
+  rare earth: rareearth
+  export controls: exportcontrol
+  export control: exportcontrol
+  basis points: bps
+
+# Token synonyms applied before clustering so different phrasings of one event match.
+synonyms:
+  semiconductor: chip
+  semiconductors: chip
+  chipmaker: chip
+  chipmakers: chip
+  chips: chip
+  microchip: chip
+  curbs: restrict
+  curb: restrict
+  restrictions: restrict
+  restriction: restrict
+  restricts: restrict
+  restricted: restrict
+  limits: restrict
+  tightens: tighten
+  tightened: tighten
+  levies: tariff
+  levy: tariff
+  duties: tariff
+  tariffs: tariff
+  hike: raise
+  hikes: raise
+  raises: raise
+  raised: raise
+  slashes: cut
+  cuts: cut
+  lowers: cut
+  lowered: cut
+  truce: ceasefire
+  crude: oil
+  petroleum: oil
+  polls: election
+  vote: election
+  voters: election
+  defence: defense
+  troops: military
+  forces: military
+  strikes: strike
+  airstrikes: strike
+  airstrike: strike

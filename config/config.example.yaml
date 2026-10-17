@@ -1,0 +1,79 @@
+# IntelPod configuration.
+# Copy to config/config.yaml and edit. Any value can also be overridden with
+# environment variables (see .env.example). Nothing here requires a paid service.
+
+app:
+  data_dir: data                 # SQLite DB, logs, reports live here
+  db_path: data/intelpod.db
+  log_level: INFO
+  log_json: false                # true = JSON lines in data/logs/intelpod.log
+  # Identify yourself politely to publishers. Put a real contact (email or URL).
+  user_agent: "IntelPod/0.1 (personal news research; contact: set-your-email@example.com)"
+
+http:
+  timeout_seconds: 20
+  max_retries: 3                 # retries on timeouts, 429 and 5xx
+  backoff_base_seconds: 2.0      # exponential backoff: 2s, 4s, 8s...
+  per_host_min_interval_seconds: 1.0
+  respect_robots_txt: true
+
+ingestion:
+  lookback_hours: 36             # articles considered for today's events
+  feeds_file: config/feeds.yaml
+  max_description_chars: 400     # store short extracts only, never full articles
+  providers:
+    rss:
+      enabled: true
+    gdelt:
+      enabled: true
+      # GDELT asks clients to keep to roughly one request every 5 seconds.
+      min_interval_seconds: 6
+      timespan: 1d
+      max_records: 75            # GDELT ArtList maximum is 250
+      sort: HybridRel
+      language_filter: "sourcelang:english"
+      queries:
+        - {topic: geopolitics, query: '(sanctions OR ceasefire OR invasion OR "peace talks" OR summit)'}
+        - {topic: trade_policy, query: '(tariff OR tariffs OR "export controls" OR "trade deal" OR "trade war")'}
+        - {topic: markets_monetary, query: '("central bank" OR "interest rate" OR "rate cut" OR "rate hike" OR inflation)'}
+        - {topic: energy_commodities, query: '(OPEC OR "oil prices" OR "crude oil" OR LNG OR "natural gas")'}
+        - {topic: semiconductors_minerals, query: '(semiconductor OR chipmaker OR "rare earth" OR "critical minerals")'}
+        - {topic: india, query: '(India OR RBI OR "New Delhi") (economy OR policy OR trade OR government)'}
+        - {topic: technology_ai, query: '("artificial intelligence" OR "AI regulation" OR "data center")'}
+        - {topic: supply_chain, query: '("supply chain" OR shipping OR freight OR "Red Sea")'}
+        - {topic: defense, query: '(military OR missile OR defence OR defense OR NATO)'}
+
+clustering:
+  # Lexical TF-IDF + entity overlap. Optional local embeddings via Ollama.
+  similarity_threshold: 0.30     # article joins a cluster at/above this...
+  member_min_similarity: 0.25    # ...and only if it directly matches one member this well
+  merge_threshold: 0.42          # clusters merge at/above this
+  entity_weight: 0.30            # share of similarity from shared entities
+  max_time_gap_hours: 72
+  link_lookback_days: 7          # link to ongoing events from earlier runs
+  link_threshold: 0.38
+  embeddings:
+    enabled: false               # requires Ollama running locally
+    ollama_url: http://localhost:11434
+    model: nomic-embed-text
+    weight: 0.5                  # blend: weight*embedding + (1-weight)*lexical
+    timeout_seconds: 60
+
+ranking:
+  weights:                       # relative weights, normalised automatically
+    geopolitical: 1.0
+    economic: 1.0
+    business: 0.8
+    india: 0.7
+    novelty: 0.6
+    long_term: 0.8
+    corroboration: 0.9
+    uncertainty: 0.3
+  min_events: 5                  # soft target; quiet days may return fewer
+  max_events: 8
+  min_score: 30                  # events below this are not selected...
+  quiet_day_floor: 22            # ...unless needed to reach min_events and above this
+  max_per_topic: 3               # keep the briefing from being one-topic
+  single_source_penalty: 0.85    # multiplier when only one independent publisher
+  soft_news_penalty: 0.3         # multiplier for sports/celebrity/lifestyle clusters
+  corroboration_cap: 8           # independent publishers needed for full score

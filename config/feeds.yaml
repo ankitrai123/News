@@ -1,0 +1,66 @@
+# Public RSS/Atom feed registry.
+#
+# IMPORTANT: these URLs come from publishers' publicly listed feeds as known at
+# development time. They could NOT be fetched from the build sandbox (its network
+# policy blocks news hosts), so every entry starts as `verified: false`.
+# Run `intelpod feeds check` on your machine: it fetches each feed, reports
+# status / item count / newest date, and records the result in the database.
+# Disable or fix any feed that fails. Feeds are free to read but remain subject to
+# each publisher's terms; IntelPod stores only titles, links, dates and short
+# descriptions, never full articles.
+#
+# source_type: news | official | international_org | think_tank
+# Editorial-orientation metadata belongs to the Phase 3 source registry, not here.
+
+feeds:
+  # --- International news -------------------------------------------------
+  - {name: BBC World, publisher: BBC, domain: bbc.co.uk, url: "https://feeds.bbci.co.uk/news/world/rss.xml",
+     country: GB, region: Europe, source_type: news, categories: [geopolitics], enabled: true, verified: false}
+  - {name: BBC Business, publisher: BBC, domain: bbc.co.uk, url: "https://feeds.bbci.co.uk/news/business/rss.xml",
+     country: GB, region: Europe, source_type: news, categories: [macroeconomy, corporate], enabled: true, verified: false}
+  - {name: The Guardian World, publisher: The Guardian, domain: theguardian.com, url: "https://www.theguardian.com/world/rss",
+     country: GB, region: Europe, source_type: news, categories: [geopolitics], enabled: true, verified: false}
+  - {name: The Guardian Business, publisher: The Guardian, domain: theguardian.com, url: "https://www.theguardian.com/business/rss",
+     country: GB, region: Europe, source_type: news, categories: [macroeconomy, corporate], enabled: true, verified: false}
+  - {name: Al Jazeera, publisher: Al Jazeera, domain: aljazeera.com, url: "https://www.aljazeera.com/xml/rss/all.xml",
+     country: QA, region: Middle East, source_type: news, categories: [geopolitics], enabled: true, verified: false}
+  - {name: NPR World, publisher: NPR, domain: npr.org, url: "https://feeds.npr.org/1004/rss.xml",
+     country: US, region: North America, source_type: news, categories: [geopolitics], enabled: true, verified: false}
+  - {name: CNBC World, publisher: CNBC, domain: cnbc.com, url: "https://www.cnbc.com/id/100727362/device/rss/rss.html",
+     country: US, region: North America, source_type: news, categories: [markets_monetary, corporate], enabled: true, verified: false}
+  - {name: Fox News World, publisher: Fox News, domain: foxnews.com, url: "https://moxie.foxnews.com/google-publisher/world.xml",
+     country: US, region: North America, source_type: news, categories: [geopolitics], enabled: true, verified: false}
+  - {name: France 24, publisher: France 24, domain: france24.com, url: "https://www.france24.com/en/rss",
+     country: FR, region: Europe, source_type: news, categories: [geopolitics], enabled: true, verified: false}
+  - {name: DW All, publisher: Deutsche Welle, domain: dw.com, url: "https://rss.dw.com/rdf/rss-en-all",
+     country: DE, region: Europe, source_type: news, categories: [geopolitics], enabled: true, verified: false}
+  - {name: SCMP World, publisher: South China Morning Post, domain: scmp.com, url: "https://www.scmp.com/rss/91/feed",
+     country: HK, region: Asia, source_type: news, categories: [geopolitics], enabled: true, verified: false}
+  - {name: Nikkei Asia, publisher: Nikkei Asia, domain: asia.nikkei.com, url: "https://asia.nikkei.com/rss/feed/nar",
+     country: JP, region: Asia, source_type: news, categories: [corporate, geopolitics], enabled: true, verified: false}
+  - {name: The Japan Times, publisher: The Japan Times, domain: japantimes.co.jp, url: "https://www.japantimes.co.jp/feed/",
+     country: JP, region: Asia, source_type: news, categories: [geopolitics], enabled: false, verified: false}
+
+  # --- India -----------------------------------------------------------------
+  - {name: The Hindu International, publisher: The Hindu, domain: thehindu.com, url: "https://www.thehindu.com/news/international/feeder/default.rss",
+     country: IN, region: South Asia, source_type: news, categories: [geopolitics], enabled: true, verified: false}
+  - {name: The Hindu Business, publisher: The Hindu, domain: thehindu.com, url: "https://www.thehindu.com/business/feeder/default.rss",
+     country: IN, region: South Asia, source_type: news, categories: [macroeconomy, corporate], enabled: true, verified: false}
+  - {name: Indian Express World, publisher: The Indian Express, domain: indianexpress.com, url: "https://indianexpress.com/section/world/feed/",
+     country: IN, region: South Asia, source_type: news, categories: [geopolitics], enabled: true, verified: false}
+  - {name: Economic Times Economy, publisher: The Economic Times, domain: economictimes.indiatimes.com, url: "https://economictimes.indiatimes.com/news/economy/rssfeeds/1373380680.cms",
+     country: IN, region: South Asia, source_type: news, categories: [macroeconomy], enabled: true, verified: false}
+  - {name: Mint Economy, publisher: Mint, domain: livemint.com, url: "https://www.livemint.com/rss/economy",
+     country: IN, region: South Asia, source_type: news, categories: [macroeconomy], enabled: true, verified: false}
+  - {name: Times of India World, publisher: The Times of India, domain: timesofindia.indiatimes.com, url: "https://timesofindia.indiatimes.com/rssfeeds/296589292.cms",
+     country: IN, region: South Asia, source_type: news, categories: [geopolitics], enabled: true, verified: false}
+
+  # --- Official / primary sources -------------------------------------------
+  - {name: Federal Reserve Press Releases, publisher: US Federal Reserve, domain: federalreserve.gov, url: "https://www.federalreserve.gov/feeds/press_all.xml",
+     country: US, region: North America, source_type: official, categories: [markets_monetary], enabled: true, verified: false}
+  - {name: ECB Press, publisher: European Central Bank, domain: ecb.europa.eu, url: "https://www.ecb.europa.eu/rss/press.html",
+     country: EU, region: Europe, source_type: official, categories: [markets_monetary], enabled: true, verified: false}
+  - {name: RBI Press Releases, publisher: Reserve Bank of India, domain: rbi.org.in, url: "https://www.rbi.org.in/pressreleases_rss.xml",
+     country: IN, region: South Asia, source_type: official, categories: [markets_monetary], enabled: true, verified: false}
+  - {name: UN News, publisher: United Nations, domain: news.un.org, url: "https://news.un.org/feed/subscribe/en/news/all/rss.xml",
+     country: null, region: Global, source_type: international_org, categories: [geopolitics], enabled: true, verified: false}

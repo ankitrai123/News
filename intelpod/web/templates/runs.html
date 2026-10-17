@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Runs · IntelPod{% endblock %}
+{% block content %}
+<div class="row" style="align-items:center"><h1 class="grow">Runs &amp; execution status</h1>
+<form method="post" action="/runs/start"><button {% if running %}disabled{% endif %}>Start new run</button></form>
+<form method="post" action="/runs/start"><input type="hidden" name="resume" value="1"><button class="secondary" {% if running %}disabled{% endif %}>Resume latest</button></form></div>
+{% if usage %}<div class="card small"><b>Requests in the last 24h:</b>
+{% for u in usage %}<span class="pill">{{ u.provider }}: {{ u.requests }} ({{ u.ok }} ok, {{ u.items }} items)</span>{% endfor %}
+<div class="muted">GDELT and RSS have no hard quota, but GDELT asks for roughly one request every 5 seconds; IntelPod enforces this.</div></div>{% endif %}
+<div class="card scroll"><table><tr><th>Run</th><th>Status</th><th>Started</th><th>Stages</th><th>Error</th></tr>
+{% for r in runs %}<tr><td><a href="/?run={{ r.run_id }}">{{ r.run_id }}</a></td>
+<td class="{{ 'ok' if r.status=='completed' else ('bad' if r.status=='failed' else 'warn') }}">{{ r.status }}</td>
+<td class="small">{{ r.started_at|dt }}</td>
+<td class="small">{% for name, s in stages.get(r.run_id, {}).items() %}<span class="pill {{ 'ok' if s.status=='completed' else 'bad' }}">{{ name }}{% if s.attempts > 1 %} ×{{ s.attempts }}{% endif %}</span>{% endfor %}</td>
+<td class="small bad">{{ r.error or '' }}</td></tr>{% endfor %}
+</table></div>
+{% if failures %}<div class="card"><h3>Recent source failures</h3><table><tr><th>When</th><th>Provider</th><th>Target</th><th>Error</th></tr>
+{% for f in failures %}<tr><td class="small">{{ f.started_at|dt }}</td><td>{{ f.provider }}</td><td class="small">{{ f.target[:90] }}</td><td class="small bad">{{ f.error }}</td></tr>{% endfor %}
+</table></div>{% endif %}
+{% endblock %}
