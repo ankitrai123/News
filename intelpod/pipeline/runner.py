@@ -551,6 +551,9 @@ class Phase1Pipeline:
             from ..script.report import write_episode
             from ..script.store import EpisodeStore
             ep = EpisodeStore(self.db).episode(ctx.run_id)
+            if ep is not None and not ep.lines:   # no script this time: do not leave an older one on disk
+                for name in ("script.md", "transcript.json", "episode_notes.md", "evidence_report.md"):
+                    (out_dir / name).unlink(missing_ok=True)
             if ep is not None and ep.lines:
                 all_sources = {x.result_id: x for eid in {s.event_id for s in ep.plan.stories}
                                for x in store.results(ctx.run_id, eid)}

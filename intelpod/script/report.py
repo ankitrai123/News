@@ -7,6 +7,12 @@ from pathlib import Path
 from ..impact.report import _md
 from .models import Episode
 
+def _url(u: str) -> str:
+    """A URL safe inside Markdown link syntax: characters that could end the link are encoded."""
+    return "".join({" ": "%20", "(": "%28", ")": "%29", "<": "%3C", ">": "%3E", "[": "%5B", "]": "%5D",
+                    "\n": "", "\r": ""}.get(ch, ch) for ch in (u or ""))
+
+
 KIND_NOTE = {"fact": "", "analysis": "analysis", "question": "", "transition": "", "uncertainty": "uncertain",
              "explainer": "explainer, general knowledge"}
 
@@ -62,7 +68,7 @@ def render_script(ep: Episode, sources: dict) -> str:
     if ep.glossary:
         lines += ["", "## Terms explained (general knowledge, not from the sources)", ""] + \
                  [f"- **{_md(g.term)}**: {_md(g.explanation)}" for g in ep.glossary]
-    lines += ["", "## Sources", ""] + [f"{s['n']}. [{_md(s['title'])}]({s['url']}) — {_md(s['publisher'])}"
+    lines += ["", "## Sources", ""] + [f"{s['n']}. [{_md(s['title'])}]({_url(s['url'])}) — {_md(s['publisher'])}"
                                        + (f", {s['published_at'][:10]}" if s['published_at'] else "") for s in listed]
     return "\n".join(lines) + "\n"
 
@@ -75,7 +81,7 @@ def render_notes(ep: Episode, sources: dict) -> str:
         lines.append(f"- **{_md(s.title)}** — {_md(s.why)}")
     if ep.plan.dropped:
         lines += ["", "Not covered: " + "; ".join(_md(d) for d in ep.plan.dropped)]
-    lines += ["", "## Sources", ""] + [f"{s['n']}. [{_md(s['title'])}]({s['url']}) — {_md(s['publisher'])}"
+    lines += ["", "## Sources", ""] + [f"{s['n']}. [{_md(s['title'])}]({_url(s['url'])}) — {_md(s['publisher'])}"
                                        for s in listed]
     lines += ["", "## How this episode was made", "",
               f"Script written by {_md(ep.written_by)} from IntelPod's checked research and checked line by line "

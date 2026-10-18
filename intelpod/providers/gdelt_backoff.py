@@ -56,8 +56,10 @@ def note(db: Database, records, now: datetime | None = None) -> None:
     refused = any(getattr(r, "status_code", None) == 429 or "limit requests" in (getattr(r, "error", "") or "").lower()
                   or "rate limit" in (getattr(r, "error", "") or "").lower() for r in records)
     st = _load(db)
-    if ok:
+    if ok and not refused:
         st = {"level": 0, "until": None}
+    elif ok:
+        return  # mixed: GDELT answered some requests; keep the current level, no new block
     elif refused:
         level = int(st.get("level") or 0) + 1
         wait = min(BASE * (2 ** (level - 1)), MAX)

@@ -185,9 +185,13 @@ def template_story(story: StoryPlan, items: list[FactItem], n: int, start: int) 
     if len(positions) >= 2:
         add("A", "question", "Do the sources agree on what this means?", [])
         for it in positions[:2]:
-            add("B", "analysis", f"One view, according to {src(it)}: {it.text}", [it.fid])
+            # Positions are IntelPod's checked summaries (or quoted statements), never a publisher's words.
+            add("B", "analysis", f"One position in the sources, as summarised by IntelPod: {it.text}", [it.fid])
     for it in [i for i in items if i.kind == "india"][:1]:
-        add("B", "fact", f"For India, according to {src(it)}: “{it.text}”", [it.fid])
+        if it.basis == "sourced":
+            add("B", "fact", f"For India, according to {src(it)}: “{it.text}”", [it.fid])
+        else:
+            add("B", "analysis", f"For India, IntelPod's reading of the sources: {it.text}", [it.fid])
     for it in [i for i in items if i.kind in ("forecast", "uncertainty")][:1]:
         add("B", "uncertainty", f"What is still uncertain, according to {src(it)}: “{it.text}”"
             if it.publishers else f"What is still uncertain: {it.text}", [it.fid])

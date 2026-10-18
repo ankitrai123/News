@@ -104,7 +104,8 @@ def test_plan_selects_supported_stories_and_orders_connected_ones():
     assert "thin" not in ids and any("Minor event" in d for d in plan.dropped)
     rbi_kinds = {book.get(f).kind for f in plan.stories[1].facts}
     assert {"fact", "position", "forecast"} <= rbi_kinds
-    assert all(s.word_budget == (1800 - 300) // 2 for s in plan.stories)
+    # budget = share of the target, capped at ~150 words per fact-sheet item (no padding)
+    assert all(s.word_budget == min((1800 - 300) // 2, 150 * len(s.facts)) for s in plan.stories)
 
 
 def test_word_budget_caps_number_of_stories():
@@ -247,3 +248,137 @@ def test_same_article_under_two_events_is_one_citation():
     ep = Episode(run_id="r", episode_id="e", title="t", status="validated", facts=facts, lines=lines, created_at=NOW)
     per_line, listed = citations(ep, {"x1": a, "x2": b})
     assert per_line == {"L1": [1], "L2": [1]} and len(listed) == 1
+
+
+# -- review regressions ---------------------------------------------------------------------------
+@pytest.mark.parametrize("text,cites,kind", [
+    ("According to BBC, inflation will ease next year.", ["F3"], "fact"),          # attribution is not a hedge
+    ("Inflation will ease next year, a risk for savers.", ["F3"], "fact"),
+    ("Officials claimed 40 people were killed.", ["F4"], "fact"),                   # "claimed" does not flag dispute
+    ("Officials in different districts said 40 people were killed.", ["F4"], "fact"),
+    ("Inflation will ease next year, so the cut was a mistake.", ["F3"], "question"),  # not a question
+    ("As one official said, 'the cut was overdue and reckless'.", ["F1"], "fact"),  # single-quoted invention
+    ("The Reserve Bank of India cut its repo rate to five percent on Friday.", ["F1"], "fact"),
+    ("Banks said loan demand rose forty percent last week.", ["F2"], "fact"),
+    ("The Reserve Bank of India cut its repo rate by 5.25% on Friday.", ["F1"], "fact"),  # to -> by
+    ("The Reserve Bank of India did not cut its repo rate on Friday.", ["F1"], "fact"),   # negation
+    ("The cut sparked a borrowing boom.", ["F1"], "analysis"),
+])
+def test_review_loopholes_closed(text, cites, kind):
+    check, _ = chk(text, cites, kind)
+    assert check.status != "supported", text
+
+
+def test_titles_never_support_numbers_or_fact_lines():
+    line = ScriptLine(line_id="L1", segment="story", event_id="e", speaker="B", kind="fact",
+                      text="Banks said loan demand rose in September after Trump threatened 50% tariffs.", cites=["F2"])
+    check, _ = check_line(line, F, {"F1", "F2", "F3", "F4"}, HOSTS, "Trump threatens 50% tariff on India")
+    assert check.status != "supported"
+    t = ScriptLine(line_id="L2", segment="story", event_id="e", speaker="A", kind="transition",
+                   text="Next: Trump threatens a tariff on India.")
+    assert check_line(t, F, {"F1"}, HOSTS, "Trump threatens 50% tariff on India")[0].status == "supported"
+
+
+def test_attribution_rules():
+    F["F5"] = FactItem(fid="F5", kind="fact", text="Brent crude traded above $90 per barrel.", confidence="reported",
+                       event_id="e", publishers=["Mint"])
+    check, fixed = check_line(ScriptLine(line_id="L", segment="story", event_id="e", speaker="A", kind="analysis",
+                                         text="Brent crude traded above $90 per barrel.", cites=["F5"]),
+                              F, {"F5"}, HOSTS)
+    assert check.status == "fixed" and fixed == "According to Mint, Brent crude traded above $90 per barrel."
+    del F["F5"]
+
+
+def test_template_never_quotes_model_text_and_story_needs_a_source():
+    from intelpod.script.writer import template_story
+    from intelpod.script.models import StoryPlan
+    items = [FactItem(fid="F1", kind="fact", text="Exports rose.", confidence="confirmed", event_id="e",
+                      claim_ids=["c"], publishers=["Mint"]),
+             FactItem(fid="F2", kind="india", text="Indian exporters could face higher costs.", confidence="plausible",
+                      event_id="e", publishers=["Mint"], basis="model, checked")]
+    lines = template_story(StoryPlan(event_id="e", title="T", facts=["F1", "F2"]), items, 1, 0)
+    india = next(x for x in lines if "India" in x.text)
+    assert "“" not in india.text and "IntelPod" in india.text and "according to" not in india.text.lower()
+    # A story whose only "sourced-looking" item is a model summary is not selected.
+    events, debates, impacts, srcs, links = material()
+    debates["thin"] = package("thin", [], [])
+    impacts["thin"] = ImpactAnalysis(run_id="r", event_id="thin", event_title="t", status="completed", created_at=NOW,
+                                     india_summary="Indian exporters could face higher costs.")
+    from intelpod.impact.models import DimensionNote
+    impacts["thin"].india = DimensionNote(key="india", label="India", claim_ids=[], source_ids=[])
+    plan = plan_episode(FactBook(), events, debates, impacts, srcs, links, ScriptConfig())
+    assert "thin" not in [s.event_id for s in plan.stories]
+
+
+def test_frame_lines_cannot_use_dropped_stories():
+    from intelpod.config import Settings
+    s = Settings()
+    s.script = ScriptConfig(target_words=700, min_story_words=300)   # one story only: RBI is dropped
+    events, debates, impacts, srcs, links = material()
+
+    class FrameModel(ScriptModel):
+        def chat_json(self, task, messages, schema):
+            user = messages[-1]["content"]
+            if "Write three short parts" in user:
+                return schema.model_validate({"lines": [
+                    {"segment": "opening", "speaker": "A", "kind": "fact",
+                     "text": "The Reserve Bank of India cut its repo rate to 5.25% on Friday.", "cites": ["F1"]},
+                    {"segment": "opening", "speaker": "B", "kind": "transition",
+                     "text": "The Reserve Bank of India cut its repo rate on Friday."}]}), "fake-writer"
+            return super().chat_json(task, messages, schema)
+    ep = ScriptService(s, FrameModel()).build("r", NOW, events, debates, impacts, srcs, links)
+    assert [st.event_id for st in ep.plan.stories] == ["oil"]
+    assert not any("Reserve Bank" in x.text for x in ep.lines if x.segment == "opening")
+
+
+def test_revision_accepts_string_cites_and_first_answer_only():
+    from intelpod.script.service import Revision
+    r = Revision.model_validate({"lines": [{"id": "L1", "text": "a", "cites": "F1"}, {"id": None, "text": None}, "x"]})
+    assert r.lines[0].cites == ["F1"] and r.lines[1].id == ""
+
+
+def test_story_whose_model_lines_all_fail_falls_back_to_template():
+    class BadModel(ScriptModel):
+        def chat_json(self, task, messages, schema):
+            user = messages[-1]["content"]
+            if "failed fact checks" in user:
+                return schema.model_validate({"lines": []}), "fake-writer"
+            if "Segment" in user:
+                return schema.model_validate({"lines": [{"speaker": "A", "kind": "fact",
+                                                         "text": "Zorgon Corp said profits tripled.", "cites": ["F1"]}]}), "fake-writer"
+            return super().chat_json(task, messages, schema)
+    ep = build(BadModel())
+    assert {x.event_id for x in ep.lines if x.segment == "story"} == {s.event_id for s in ep.plan.stories}
+    assert ep.status == "partial" and any("template segment" in lim for lim in ep.limitations)
+
+
+def test_markdown_urls_cannot_break_out():
+    from intelpod.script.report import _url
+    assert _url("https://x.test/a) ![x](https://evil.test/t.png") == "https://x.test/a%29%20!%5Bx%5D%28https://evil.test/t.png"
+
+
+def test_episode_rebuilt_when_mode_or_evidence_changes_and_stale_files_removed(settings, tmp_path):
+    from test_debate_pipeline import run_pipeline
+    from intelpod.pipeline.runner import RunContext
+    from intelpod.script.runner import run_script
+    from intelpod.script.store import EpisodeStore
+    settings.llm.enabled = False
+    pipe, run_id = run_pipeline(settings, tmp_path)
+    row = pipe.repo.get_run(run_id)
+    ctx = RunContext(run_id=run_id, now=NOW, params=row.params, outputs={})
+    assert run_script(pipe, ctx).get("reused")                   # same material and mode: reused
+    settings.script.target_words = 900                          # settings changed: rebuilt
+    assert not run_script(pipe, ctx).get("reused")
+    # A refresh that produces no script removes the old files.
+    d = settings.data_path / "runs" / run_id
+    assert (d / "script.md").exists()
+    settings.script.max_stories = 1
+    from intelpod.debate.store import DebateStore
+    from intelpod.db import DebatePackageRow
+    with pipe.db.session() as s:
+        s.query(DebatePackageRow).delete()
+    run_script(pipe, ctx, refresh=True)
+    assert EpisodeStore(pipe.db).episode(run_id).status == "skipped"
+    pipe.stage_report(RunContext(run_id=run_id, now=row.params and NOW, params=row.params,
+                                 outputs={k: v.output or {} for k, v in pipe.repo.stages(run_id).items()}))
+    assert not (d / "script.md").exists()

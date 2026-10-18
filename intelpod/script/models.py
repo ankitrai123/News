@@ -106,4 +106,5 @@ class Episode(BaseModel):
     est_minutes: float = 0.0
     verification: VerificationSummary = Field(default_factory=VerificationSummary)
     limitations: list[str] = Field(default_factory=list)
+    inputs: str = ""                             # fingerprint of the Phase 2-4 material and writing mode
     created_at: datetime

@@ -106,13 +106,23 @@ _NAMEY_NEXT = re.compile(r"\s+[A-Z]")
 # ordinary word; company or person names ("Pfizer", "Goyal") essentially never appear in lower case.
 _VOCAB: set[str] = set()
 _LOWER_WORD = re.compile(r"(?<![A-Za-z'’\-])[a-z][a-z'\-]{2,}(?![A-Za-z])")
+_MID_CAP = re.compile(r"(?<=[a-z,;] )([A-Z][a-z'\-]{2,})(?![A-Za-z])")
 
 
-def register_vocabulary(texts) -> int:
-    """Learn ordinary words from stored text (titles, descriptions, extracts). Returns vocab size."""
+def register_vocabulary(texts, reset: bool = True) -> int:
+    """Learn ordinary words from stored text (titles, descriptions, extracts). A word counts as
+    ordinary only if it appears in lower case more often than capitalised mid-sentence, so
+    "shell" (the noun) does not make "Shell" (the company) an ordinary word when the news
+    mostly writes the company name. Returns vocabulary size; `reset` keeps memory bounded."""
+    from collections import Counter
+    lower, caps = Counter(), Counter()
     for t in texts:
         if t:
-            _VOCAB.update(_LOWER_WORD.findall(t))
+            lower.update(_LOWER_WORD.findall(t))
+            caps.update(w.lower() for w in _MID_CAP.findall(t))
+    if reset:
+        _VOCAB.clear()
+    _VOCAB.update(w for w, n in lower.items() if n > caps.get(w, 0))
     return len(_VOCAB)
 
 

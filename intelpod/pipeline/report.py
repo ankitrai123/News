@@ -5,6 +5,8 @@ import json
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from ..impact.report import _md
+from ..script.report import _url
 from ..labels import date_source_label, flag_label, plural, topic_label
 from ..schemas import EXACT_DATE_SOURCES, Article, RankedEvent
 
@@ -26,7 +28,7 @@ def render_research(pkg, results) -> list[str]:
         if r.date_source == "gdelt_seendate":
             when += " (first seen)"
         q = r.credibility_assessment.score
-        lines.append(f"- [{r.title}]({r.url}) — {r.publisher}, {when} · {r.content_type}"
+        lines.append(f"- [{_md(r.title)}]({_url(r.url)}) — {_md(r.publisher)}, {when} · {r.content_type}"
                      + (f" · quality {q:.2f}" if q is not None else "")
                      + f" · serves: {', '.join(QUERY_TYPE_LABELS[x].lower() for x in r.query_types[:3])}")
         for n in r.evidence_notes[:2]:
@@ -145,7 +147,7 @@ def render_markdown(ctx: "RunContext", selected: list[RankedEvent], ranked: list
             if a:
                 when = _fmt(a.published_at) + ("" if a.date_source in EXACT_DATE_SOURCES
                                                else f" ({date_source_label(a.date_source)})")
-                lines.append(f"- [{a.title}]({a.source_url}) — {a.source_name}, {when}")
+                lines.append(f"- [{_md(a.title)}]({_url(a.source_url)}) — {_md(a.source_name)}, {when}")
         extra = len(cand.get("article_ids", [])) - 12
         if extra > 0:
             lines.append(f"- … and {extra} more")

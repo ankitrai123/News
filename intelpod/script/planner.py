@@ -84,6 +84,8 @@ def story_facts(book: FactBook, r: RankedEvent, dp: DebatePackage | None, a: Imp
                                  basis="inference" if any(s.basis == "inferred" for s in ch.steps) else "sourced"))
         if a.india:
             for cid in a.india.claim_ids[:2]:
+                if cid in used:   # already a fact item: mark that it concerns India rather than repeating it
+                    continue
                 claim_item(cid, "india")
             if a.india_summary:
                 fids.append(book.add(kind="india", text=a.india_summary, confidence="plausible", event_id=r.event_id,
@@ -107,7 +109,9 @@ def plan_episode(book: FactBook, ranked: list[RankedEvent], debates: dict[str, D
     for r in ranked:
         dp, a = debates.get(r.event_id), impacts.get(r.event_id)
         fids = story_facts(book, r, dp, a, sources.get(r.event_id, {}))
-        sourced = [f for f in fids if (it := book.get(f)) and it.kind in ("fact", "india", "contested")]
+        # A story needs a statement from a retrieved source, not only model-written summaries.
+        sourced = [f for f in fids if (it := book.get(f)) and it.kind in ("fact", "india", "contested")
+                   and it.basis == "sourced" and it.claim_ids]
         if len(fids) < 2 or not sourced:
             plan.dropped.append(f"{r.title}: not enough checked material for a segment")
             continue
@@ -135,8 +139,9 @@ def plan_episode(book: FactBook, ranked: list[RankedEvent], debates: dict[str, D
             nxt.why += "; placed after a connected story"
         chosen.remove(nxt)
         ordered.append(nxt)
-    budget = (cfg.target_words - OPEN_CLOSE_WORDS) // len(ordered)
+    budget = max(0, cfg.target_words - OPEN_CLOSE_WORDS) // len(ordered)
     for s in ordered:
-        s.word_budget = budget
+        # Never ask for more words than the material supports (~150 per item): padding invites invention.
+        s.word_budget = max(80, min(budget, 150 * len(s.facts)))
     plan.stories = ordered
     return plan

@@ -10,7 +10,9 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+from ..debate.analysis import _as_list, _drop_nulls, unsupported_terms
 
 from ..config import Settings
 from ..research.model_assist import safe_call
@@ -26,10 +28,26 @@ class RevisedLine(BaseModel):
     id: str = ""
     text: str = ""
     cites: list[str] = Field(default_factory=list)
+    _n = model_validator(mode="before")(classmethod(lambda cls, v: _drop_nulls(v)))
+
+    @field_validator("id", "text", mode="before")
+    @classmethod
+    def _s(cls, v):
+        return v if isinstance(v, str) else ""
+
+    @field_validator("cites", mode="before")
+    @classmethod
+    def _c(cls, v):
+        return [str(x).strip().upper() for x in _as_list(v, split=True) if x is not None and str(x).strip()][:8]
 
 
 class Revision(BaseModel):
     lines: list[RevisedLine] = Field(default_factory=list)
+
+    @field_validator("lines", mode="before")
+    @classmethod
+    def _l(cls, v):
+        return [x for x in _as_list(v) if isinstance(x, dict)]
 
 
 REVISE = """Some lines of a podcast script failed fact checks. Rewrite each so it is fully supported
@@ -52,6 +70,7 @@ class ScriptService:
         self.model_errors: list[dict] = []
         self.models_used: list[str] = []
         self._dead = self.llm is None
+        self.frame_fallback = False
 
     def _call(self, fn, *args):
         if self._dead or self.model_calls >= self.cfg.max_model_calls:
@@ -76,8 +95,12 @@ class ScriptService:
             ep.limitations.append("No event had enough checked material (claims, positions, impact) for a segment; "
                                   "no script was written rather than one built on thin evidence.")
             return ep
-        facts = {it.fid: it for it in book.items}
+        # Only the planned stories' items exist for this episode: dropped stories' material must not
+        # reach the opening, "what to watch" or closing either.
+        planned = {f for s in plan.stories for f in s.facts}
+        facts = {it.fid: it for it in book.items if it.fid in planned}
         story_fids = {s.event_id: set(s.facts) for s in plan.stories}
+        story_fids[None] = planned
         lines: list[ScriptLine] = []
         prev_title = None
         for n, story in enumerate(plan.stories, 1):
@@ -104,11 +127,24 @@ class ScriptService:
         for i, x in enumerate(lines, 1):
             x.line_id = f"L{i}"
 
-        titles = " ".join(s.title for s in plan.stories)
+        titles = {s.event_id: s.title for s in plan.stories}
+        titles[None] = " ".join(s.title for s in plan.stories)
         self._verify(lines, facts, story_fids, hosts, titles)
         failing = [x for x in lines if x.check.status == "unchecked"]
         if failing and self.cfg.revise and self.llm is not None:
             self._revise(failing, facts, story_fids, hosts, titles)
+        # A story whose model lines all failed falls back to the template, so it never silently
+        # disappears while the opening still previews it.
+        for n, story in enumerate(plan.stories, 1):
+            seg = [x for x in lines if x.segment == "story" and x.event_id == story.event_id]
+            if seg and not any(x.check.status in ("supported", "fixed", "revised") for x in seg):
+                tmpl = writer.template_story(story, [facts[f] for f in story.facts], n, len(lines))
+                self._verify(tmpl, facts, story_fids, hosts, titles)
+                at = lines.index(seg[-1]) + 1
+                lines[at:at] = tmpl
+                ep.limitations.append(f"'{story.title}': every model line failed the checks; template segment used")
+        for i, x in enumerate(lines, 1):
+            x.line_id = f"L{i}"
         kept = [x for x in lines if x.check.status in ("supported", "fixed", "revised")]
         removed = [x for x in lines if x.check.status not in ("supported", "fixed", "revised")]
         for x in removed:
@@ -125,7 +161,12 @@ class ScriptService:
             removed=len(removed),
             problems=[f"{x.line_id} ({x.speaker}): “{x.text[:120]}” — " + "; ".join(x.check.problems[:3]) for x in removed])
         ep.pronunciations = list({p.name: p for p in ep.pronunciations if p.name in " ".join(x.text for x in kept)}.values())
-        ep.glossary = list({g.term.lower(): g for g in ep.glossary}.values())
+        kept_text = " ".join(x.text for x in kept).lower()
+        fact_text = " ".join(it.text for it in facts.values())
+        ep.glossary = [g for g in {g.term.lower(): g for g in ep.glossary}.values()
+                       if g.term.lower() in kept_text and not unsupported_terms(g.explanation, fact_text + " " + g.term)]
+        if self.frame_fallback:
+            ep.limitations.append("Model writing of the opening, 'what to watch' and closing failed; template used")
         if ep.written_by == "template":
             ep.limitations.append("No model available: the script quotes verified statements with their sources "
                                   "(template); it is accurate but not conversational.")
@@ -137,7 +178,7 @@ class ScriptService:
                                   f"(see the evidence report).")
         if any(x.segment == "story" for x in removed) and not any(x.segment == "story" for x in kept):
             ep.status = "partial"
-        if ep.written_by != "template" and any("template" in lim for lim in ep.limitations):
+        if ep.written_by != "template" and any("template segment" in lim for lim in ep.limitations):
             ep.status = "partial"
         return ep
 
@@ -162,10 +203,13 @@ class ScriptService:
                 got = writer.to_lines(out, "frame", None, start)
                 if got:
                     return got
+            self.frame_fallback = True
         a, b = hosts["A"], hosts["B"]
+        # Headlines are unverified text: an uncited line may not carry their numbers.
+        previews = [s.title for s in plan.stories if not any(ch.isdigit() for ch in s.title)]
         lines = [ScriptLine(line_id="o1", segment="opening", speaker="A", kind="transition",
                             text=f"Welcome to IntelPod. I'm {a}, with {b}. Today: "
-                                 + "; ".join(s.title for s in plan.stories) + "."),
+                                 + ("; ".join(previews) if previews else "the day's main stories") + "."),
                  ScriptLine(line_id="o2", segment="opening", speaker="B", kind="transition",
                             text="Everything we say comes from sources listed in the episode notes.")]
         for it in watch[:3]:
@@ -178,8 +222,8 @@ class ScriptService:
 
     def _verify(self, lines, facts, story_fids, hosts, titles) -> None:
         for x in lines:
-            scope = story_fids.get(x.event_id) if x.segment == "story" else None
-            check, fixed = check_line(x, facts, scope, [hosts["A"], hosts["B"]], titles)
+            key = x.event_id if x.segment == "story" else None
+            check, fixed = check_line(x, facts, story_fids.get(key, set()), [hosts["A"], hosts["B"]], titles.get(key, ""))
             if fixed:
                 x.text = fixed
             x.check = check
@@ -198,15 +242,18 @@ class ScriptService:
             return
         out, _ = res
         by_id = {x.line_id: x for x in failing}
+        seen: set[str] = set()
         for r in out.lines:
-            x = by_id.get(r.id.strip().upper())
-            if x is None or not r.text.strip():
+            lid = r.id.strip().upper()
+            x = by_id.get(lid)
+            if x is None or lid in seen or not r.text.strip():
                 continue
+            seen.add(lid)                       # first revision per line only
             original, problems = x.text, x.check.problems
-            trial = x.model_copy(update={"text": " ".join(r.text.split())[:600],
-                                         "cites": [c.strip().upper() for c in r.cites] or x.cites})
-            scope = story_fids.get(x.event_id) if x.segment == "story" else None
-            check, fixed = check_line(trial, facts, scope, [hosts["A"], hosts["B"]], titles)
+            trial = x.model_copy(update={"text": " ".join(r.text.split())[:600], "cites": r.cites or x.cites})
+            key = x.event_id if x.segment == "story" else None
+            check, fixed = check_line(trial, facts, story_fids.get(key, set()), [hosts["A"], hosts["B"]],
+                                      titles.get(key, ""))
             if check.status in ("supported", "fixed"):
                 x.text, x.cites = fixed or trial.text, trial.cites
                 x.check.status, x.check.original = "revised", original

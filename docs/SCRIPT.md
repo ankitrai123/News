@@ -46,17 +46,23 @@ Names are configurable (`script.host_a`, `script.host_b`).
 
    | Check | Rule |
    |---|---|
-   | Citations | fact and uncertainty lines must cite; analysis must cite a position, chain or statement; cited items must exist and belong to the story |
-   | Names and numbers | every capitalised name and every number must be in the cited items; a line citing nothing may contain no number |
-   | Quotations | words in quotation marks must appear verbatim in the cited items |
-   | Hedging | a line resting on a forecast, speculation or inference must sound like one ("could", "expected") |
-   | Disputes | a line resting on a contested statement must say it is disputed |
-   | Attribution | a line resting only on single-source statements must name the source — added automatically ("According to Mint, ...") |
-   | Causality | causal wording ("led to", "because") needs a cited effect chain or a cited statement that itself makes the causal link |
+   | Citations | fact and uncertainty lines must cite; analysis must cite a position, chain or statement; cited items must exist and belong to the story (opening / watch / closing: the planned stories only; "what to watch" must cite a forecast or open question) |
+   | Names and numbers | every capitalised name and every number must be in the cited items; a line citing nothing may contain no number; headlines never support numbers and support names only in transition / opening lines of their own story |
+   | Quantities, dates, negation | numbers written as words, dates and times, and negations must also be in the cited items; a figure may not change its preposition ("to 5.25%" is not "by 5.25%") |
+   | Quotations | words in any kind of quotation marks must appear verbatim in a cited *source statement* (never in a model-written summary) |
+   | Hedging | a line resting on a forecast, speculation or inference must say so ("could", "expected", "likely"); attribution or words like "if"/"risk" do not count |
+   | Disputes | a line resting on a contested statement must say it is disputed ("disputed", "unconfirmed", "accounts differ") |
+   | Attribution | a line resting only on single-source statements must name the publisher or say "reported" — added automatically ("According to Mint, ...") |
+   | Causality | causal wording ("led to", "because", "sparked", "fuelled", "pushed") needs a cited effect chain or a cited statement that itself makes the causal link |
+   | Questions | a line labelled a question that does not end in "?" is checked as a statement |
 
 5. **Revision.** Lines that fail go back to the model once, with their problems and cited items;
    the rewrite is checked again. Lines that still fail are **removed** and listed, with the reason,
-   in the evidence report.
+   in the evidence report. If every model line of a story fails, that story falls back to the
+   template segment (the episode is then marked `partial`), so a previewed story never vanishes.
+6. **Reuse.** A stored episode is reused only if it was written from exactly the same research,
+   debate and impact material, settings and writing mode; otherwise it is rewritten. If a rewrite
+   produces no script, the old script files are deleted.
 
 ## Outputs
 
@@ -94,3 +100,7 @@ Names are configurable (`script.host_a`, `script.host_b`).
 * The template script (no model) is accurate but reads like a list of quotes, and is shorter than
   the target when material is thin; the episode says so rather than padding.
 * Pronunciation notes are model suggestions, not verified.
+* Model summaries (debate positions, the India summary) are labelled "as summarised by IntelPod" in
+  the template and can never be quoted as a publisher's words.
+* A company named like an ordinary word ("Apple") can pass the sentence-start name check if
+  IntelPod's stored news uses the word in lower case more often than as a name.
