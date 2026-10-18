@@ -51,6 +51,11 @@ _LINK = re.compile(r"<a\s[^>]*href\s*=\s*[\"']([^\"']+)[\"'][^>]*>(.*?)</a>", re
 _TAG = re.compile(r"<[^>]+>")
 
 
+def _wall_path(path: str) -> bool:
+    segs = {s for s in path.lower().split("/") if s}
+    return bool(segs & {p.strip("/") for p in WALL_PATHS})
+
+
 def url_problem(url: str, resolver=socket.getaddrinfo) -> str | None:
     """Why IntelPod must not fetch this URL, or None. DNS failure is allowed (a proxy may resolve it)."""
     parts = urlsplit(url)
@@ -67,7 +72,7 @@ def url_problem(url: str, resolver=socket.getaddrinfo) -> str | None:
     except (OSError, UnicodeError):
         return None
     addrs = {i[4][0] for i in infos if i and len(i) > 4}
-    if addrs and not any(_is_global(a) for a in addrs):
+    if addrs and not all(_is_global(a) for a in addrs):
         return "host resolves to a private address"
     return None
 
@@ -105,12 +110,15 @@ def parse_meta(html: str) -> dict[str, str]:
 def parse_jsonld(html: str) -> dict:
     """The article-like JSON-LD object (handles lists and @graph): type, dates, free access, author."""
     best: dict = {}
+    not_free = False
     for block in _LDJSON.findall(html):
         try:
             data = json.loads(block.strip(), strict=False)
         except json.JSONDecodeError:
             continue
         for obj in _walk(data):
+            if _free_flag(obj) is False:
+                not_free = True  # on any node (Article, WebPage, hasPart) of any block
             types = obj.get("@type")
             types = types if isinstance(types, list) else [types]
             types = [t for t in types if isinstance(t, str)]
@@ -125,6 +133,8 @@ def parse_jsonld(html: str) -> dict:
                             "isAccessibleForFree": _free_flag(obj),
                             "author": _name(obj.get("author")), "publisher": _name(obj.get("publisher"))}
     best.pop("_score", None)
+    if not_free:
+        best["isAccessibleForFree"] = False
     return best
 
 
@@ -187,10 +197,15 @@ def robots_directives(meta: dict[str, str], headers) -> set[str]:
     vals += headers.get_list("x-robots-tag") if hasattr(headers, "get_list") else [headers.get("x-robots-tag") or ""]
     out = set()
     for v in vals:
-        for d in re.split(r"[,\s]+", (v or "").lower()):
-            d = d.split(":")[-1]  # "googlebot: noarchive"
-            if d:
-                out.add(d)
+        for d in re.split(r",\s*", (v or "").lower()):
+            d = re.sub(r"\s+", "", d)
+            if d.startswith(("googlebot:", "bingbot:", "*:")):  # "googlebot: noarchive"
+                d = d.split(":", 1)[1]
+            if d in ("max-snippet:0",):
+                d = "nosnippet"
+            for part in d.split():
+                if part:
+                    out.add(part)
     return out
 
 
@@ -259,7 +274,8 @@ class PageFetcher:
         try:
             resp = self.http.get_limited(url, self.cfg.max_bytes,
                                          headers={"Accept": "text/html,application/xhtml+xml;q=0.9,*/*;q=0.5"},
-                                         url_check=lambda u: url_problem(u, self.resolver))
+                                         url_check=lambda u: url_problem(u, self.resolver),
+                                         timeout=self.cfg.timeout_seconds)
         except RobotsDisallowed:
             return PageInfo(url=url, status="robots_disallowed", error="robots.txt disallows this page")
         except FetchError as e:
@@ -274,13 +290,13 @@ class PageFetcher:
         info = PageInfo(url=url, final_url=final, status="fetched", http_status=resp.status_code)
         if resp.status_code in (401, 402, 403):
             body = resp.text()[:20000] if resp.body else ""
-            walled = resp.status_code == 402 or bool(WALL_TEXT.search(body)) or any(p in path for p in WALL_PATHS)
+            walled = resp.status_code == 402 or bool(WALL_TEXT.search(body)) or _wall_path(path)
             info.status, info.error = ("paywalled" if walled else "error"), f"HTTP {resp.status_code}"
             return info
         if resp.status_code >= 400:
             info.status, info.error = "error", f"HTTP {resp.status_code}"
             return info
-        if any(p in path for p in WALL_PATHS):
+        if resp.redirects and _wall_path(path):
             info.status, info.error = "paywalled", "redirected to a login or subscription page"
             return info
         if resp.content_type and resp.content_type not in HTML_TYPES:

@@ -35,14 +35,13 @@ def assess(result: ResearchResult, page: PageInfo | None, brief: EventBrief,
 
     # proximity to the evidence
     ct = result.content_type
-    syndicated_copy = bool(result.syndicated_with)
+    # dedupe keeps the EARLIEST outlet of a widely carried headline (the likely originator) and
+    # lists the others in `syndicated_with`; copies themselves are never kept.
+    widely_carried = bool(result.syndicated_with)
     if ct == "primary":
         add("proximity", 1.0, "primary source (official statement or document)")
     elif ct == "research":
         add("proximity", 0.8, "research publication")
-    elif syndicated_copy:
-        add("proximity", 0.4, f"same headline also carried by {', '.join(result.syndicated_with[:3])}")
-        flags.append("syndicated_copy")
     elif ct == "reporting":
         add("proximity", 0.7, "news reporting")
     elif ct == "analysis":
@@ -80,8 +79,11 @@ def assess(result: ResearchResult, page: PageInfo | None, brief: EventBrief,
 
     # independence
     same_pub = sum(1 for p in peers if p.publisher == result.publisher and p.result_id != result.result_id)
-    v = 1.0 - (0.4 if syndicated_copy else 0.0) - min(0.4, 0.1 * same_pub)
-    add("independence", v, ("copy of a widely carried headline; " if syndicated_copy else "")
+    v = 1.0 - min(0.4, 0.1 * same_pub)
+    if widely_carried:
+        flags.append("widely_carried")
+    add("independence", v, (f"also carried by {len(result.syndicated_with)} other outlet(s), counted once; "
+                            if widely_carried else "")
         + (f"{same_pub} other result(s) from {result.publisher}" if same_pub else "no other results from this publisher"))
 
     # recency
@@ -129,8 +131,8 @@ def assess(result: ResearchResult, page: PageInfo | None, brief: EventBrief,
         parts.append("a party to the event: evidence of its own position, not neutral verification")
     if "opinion" in flags:
         parts.append("opinion")
-    if "syndicated_copy" in flags:
-        parts.append("repeats a widely carried report")
+    if "widely_carried" in flags:
+        parts.append("widely carried report (earliest outlet shown; copies counted once)")
     return CredibilityAssessment(score=score, components=comps, unknown=unknown, flags=list(dict.fromkeys(flags)),
                                  summary="; ".join(parts))
 

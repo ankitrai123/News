@@ -272,7 +272,7 @@ class GdeltSearch(SearchProvider):
             limited = any(h in str(e).lower() for h in RATE_LIMIT_HINTS)
             record(False, resp.status_code, str(e))
             return [], str(e), (0.0 if limited else None), 1
-        hits = [h for row in rows if (h := self._to_hit(row, query)) is not None]
+        hits = [h for row in rows if (h := _safe(self._to_hit, row, query)) is not None]
         record(True, resp.status_code, items=len(hits))
         return hits, None, None, 1
 
@@ -415,7 +415,7 @@ class GuardianSearch(SearchProvider):
             record(False, resp.status_code, f"malformed JSON: {e}")
             return SearchResponse(provider=self.name, query_id=query.query_id, status="error", requests=1,
                                   error=f"malformed JSON: {e}")
-        hits = [h for row in rows if isinstance(row, dict) and (h := self._to_hit(row, query)) is not None]
+        hits = [h for row in rows if isinstance(row, dict) and (h := _safe(self._to_hit, row, query)) is not None]
         record(True, resp.status_code, items=len(hits))
         return SearchResponse(provider=self.name, query_id=query.query_id, status="ok" if hits else "empty",
                               hits=hits, requests=1)
@@ -434,8 +434,17 @@ class GuardianSearch(SearchProvider):
                          source_country="GB", source_type="news", section=row.get("sectionId") or None)
 
 
-def _parse_iso(value: str | None) -> datetime | None:
-    if not value:
+def _safe(fn, row, query):
+    """Convert one provider row; a malformed row is skipped, never fatal."""
+    try:
+        return fn(row, query)
+    except Exception:  # noqa: BLE001 - external data
+        log.debug("skipping malformed result row: %r", row)
+        return None
+
+
+def _parse_iso(value) -> datetime | None:
+    if not value or not isinstance(value, str):
         return None
     try:
         dt = datetime.fromisoformat(value.replace("Z", "+00:00"))

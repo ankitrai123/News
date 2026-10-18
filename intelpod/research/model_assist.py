@@ -97,8 +97,8 @@ For each source return:
 - id: the source id
 - relevant: false only if the source is clearly about a different event
 - note: one neutral sentence (at most 35 words) on what this source contributes about the event
-- claims: up to 3 statements from the extracts that are attributed to someone (keep the attribution,
-  e.g. "The Treasury said ..."), as close to the original wording as possible
+- claims: up to 3 statements from the extracts that are attributed to someone, copied EXACTLY,
+  word for word, from the extracts (e.g. "The Treasury said ..."); do not rephrase
 Example format: {{"sources": [{{"id": "s1", "relevant": true, "note": "...", "claims": ["..."]}}]}}"""
 
 
@@ -154,10 +154,14 @@ def write_notes(client, brief: EventBrief, results: list[ResearchResult]) -> dic
             accepted += 1
         elif sn.note:
             rejected += 1
+        extracts = " ".join(" ".join(n.text.split()) for n in r.evidence_notes if n.kind == "extract")
         for c in sn.claims:
-            if unsupported_terms(c, src):
+            c = " ".join(c.split()).rstrip(".…")
+            # An "attributed" statement must be the source's own words: a model may only point at
+            # it, never rephrase it (a paraphrase can invert who said what).
+            if len(c) < 20 or c not in extracts:
                 rejected += 1
-            elif c not in r.key_claims and len(r.key_claims) < 5:
+            elif not any(c in k for k in r.key_claims) and len(r.key_claims) < 3:
                 r.key_claims.append(c)
         if not sn.relevant:
             off_topic.append(r.result_id)

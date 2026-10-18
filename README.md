@@ -128,7 +128,7 @@ intelpod runs                                  # run history, stage status, requ
 
 ```bash
 pip install -e ".[dev]"
-pytest                 # 214 offline tests (HTTP mocked with respx, synthetic fixtures; real keys ignored)
+pytest                 # 221 offline tests (HTTP mocked with respx, synthetic fixtures; real keys ignored)
 pytest -m live -v      # 7 real-network tests: GDELT (news + research window), a feed, a public page, NewsData (1 credit), NVIDIA chat + embeddings
 ```
 

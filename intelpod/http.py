@@ -86,20 +86,43 @@ class HttpClient:
         return True if rp is None else rp.can_fetch(self.user_agent, url)
 
     def _load_robots(self, origin: str) -> RobotFileParser | None:
+        """RFC 9309: 4xx (except 401/403) = no restrictions; 401/403, 5xx or unreachable = disallow
+        everything. Redirects are followed only within the same site (www/apex, http->https), so a
+        robots.txt can never send IntelPod to another (possibly internal) host."""
         rp = RobotFileParser()
-        try:
-            self._throttle(urlsplit(origin).netloc)
-            r = self._client.get(origin + "/robots.txt")
-        except httpx.HTTPError as e:
-            log.debug("robots.txt unavailable for %s (%s); treating as no restrictions", origin, e)
-            return None
-        if r.status_code in (401, 403):
-            rp.disallow_all = True  # standard interpretation: access restricted
+        deny = RobotFileParser()
+        deny.disallow_all = True
+        url = origin + "/robots.txt"
+        site = (urlsplit(origin).hostname or "").removeprefix("www.")
+        for _ in range(5):
+            try:
+                self._throttle(urlsplit(url).netloc)
+                with self._client.stream("GET", url, follow_redirects=False) as r:
+                    status, location = r.status_code, r.headers.get("location")
+                    body = b""
+                    if not r.is_redirect:
+                        for chunk in r.iter_bytes():
+                            body += chunk
+                            if len(body) > 512_000:  # RFC 9309 asks parsers to read at least 500 KiB
+                                break
+            except httpx.HTTPError as e:
+                log.debug("robots.txt unreachable for %s (%s); treating as disallow-all", origin, e)
+                return deny
+            if 300 <= status < 400 and location:
+                nxt = str(httpx.URL(url).join(location))
+                host = (urlsplit(nxt).hostname or "").removeprefix("www.")
+                if host != site or urlsplit(nxt).scheme not in ("http", "https"):
+                    log.debug("robots.txt for %s redirects off-site; treating as disallow-all", origin)
+                    return deny
+                url = nxt
+                continue
+            if status in (401, 403) or status >= 500:
+                return deny
+            if status >= 400:
+                return None  # no robots.txt => no restrictions
+            rp.parse(body.decode("utf-8", errors="replace").splitlines())
             return rp
-        if r.status_code >= 400:
-            return None  # no robots.txt => no restrictions
-        rp.parse(r.text.splitlines())
-        return rp
+        return deny
 
     # -- requests ---------------------------------------------------------
     def get(self, url: str, params: dict | None = None, headers: dict | None = None,
@@ -112,7 +135,7 @@ class HttpClient:
         return self.request("POST", url, json=json, headers=headers, check_robots=False, timeout=timeout)
 
     def get_limited(self, url: str, max_bytes: int, headers: dict | None = None,
-                     url_check=None, max_redirects: int = 5) -> LimitedResponse:
+                     url_check=None, max_redirects: int = 5, timeout: float | None = None) -> LimitedResponse:
         """GET a web page, reading at most `max_bytes`. Redirects are followed one hop at a time so
         each target is checked (robots.txt, and `url_check(url) -> reason | None`, e.g. no private
         hosts). Same throttle and retry rules as `request()`; never logs query strings."""
@@ -132,7 +155,8 @@ class HttpClient:
             for attempt in range(1, attempts + 1):
                 self._throttle(host)
                 try:
-                    with self._client.stream("GET", current, headers=headers, follow_redirects=False) as r:
+                    with self._client.stream("GET", current, headers=headers, follow_redirects=False,
+                                        **({"timeout": timeout} if timeout else {})) as r:
                         if r.status_code in RETRY_STATUS and r.status_code != 429 and attempt < attempts:
                             last_exc = FetchError(f"HTTP {r.status_code}", r.status_code)
                             raise _Retry()

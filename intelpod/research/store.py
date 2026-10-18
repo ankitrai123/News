@@ -131,7 +131,8 @@ class ResearchStore:
 
     def researched_event_ids(self, run_id: str) -> set[str]:
         with self.db.session() as s:
-            return set(s.scalars(select(ResearchPackageRow.event_id).where(ResearchPackageRow.run_id == run_id)))
+            return set(s.scalars(select(ResearchPackageRow.event_id).where(
+                ResearchPackageRow.run_id == run_id, ResearchPackageRow.status.in_(("completed", "partial")))))
 
     def item_count(self) -> int:
         with self.db.session() as s:

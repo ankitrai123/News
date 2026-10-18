@@ -202,6 +202,7 @@ research:
     max_pages_per_event: 18
     max_pages_per_run: 140
     max_bytes: 2500000
+    timeout_seconds: 20          # per page
     workers: 4                   # different hosts in parallel; each host stays throttled
     max_extracts_per_result: 3
     max_extract_chars: 300

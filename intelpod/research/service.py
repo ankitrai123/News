@@ -33,7 +33,7 @@ from .credibility import assess
 from .dates import resolve_date
 from .evidence import extract_claims, extract_evidence, snippet_notes
 from .models import (QUERY_TYPES, Candidate, EventBrief, PageInfo, QueryStatus, ResearchPackage, ResearchQuery,
-                     ResearchResult, SearchHit)
+                     ResearchResult, SearchHit, SearchResponse)
 from .providers import SearchProvider
 from .queries import build_queries, event_keywords
 from .relevance import RelevanceModel
@@ -206,7 +206,12 @@ class ResearchService:
             prov = self.providers.get(q.provider)
             if prov is None:
                 continue
-            resp = prov.search(q)
+            try:
+                resp = prov.search(q)
+            except Exception as e:  # noqa: BLE001 - a provider bug must not fail the event
+                log.exception("%s search failed", q.provider)
+                resp = SearchResponse(provider=q.provider, query_id=q.query_id, status="error",
+                                      error=f"{type(e).__name__}: {str(e)[:200]}")
             statuses.append(QueryStatus(query_id=q.query_id, query_type=q.query_type, covers=q.covers,
                                         provider=q.provider, text=q.text, status=resp.status, hits=len(resp.hits),
                                         error=resp.error))
@@ -259,7 +264,7 @@ class ResearchService:
         pcfg = self.cfg.pages
         d = resolve_date([(x.value, x.source) for x in c.dates], page, now, window_start, background_start,
                          brief.first_article_at)
-        if not d.keep:
+        if not d.keep or (not d.in_window and d.published_at is not None and not self.cfg.allow_background):
             return None
         title = c.title or (page.title if page else "") or c.url
         ctype, cevidence = classify_content(c.url, title, c.section, c.source_type, page.schema_type if page else None)
@@ -271,6 +276,7 @@ class ResearchService:
             claims = extract_claims(text, terms, entities, max_claims=3, max_chars=pcfg.max_extract_chars)
             shown = {n.text for n in notes}
             claims = [c for c in claims if c not in shown]  # already quoted as an extract
+            notes, claims = _within_budget(notes, claims, len(text))
         elif c.snippet and (page is None or page.status not in ("metadata_only", "paywalled")):
             # A provider's own short summary is metadata; skip it when the page forbids snippets.
             sn = snippet_notes(c.snippet, title, pcfg.max_extract_chars)
@@ -317,6 +323,25 @@ class ResearchService:
         self.model_errors.append({"event_id": event_id, **err})
         if err.get("fatal"):
             self._model_dead = True
+
+
+MAX_STORED_SHARE = 0.25   # never quote more than a quarter of a page...
+MAX_STORED_CHARS = 900    # ...or more than this many characters in total
+
+
+def _within_budget(notes, claims, page_chars: int):
+    """Keep quotations short relative to the page, so a short release is never stored whole."""
+    budget = min(MAX_STORED_CHARS, int(page_chars * MAX_STORED_SHARE))
+    kept_n, kept_c, used = [], [], 0
+    for n in notes:
+        if used + len(n.text) <= budget:
+            kept_n.append(n)
+            used += len(n.text)
+    for c in claims:
+        if used + len(c) <= budget:
+            kept_c.append(c)
+            used += len(c)
+    return kept_n, kept_c
 
 
 def _spread_hosts(cands: list[Candidate]) -> list[Candidate]:

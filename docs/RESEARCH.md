@@ -32,7 +32,7 @@ and the sources considered but not used, each with its reason).
 
 | Query type | What it looks for |
 |---|---|
-| latest facts | newest reporting on the event (last `latest_days`) |
+| latest facts | newest reporting on the event (last `latest_days`, newest first) |
 | recent history | what happened in the preceding days and weeks |
 | political interpretations | how politicians, parties and governments read it |
 | economic interpretations | economists, markets, macro effects |
@@ -68,21 +68,26 @@ and `nytimes.com` pages are kept to metadata only by default (`pages.no_extract_
 
 A result page is fetched only if every check passes:
 
-* http(s) on a public host (no localhost, private, link-local or reserved addresses — re-checked
-  after each redirect);
-* robots.txt allows it (for the page and every redirect target);
+* http(s) on a public host: no localhost, and no name whose DNS answer includes any private,
+  loopback, link-local or reserved address — re-checked after each redirect. (The HTTP library
+  resolves the name again when connecting; a malicious DNS server could still answer differently
+  the second time. IntelPod only fetches URLs that news providers returned for public articles.)
+* robots.txt allows it (for the page and every redirect target). Per RFC 9309 a robots.txt that
+  answers 401/403/5xx or cannot be reached means "disallow everything"; a robots.txt redirect is
+  followed only within the same site;
 * at most `pages.max_bytes`, `pages.max_pages_per_event`, `pages.max_pages_per_run`; each host
   is throttled by the shared HTTP client.
 
 Then only **metadata** is used (no extracts, no model) when the page is not HTML, the publisher
 marks it not free (`isAccessibleForFree: false`), it is a login/subscription wall (HTTP
 401/402/403 with wall text, or a redirect to a login page), it carries a `noai`, `noarchive`,
-`nosnippet` or `none` robots directive (meta tag or `X-Robots-Tag`), it reserves text-and-data
+`nosnippet`, `max-snippet:0` or `none` robots directive (meta tag or `X-Robots-Tag`), it reserves text-and-data
 mining (`tdm-reservation: 1`), or its domain is in `pages.no_extract_domains`.
 
 From readable pages IntelPod keeps up to `max_extracts_per_result` **verbatim sentences** of at
 most `max_extract_chars` characters that mention the event's names and terms, and up to three
-attributed statements ("X said …"). The page text itself stays in memory for the current run and
+attributed statements ("X said …") — in total never more than a quarter of the page's text and
+never more than 900 characters, so a short release is never stored whole. The page text itself stays in memory for the current run and
 is never stored (`PageInfo.text` is excluded from every serialisation); a test checks that no
 stored row contains article body text. Page metadata (never text) is cached `pages.cache_days`
 so blocked or paywalled pages are not requested again every day.
@@ -94,7 +99,8 @@ Each source keeps `published_at` with where it came from (`page_metadata` > `fee
 apart), and `event_timing` relative to the event's first report: `before_event` (background),
 `during_event`, `after_event` or `undated`. Future and implausible dates are rejected and noted.
 Sources older than the window but newer than `background_days` are kept only as labelled
-background; older ones are dropped.
+background (or dropped when `allow_background: false`); older ones are dropped. Events skipped
+for the time budget, or whose research failed, are researched again on resume.
 
 ## Relevance and quality
 
@@ -108,10 +114,10 @@ evidence, and unknown ones are left out and listed:
 
 | Component | Basis |
 |---|---|
-| proximity | primary 1.0, research 0.8, reporting 0.7, analysis 0.6, opinion 0.5, syndicated copy 0.4 |
+| proximity | primary 1.0, research 0.8, reporting 0.7, analysis 0.6, opinion 0.5 |
 | transparency | named author, exact publication date, identified publisher, corrections/standards link |
 | evidence | links to primary documents, figures and attributed statements in the extracts |
-| independence | lower for copies of a widely carried headline and for publishers already used |
+| independence | lower when the same publisher already supplies other results; a headline carried by many outlets is kept once (the earliest outlet) and counted once |
 | recency | newer within the window; background 0.3 |
 | relevance | the relevance score |
 | expertise | only where evident (e.g. a central bank on monetary policy, a think tank) |
@@ -120,7 +126,7 @@ evidence, and unknown ones are left out and listed:
 There is deliberately no "famous publisher" component, and repetition never counts as
 corroboration. Flags explain special cases: `interested_party` (an official voice of a party to
 the event: evidence of its own position, not neutral verification), `opinion`,
-`syndicated_copy`, `paywalled`, `metadata_only`, `date_approximate`, `background`.
+`widely_carried`, `paywalled`, `metadata_only`, `date_approximate`, `background`.
 
 ## Selection
 
@@ -135,9 +141,10 @@ At most two calls per event, cached, bounded by `max_model_calls`:
 
 * `research_queries`: extra search keywords (sanitised: letters, digits, spaces, hyphens; no
   operators).
-* `research_notes`: one neutral note and up to three attributed claims per selected source,
-  written only from the title and the extracts IntelPod already took. Any note or claim that names
-  a person, organisation or number absent from that source's own text is rejected. The model may
+* `research_notes`: one neutral note per selected source, written only from the title and the
+  extracts IntelPod already took (rejected if it names a person, organisation or number absent from
+  them; shown as "Note (model…)"), and pointers to attributed statements, which are accepted only
+  if they appear **word for word** in the extracts — a model can never rephrase who said what. The model may
   flag a source as off-topic, but not more than a third of the package.
 
 Without a key, or if the provider fails, research runs fully deterministically and says so.

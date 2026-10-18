@@ -184,7 +184,7 @@ class CredibilityAssessment(BaseModel):
     score: float | None = Field(default=None, ge=0, le=1)  # weighted mean of known components
     components: list[CredibilityComponent] = Field(default_factory=list)
     unknown: list[str] = Field(default_factory=list)       # components that could not be assessed
-    flags: list[str] = Field(default_factory=list)         # e.g. syndicated_copy, interested_party
+    flags: list[str] = Field(default_factory=list)         # e.g. widely_carried, interested_party
     summary: str = ""
 
 

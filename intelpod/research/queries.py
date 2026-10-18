@@ -149,6 +149,7 @@ def build_queries(brief: EventBrief, taxonomy: Taxonomy, cfg: ResearchConfig, no
     if extra.get("latest_facts"):  # model "core" keywords sharpen the event's own anchors
         kw.phrases = list(dict.fromkeys(kw.phrases + [e for e in extra["latest_facts"] if " " in e]))[:3]
     start = now - timedelta(days=cfg.window_days)
+    latest = now - timedelta(days=cfg.latest_days)
     out: list[ResearchQuery] = []
 
     def add(qtype: str, provider: str, text: str, terms: list[str], covers: list[str], q_start: datetime,
@@ -169,19 +170,20 @@ def build_queries(brief: EventBrief, taxonomy: Taxonomy, cfg: ResearchConfig, no
             if extra_kw:
                 add("expert_analysis", p, ", ".join(extra_kw[:8]), extra_kw[:8], covers, start, "model")
         elif p == "gdelt":
-            _gdelt_queries(kw, cfg, start, extra, add)
+            _gdelt_queries(kw, cfg, start, latest, extra, add)
         elif p == "guardian":
             anchors = kw.anchors() or kw.terms[:3]
             core = _or(anchors)
             if kw.terms and kw.anchors():
                 core += f" AND {kw.terms[0]}"
-            add("latest_facts", p, core, base_terms, ["latest_facts", "recent_history"], start)
+            add("latest_facts", p, core, base_terms, ["latest_facts"], latest)
             add("expert_analysis", p, f"{core} AND (analysis OR opinion OR comment OR editorial)", base_terms,
                 ["expert_analysis", "political_views", "economic_views", "criticism", "open_questions"], start)
     return out
 
 
-def _gdelt_queries(kw: Keywords, cfg: ResearchConfig, start: datetime, extra: dict[str, list[str]], add_fn) -> None:
+def _gdelt_queries(kw: Keywords, cfg: ResearchConfig, start: datetime, latest: datetime,
+                   extra: dict[str, list[str]], add_fn) -> None:
     """At most `max_queries_per_event` combined queries, most valuable first."""
     budget = cfg.gdelt.max_queries_per_event
     lang = cfg.gdelt.language_filter
@@ -190,7 +192,9 @@ def _gdelt_queries(kw: Keywords, cfg: ResearchConfig, start: datetime, extra: di
         return
     terms = kw.anchors() + kw.terms[:4]
     plans = [
-        ("latest_facts", [core], ["latest_facts", "recent_history"], start),
+        # Newest reporting (DateDesc) over the last latest_days; history comes from relevance-sorted
+        # queries over the whole window and from the local archive.
+        ("latest_facts", [core], ["latest_facts"], latest),
         ("expert_analysis", [core, _or(ANALYSIS_CUES[:5] + extra.get("expert_analysis", [])[:1])],
          ["expert_analysis", "criticism", "political_views", "economic_views", "open_questions"], start),
         ("india_impact", [core, "sourcecountry:IN"], ["india_impact"], start),
