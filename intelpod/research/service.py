@@ -269,6 +269,8 @@ class ResearchService:
             notes = extract_evidence(text, terms, entities, max_notes=pcfg.max_extracts_per_result,
                                      max_chars=pcfg.max_extract_chars)
             claims = extract_claims(text, terms, entities, max_claims=3, max_chars=pcfg.max_extract_chars)
+            shown = {n.text for n in notes}
+            claims = [c for c in claims if c not in shown]  # already quoted as an extract
         elif c.snippet and (page is None or page.status not in ("metadata_only", "paywalled")):
             # A provider's own short summary is metadata; skip it when the page forbids snippets.
             sn = snippet_notes(c.snippet, title, pcfg.max_extract_chars)
