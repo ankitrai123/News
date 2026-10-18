@@ -155,6 +155,16 @@ def cmd_doctor(args) -> int:
             report["llm"] = {"provider": s.llm.provider, "available": False, "reason": why}
     except (LLMError, Exception) as e:  # noqa: BLE001 - doctor must always print a report
         report["llm"] = {"provider": s.llm.provider, "available": False, "reason": f"{type(e).__name__}: {str(e)[:200]}"}
+    from .config import dotenv_path
+    env = dotenv_path()
+    report["env_file"] = (str(env) if env else
+                          f"not found: create {PROJECT_ROOT / '.env'} (copy .env.example), or set keys as "
+                          f"environment variables")
+    if env is None and (PROJECT_ROOT / ".env.example").exists():
+        ex = (PROJECT_ROOT / ".env.example").read_text(encoding="utf-8", errors="replace")
+        if any(line.split("=", 1)[1].strip().strip('"\'') for line in ex.splitlines()
+               if "_KEY=" in line and not line.lstrip().startswith("#")):
+            report["env_file"] += " - .env.example contains a key value: it is never read; copy it to .env"
     ram = report["ram_gb"]
     report["recommendation"] = "RAM could not be detected; see docs/OLLAMA.md to choose a model size" if ram is None else (
         "lightweight mode: lexical clustering only; for later phases use a 1-3B model (e.g. qwen2.5:3b / llama3.2:3b)"

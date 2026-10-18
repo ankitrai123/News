@@ -423,17 +423,37 @@ _ENV_OVERRIDES: dict[str, tuple[str, ...]] = {
 }
 
 
+def dotenv_path(path: Path | None = None) -> Path | None:
+    """The .env file to read. Windows Notepad often saves `.env` as `.env.txt` (extensions are
+    hidden), so that name is accepted too."""
+    path = path or PROJECT_ROOT / ".env"
+    for p in (path, path.with_name(path.name + ".txt")):
+        if p.is_file():
+            return p
+    return None
+
+
+def _read_text_any(path: Path) -> str:
+    raw = path.read_bytes()
+    if raw.startswith((b"\xff\xfe", b"\xfe\xff")):      # Notepad "Unicode" (UTF-16)
+        return raw.decode("utf-16")
+    return raw.decode("utf-8-sig", errors="replace")      # UTF-8 with or without BOM
+
+
 def _load_dotenv(path: Path) -> None:
     """Minimal .env reader (no dependency). Existing env vars win.
     INTELPOD_NO_DOTENV=1 disables it (the test suite sets this so real keys are never used)."""
-    if os.environ.get("INTELPOD_NO_DOTENV") == "1" or not path.exists():
+    if os.environ.get("INTELPOD_NO_DOTENV") == "1":
         return
-    for line in path.read_text(encoding="utf-8").splitlines():
+    found = dotenv_path(path)
+    if found is None:
+        return
+    for line in _read_text_any(found).splitlines():
         line = line.strip()
         if not line or line.startswith("#") or "=" not in line:
             continue
         key, _, value = line.partition("=")
-        os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+        os.environ.setdefault(key.strip().lstrip("\ufeff"), value.strip().strip('"').strip("'"))
 
 
 def _set_path(data: dict[str, Any], keys: tuple[str, ...], value: Any) -> None:
