@@ -213,3 +213,57 @@ def test_debate_resume_and_cli(settings, tmp_path, monkeypatch, capsys):
         assert cli.main(["debate", "--run-id", run_id, "--refresh"]) == 0
     assert f"run: {run_id}" in capsys.readouterr().out
     assert cli.main(["debate", "--run-id", "bad id!"]) == 1
+
+
+def test_bad_registry_or_debate_crash_does_not_fail_the_run(settings, tmp_path, monkeypatch):
+    settings.llm.enabled = False
+    bad = tmp_path / "sources.yaml"
+    bad.write_text("sources:\n  - {publisher: BBC, domains: [bbc.com]\n")
+    settings.debate.sources_file = str(bad)
+    import intelpod.debate.runner as dr
+    monkeypatch.setattr(dr, "DebateService", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom")))
+    pipe, run_id = run_pipeline(settings, tmp_path)
+    assert pipe.repo.get_run(run_id).status == "completed"
+    out = pipe.repo.stages(run_id)["debate"].output
+    assert out["status"] == "failed" and "boom" in out["reason"]
+    md = (settings.data_path / "runs" / run_id / "phase1_events.md").read_text()
+    assert "Viewpoint analysis (Phase 3) failed" in md
+
+
+def test_research_refresh_clears_stale_debate(settings, tmp_path):
+    settings.llm.enabled = False
+    pipe, run_id = run_pipeline(settings, tmp_path)
+    store = DebateStore(pipe.db)
+    eid = next(iter(store.packages(run_id)))
+    from intelpod.research.store import ResearchStore
+    rs = ResearchStore(pipe.db)
+    rs.save_event_research(rs.package(run_id, eid), [], [])
+    assert store.package(run_id, eid) is None and eid not in store.done_event_ids(run_id)
+
+
+def test_viewpoint_search_skips_copies_of_existing_sources(settings, tmp_path, taxonomy):
+    from intelpod.research.models import SearchHit, SearchResponse
+    from intelpod.research.service import ResearchService
+
+    class Prov:
+        def search(self, q):
+            return SearchResponse(provider="archive", query_id=q.query_id, status="ok", hits=[
+                SearchHit(provider="archive", query_id=q.query_id, query_type=q.query_type,
+                          url="https://et.test/rbi", title="RBI cuts repo rate to 5.25% to support growth",
+                          publisher="The Economic Times", domain="et.test", published_at=NOW)])
+
+        def note(self):
+            return None
+
+    class Store:
+        added = None
+
+        def add_results(self, *a):
+            Store.added = a
+
+    existing = [res("a", "Reuters", "RBI cuts repo rate to 5.25% to support growth")]
+    svc = ResearchService(settings, Store(), taxonomy, {"archive": Prov()})
+    from intelpod.research.models import ResearchQuery
+    q = ResearchQuery(query_id="q", event_id="e1", query_type="criticism", provider="archive", text="rbi",
+                      terms=["rbi", "repo"], start=NOW, end=NOW)
+    assert svc.supplement("r1", brief(), [], [q], NOW, existing, "test") == []

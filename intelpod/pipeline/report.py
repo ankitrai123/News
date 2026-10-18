@@ -160,6 +160,10 @@ def render_markdown(ctx: "RunContext", selected: list[RankedEvent], ranked: list
         lines += ["## Next in line (not selected)", ""]
         for r in runners:
             lines.append(f"- **{r.importance}** — {r.title} _({r.not_selected_reason or r.rationale.split(':', 1)[-1].split('.')[0].strip()})_")
+    debate_out = ctx.outputs.get("debate") or {}
+    if debate_out.get("status") == "failed":
+        lines += ["", f"> Viewpoint analysis (Phase 3) failed for this run: {debate_out.get('reason')}. "
+                      f"Run `intelpod debate --run-id {ctx.run_id}` to retry."]
     research_out = ctx.outputs.get("research") or {}
     if research_out.get("attribution"):
         lines += ["", f"_{research_out['attribution']}_"]

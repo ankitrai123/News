@@ -75,7 +75,14 @@ class Registry:
     def load(cls, path: Path) -> "Registry":
         if not path.exists():
             return cls([])
-        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        try:
+            data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        except (OSError, yaml.YAMLError) as e:
+            log.warning("%s could not be read (%s); continuing without the source registry", path, e)
+            return cls([])
+        if not isinstance(data, dict) or not isinstance(data.get("sources") or [], list):
+            log.warning("%s: expected a mapping with a 'sources' list; continuing without the source registry", path)
+            return cls([])
         out = []
         for i, row in enumerate(data.get("sources") or []):
             try:

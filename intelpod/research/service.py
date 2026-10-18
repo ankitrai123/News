@@ -26,7 +26,7 @@ from typing import Callable
 
 from ..config import Settings
 from ..schemas import Article, EventCandidate, RankedEvent
-from ..textutil import Taxonomy, canonicalize_url, domain_of, stable_hash
+from ..textutil import Taxonomy, canonicalize_url, domain_of, normalize_title, stable_hash
 from . import model_assist
 from .classify import classify_content, label_query_types
 from .credibility import assess
@@ -210,7 +210,10 @@ class ResearchService:
         background_start = now - timedelta(days=max(cfg.background_days, cfg.window_days))
         statuses, hits = self._search(queries)
         known = {r.canonical_url for r in existing}
-        candidates = [c for c in dedupe_hits(hits, set(brief.article_urls)) if c.canonical_url not in known]
+        known_titles = {normalize_title(r.title) for r in existing}
+        # A copy of a story already used (same headline, other outlet) is not a new voice.
+        candidates = [c for c in dedupe_hits(hits, set(brief.article_urls))
+                      if c.canonical_url not in known and normalize_title(c.title) not in known_titles]
         if not candidates:
             return []
         event_texts = [f"{a.title} {a.title} {a.description or ''}" for a in articles]
@@ -231,7 +234,6 @@ class ResearchService:
         def val(r):
             q = r.credibility_assessment.score
             return r.relevance_score * (0.5 + 0.5 * (q if q is not None else 0.5))
-        pubs = {r.publisher for r in existing if r.selected}
         added = []
         for r in sorted(new, key=lambda r: -val(r)):
             if len(added) >= limit or r.relevance_score < cfg.min_relevance:
@@ -241,7 +243,6 @@ class ResearchService:
             r.providers = list(dict.fromkeys(r.providers + ["viewpoint_search"]))
             r.selection_reason = f"added by viewpoint search: {reason} (relevance {r.relevance_score:.2f})"
             added.append(r)
-            pubs.add(r.publisher)
         self.store.add_results(run_id, brief.event_id, new, statuses)
         return added
 

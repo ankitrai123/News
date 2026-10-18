@@ -21,7 +21,7 @@ from rapidfuzz import fuzz
 
 from ..research.evidence import split_sentences
 from ..research.models import ResearchResult
-from ..textutil import stable_hash, tokenize
+from ..textutil import normalize_title, stable_hash, tokenize
 from .models import Claim
 
 FORECAST = re.compile(r"\b(will|would|is expected to|are expected to|expects?|expected|forecasts?|projected|projects|"
@@ -53,6 +53,30 @@ STAKEHOLDERS: list[tuple[str, re.Pattern]] = [
     ("civil_society", re.compile(r"\b(activists?|campaigners?|ngos?|rights groups?|civil society|charity)\b", re.I)),
 ]
 FACT_KINDS = ("factual", "attributed")
+PERIOD = re.compile(r"\b(january|february|march|april|may|june|july|august|september|october|november|december|"
+                    r"jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec|monday|tuesday|wednesday|thursday|friday|"
+                    r"saturday|sunday|q[1-4]|(?:first|second|third|fourth) quarter|(?:19|20)\d\d|"
+                    r"last (?:week|month|year)|this (?:week|month|year)|yesterday|today)\b", re.I)
+SAME_SUBJECT = 0.6   # word overlap (numbers excluded) needed before two statements can contradict
+
+
+def independent_count(srcs: list[ResearchResult]) -> int:
+    """Publishers, with copies of one report counted once: the same publisher, the same headline,
+    or a publisher listed as carrying the other's story (syndication) are one voice."""
+    parent = list(range(len(srcs)))
+
+    def find(i):
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+    keys = [(s.publisher.lower(), normalize_title(s.title), {p.lower() for p in s.syndicated_with}) for s in srcs]
+    for i in range(len(srcs)):
+        for j in range(i + 1, len(srcs)):
+            a, b = keys[i], keys[j]
+            if a[0] == b[0] or (a[1] and a[1] == b[1]) or a[0] in b[2] or b[0] in a[2]:
+                parent[find(i)] = find(j)
+    return len({find(i) for i in range(len(srcs))})
 
 
 def classify_claim(text: str, content_type: str) -> tuple[str, str]:
@@ -119,11 +143,21 @@ def _same_claim(a: str, b: str, ta: set[str], tb: set[str]) -> bool:
     return shared_figures and len(ta & tb) >= 2 and jacc >= 0.15
 
 
+def _words(toks: set[str]) -> set[str]:
+    return {t for t in toks if not any(ch.isdigit() for ch in t)}
+
+
 def _contradicts(a: str, b: str, ta: set[str], tb: set[str]) -> bool:
-    """Conservative: same subject (>= 3 shared content words) and either different values for the
-    same unit (5.25% vs 5.5%), or one side explicitly denies/rejects."""
-    if len(ta & tb) < 3:
+    """Conservative: the same statement about the same subject and period (high word overlap,
+    numbers excluded; no differing dates), differing only in a value for the same unit
+    (5.25% vs 5.5%) or in one side explicitly denying it. Unsure pairs are not contradictions."""
+    wa, wb = _words(ta), _words(tb)
+    if len(wa & wb) < 3 or len(wa & wb) / len(wa | wb) < SAME_SUBJECT:
         return False
+    pa = {m.lower() for m in PERIOD.findall(a)}
+    pb = {m.lower() for m in PERIOD.findall(b)}
+    if pa and pb and pa != pb:
+        return False  # "3.2% in March" vs "2.9% in February" are different facts
     ua, ub = _units(a), _units(b)
     if any(unit and not ua[unit] & ub[unit] for unit in set(ua) & set(ub)):
         return True
@@ -175,21 +209,22 @@ def build_claims(results: list[ResearchResult]) -> list[Claim]:
             if origin == "extract" and match["origin"] == "headline":  # prefer a full sentence
                 match.update(text=text, toks=toks, origin=origin)
     claims: list[Claim] = []
+    members: dict[str, list[tuple[str, set[str]]]] = {}
     for g in groups:
         srcs = [by_id[i] for i in g["ids"]]
-        pubs = {s.publisher.lower() for s in srcs}
         primary = any(s.content_type == "primary" or s.source_type in ("official", "international_org") for s in srcs)
         cid = stable_hash(*sorted(g["ids"]), g["text"].lower())
         speaker = speaker_of(g["text"]) if g["kind"] in ("attributed", "forecast", "value_judgement") else None
         stake = stakeholder_of(speaker or g["text"], srcs[0].source_type if len(srcs) == 1 else None) \
             if (speaker or g["kind"] == "attributed" or primary) else None
+        members[cid] = g["members"]
         claims.append(Claim(claim_id=cid, text=g["text"], kind=g["kind"], kind_evidence=g["why"], source_ids=g["ids"],
-                            independent_sources=len(pubs), primary=primary, speaker=speaker, stakeholder=stake))
-    toks = {c.claim_id: set(tokenize(c.text)) for c in claims}
+                            independent_sources=independent_count(srcs), primary=primary, speaker=speaker,
+                            stakeholder=stake))
     for i, a in enumerate(claims):
         for b in claims[i + 1:]:
             if a.kind in FACT_KINDS and b.kind in FACT_KINDS and set(a.source_ids).isdisjoint(b.source_ids) \
-                    and _contradicts(a.text, b.text, toks[a.claim_id], toks[b.claim_id]):
+                    and any(_contradicts(x, y, tx, ty) for x, tx in members[a.claim_id] for y, ty in members[b.claim_id]):
                 a.contradicted_by = list(dict.fromkeys(a.contradicted_by + b.source_ids))
                 b.contradicted_by = list(dict.fromkeys(b.contradicted_by + a.source_ids))
     for c in claims:
@@ -201,7 +236,7 @@ def build_claims(results: list[ResearchResult]) -> list[Claim]:
 def _weight(ids: list[str], by_id: dict[str, ResearchResult]) -> tuple[int, bool]:
     srcs = [by_id[i] for i in ids if i in by_id]
     primary = any(s.content_type == "primary" or s.source_type in ("official", "international_org") for s in srcs)
-    return len({s.publisher.lower() for s in srcs}), primary
+    return independent_count(srcs), primary
 
 
 def calibrate(c: Claim, by_id: dict[str, ResearchResult] | None = None) -> tuple[str, str]:

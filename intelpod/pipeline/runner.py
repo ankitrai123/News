@@ -477,7 +477,11 @@ class Phase1Pipeline:
     def stage_debate(self, ctx: RunContext) -> dict:
         """Phase 3: claims, viewpoints, agreement/disagreement and uncertainty (see intelpod.debate)."""
         from ..debate.runner import run_debate
-        return run_debate(self, ctx)
+        try:
+            return run_debate(self, ctx)
+        except Exception as e:  # noqa: BLE001 - Phase 3 is an add-on: the briefing must still be written
+            log.exception("[%s] debate stage failed", ctx.run_id)
+            return {"status": "failed", "reason": f"{type(e).__name__}: {str(e)[:300]}"}
 
     def stage_report(self, ctx: RunContext) -> dict:
         ranked = self.repo.scores_for_run(ctx.run_id)

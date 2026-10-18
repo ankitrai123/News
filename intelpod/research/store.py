@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import delete, func, select
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
-from ..db import (Database, PageCacheRow, ResearchItemRow, ResearchPackageRow, ResearchQueryRow, ResearchResultRow,
+from ..db import (ClaimRow, Database, DebatePackageRow, PageCacheRow, ResearchItemRow, ResearchPackageRow, ResearchQueryRow, ResearchResultRow,
                   SearchCacheRow, utcnow)
 from .models import PageInfo, QueryStatus, ResearchPackage, ResearchResult, SearchHit
 
@@ -79,6 +79,10 @@ class ResearchStore:
                                                      ResearchQueryRow.event_id == package.event_id))
             s.execute(delete(ResearchPackageRow).where(ResearchPackageRow.run_id == package.run_id,
                                                        ResearchPackageRow.event_id == package.event_id))
+            # A debate package is built on this research; new research makes it stale.
+            s.execute(delete(ClaimRow).where(ClaimRow.run_id == package.run_id, ClaimRow.event_id == package.event_id))
+            s.execute(delete(DebatePackageRow).where(DebatePackageRow.run_id == package.run_id,
+                                                     DebatePackageRow.event_id == package.event_id))
             for r in results:
                 s.add(ResearchResultRow(
                     run_id=package.run_id, event_id=package.event_id, result_id=r.result_id,

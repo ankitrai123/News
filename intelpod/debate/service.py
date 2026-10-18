@@ -27,23 +27,18 @@ from typing import Callable
 from ..config import Settings
 from ..research.models import EventBrief, ResearchQuery, ResearchResult
 from ..research.providers import gdelt_query_problems
-from ..research.queries import (CUE_WORDS, OFFICIAL_DOMAINS, GLOBAL_OFFICIAL, _fit, _or, clean_keyword,
+from ..research.queries import (CUE_WORDS, OFFICIAL_DOMAINS, GLOBAL_OFFICIAL, Keywords, _fit, _or, clean_keyword,
                                 event_keywords, gdelt_core)
 from ..research.model_assist import safe_call
 from ..schemas import Article
 from ..textutil import Taxonomy, stable_hash
 from . import analysis
-from .claims import build_claims
-from .diversity import diversity_report, source_country
+from .claims import STAKEHOLDERS, build_claims
+from .diversity import ECON_TOPICS, diversity_report, source_country
 from .models import Claim, DebatePackage, DiversityReport, ViewpointSearch
-from .registry import NAME_TO_CODE, Registry
+from .registry import Registry, country_code
 
 log = logging.getLogger(__name__)
-
-# GDELT's sourcecountry operator takes the country name with spaces removed.
-CODE_TO_NAME: dict[str, str] = {}
-for _name, _code in NAME_TO_CODE.items():
-    CODE_TO_NAME.setdefault(_code, _name)
 
 STAKEHOLDER_CUES = {
     "government": ["minister", "ministry", "officials", "government"],
@@ -111,6 +106,7 @@ class DebateService:
                                 created_at=datetime.now(timezone.utc))
             self.store.save(pkg)
             return pkg
+        sources = [self._with_registry_type(r) for r in sources]
         rejected: list[str] = []
         model_notes: list[str] = []
         claims = build_claims(sources)
@@ -118,7 +114,7 @@ class DebateService:
         out, ids, model = self._analyse(brief, sources, model_notes)
 
         searches = self._viewpoint_searches(run_id, brief, articles, now, sources, div, out)
-        added = [r for s in searches for r in s.added]
+        added = [self._with_registry_type(r) for s in searches for r in s.added]
         if added:
             sources = sources + added
             claims = build_claims(sources)
@@ -143,7 +139,8 @@ class DebateService:
 
         by_kind = sort_claims(claims)
         uncertainties = claim_uncertainties(claims) + uncertainties
-        note = no_disagreement_note(out is not None, questions, by_kind["contested"], len(sources))
+        note = no_disagreement_note(out is not None, questions, by_kind["contested"], len(sources),
+                                    proposed=bool(out is not None and out.questions))
         level, why = overall_confidence(claims, sources, div, by_kind)
         limitations = self._limitations(div, vsearch, model_notes, rejected, out is not None, rpkg)
         pkg = DebatePackage(
@@ -157,6 +154,14 @@ class DebateService:
             limitations=limitations, created_at=datetime.now(timezone.utc))
         self.store.save(pkg)
         return pkg
+
+    def _with_registry_type(self, r: ResearchResult) -> ResearchResult:
+        """GDELT labels every site "news"; the registry knows that rbi.org.in is official."""
+        prof = self.registry.lookup(r.domain, r.publisher)
+        if prof and prof.source_type in ("official", "international_org", "think_tank", "academic") \
+                and r.source_type in (None, "news", "unknown"):
+            return r.model_copy(update={"source_type": prof.source_type})
+        return r
 
     # -- model ------------------------------------------------------------------------------
     def _analyse(self, brief: EventBrief, sources: list[ResearchResult], notes: list[str]):
@@ -185,7 +190,7 @@ class DebateService:
                               list(self.research.providers), self.settings.research.gdelt.language_filter)
         done: list[_Search] = []
         existing = list(sources)
-        for perspective, reason, queries in plans[: self.cfg.viewpoint_searches_per_event]:
+        for perspective, reason, queries, check in plans[: self.cfg.viewpoint_searches_per_event]:
             self.searches += 1
             try:
                 added = self.research.supplement(run_id, brief, articles, queries, now, existing, reason,
@@ -196,8 +201,9 @@ class DebateService:
                 reason = f"{reason} (search failed: {type(e).__name__})"
             existing += added
             self.sources_added += len(added)
+            matching = [r for r in added if check(self._with_registry_type(r), self.registry)]
             rec = ViewpointSearch(perspective=perspective, reason=reason, queries=[q.text for q in queries],
-                                  added_source_ids=[r.result_id for r in added], found=bool(added))
+                                  added_source_ids=[r.result_id for r in added], found=bool(matching))
             done.append(_Search(rec, added))
         return done
 
@@ -212,7 +218,9 @@ class DebateService:
             out.append(f"{len(unsearched)} coverage gap(s) remain and were not searched for (see 'Who is represented').")
         for s in searches:
             if not s.found:
-                out.append(f"Looked for {s.perspective} ({s.reason}); no relevant, accessible source was found.")
+                extra = (f" ({len(s.added_source_ids)} other relevant source(s) were added, but none from this "
+                         f"perspective)") if s.added_source_ids else ""
+                out.append(f"Looked for {s.perspective} ({s.reason}); no relevant, accessible source was found{extra}.")
         if not analysed:
             if not self.cfg.model_analysis:
                 out.append("Model analysis is disabled (debate.model_analysis): interpretive questions and "
@@ -236,82 +244,133 @@ class _Search:
 
 
 # -- planning -------------------------------------------------------------------------------
+# GDELT's sourcecountry operator takes FIPS 10-4 codes (docs/PROVIDERS.md), which differ from ISO.
+ISO_TO_FIPS = {
+    "US": "US", "GB": "UK", "IN": "IN", "CN": "CH", "RU": "RS", "JP": "JA", "DE": "GM", "FR": "FR", "IT": "IT",
+    "CA": "CA", "AU": "AS", "KR": "KS", "SG": "SN", "HK": "HK", "TW": "TW", "BR": "BR", "MX": "MX", "ID": "ID",
+    "TR": "TU", "SA": "SA", "AE": "AE", "QA": "QA", "IL": "IS", "IR": "IR", "PK": "PK", "BD": "BG", "ZA": "SF",
+    "NG": "NI", "KE": "KE", "EG": "EG", "UA": "UP", "PL": "PL", "ES": "SP", "NL": "NL", "CH": "SZ", "SE": "SW",
+    "NO": "NO", "IE": "EI", "BE": "BE", "PH": "RP", "VN": "VM", "TH": "TH", "MY": "MY", "AR": "AR", "NZ": "NZ",
+    "LK": "CE", "NP": "NP",
+}
+STAKE_RX = {name: rx for name, rx in STAKEHOLDERS}
+
+
+def _from_country(code: str):
+    return lambda r, reg: source_country(r, reg) == code
+
+
+def _is_primary(r: ResearchResult, reg) -> bool:
+    return r.content_type == "primary" or r.source_type in ("official", "international_org")
+
+
+def _is_analysis(r: ResearchResult, reg) -> bool:
+    return r.content_type in ("analysis", "opinion", "research")
+
+
+def _quotes(stake: str):
+    rx = STAKE_RX.get(stake)
+    return lambda r, reg: bool(rx and rx.search(" ".join([r.title] + [n.text for n in r.evidence_notes] + r.key_claims)))
+
+
+def _any(r, reg) -> bool:
+    return True
+
+
 def plan_searches(brief: EventBrief, taxonomy: Taxonomy, div: DiversityReport, out, now: datetime,
-                  window_days: int, providers: list[str], lang: str = "sourcelang:english") -> list[tuple[str, str, list[ResearchQuery]]]:
-    """(perspective, reason, queries) for the gaps in this event's sources, most important first.
+                  window_days: int, providers: list[str], lang: str = "sourcelang:english") -> list:
+    """(perspective, reason, queries, check) for the gaps in this event's sources, most important
+    first. `check(result, registry)` says whether an added source really is that perspective.
     Every search is a normal provider query; nothing is assumed to exist."""
     kw = event_keywords(brief, taxonomy)
-    core = gdelt_core(kw)
     base_terms = list(dict.fromkeys(kw.anchors() + kw.terms[:4]))
     start = now - timedelta(days=window_days)
-    plans: list[tuple[str, str, str, list[str], list[str]]] = []  # perspective, reason, qtype, gdelt parts, terms
+    # perspective, reason, query type, GDELT filter part, local terms, GDELT only?, check
+    plans: list[tuple] = []
 
     present = {k for k in div.countries if k != "unknown"}
     for c in brief.countries:
-        code = NAME_TO_CODE.get(c.lower()) or (c.upper() if len(c) == 2 else None)
-        if code and code not in present and code != "EU" and code in CODE_TO_NAME:
-            name = CODE_TO_NAME[code]
+        code = country_code(c)
+        if code and code not in present and code in ISO_TO_FIPS:
             plans.append((f"sources based in {c}", f"no source from {c}, a party to this event", "political_views",
-                          [f"sourcecountry:{name.replace(' ', '')}"], base_terms + [c]))
-    missing_stake = [g for g in ("government", "expert", "corporate", "investor") if g not in div.stakeholders]
+                          f"sourcecountry:{ISO_TO_FIPS[code]}", [], True, _from_country(code)))
+    wanted = ["government", "expert"] + (["corporate", "investor"] if brief.topic in ECON_TOPICS else [])
+    missing_stake = [g for g in wanted if g not in div.stakeholders]
     for g in div.gaps:
         if g.startswith("No quoted voices from"):
             for st in missing_stake[:2]:
                 cues = STAKEHOLDER_CUES[st]
                 plans.append((f"{st} voices", f"no quoted {st} voices among the sources",
                               "business_impact" if st in ("corporate", "investor") else "political_views",
-                              [_or(cues)], base_terms + cues[:2]))
+                              _or(cues), base_terms + cues[:2], False, _quotes(st)))
         elif g.startswith("No analysis"):
             plans.append(("analysis and commentary", "only straight reporting was found", "expert_analysis",
-                          [_or(CUE_WORDS["expert_analysis"][:4])], base_terms + ["analysis"]))
+                          _or(CUE_WORDS["expert_analysis"][:4]), base_terms + ["analysis"], False, _is_analysis))
         elif g.startswith("No primary source"):
             domains = [d for c in brief.countries for d in OFFICIAL_DOMAINS.get(c, [])][:4] or GLOBAL_OFFICIAL[:4]
             plans.append(("official statements", "no primary source (official statement or document)",
-                          "primary_sources", [_or([f"domainis:{d}" for d in domains])], base_terms))
+                          "primary_sources", _or([f"domainis:{d}" for d in domains]), [], True, _is_primary))
     if out is not None:
         for p in out.missing_perspectives[:3]:
             words = [k for x in p.keywords[:4] if (k := clean_keyword(x))][:3]
             label = " ".join(p.perspective.split())[:60]
             if words and label:
                 plans.insert(len(plans) // 2 + 1, (label, "suggested by the model as a missing perspective",
-                                                   "criticism", [_or(words)], base_terms + words))
-    # Phase 2 already tried "criticism"; add it once more only if nothing else is planned.
-    if not plans:
+                                                   "criticism", _or(words), base_terms + words, False, _any))
+    if not plans:  # Phase 2 already tried criticism; once more only if nothing else is planned
         plans.append(("criticism and counterarguments", "check for dissenting views", "criticism",
-                      [_or(CUE_WORDS["criticism"][:4])], base_terms + ["criticism"]))
+                      _or(CUE_WORDS["criticism"][:4]), base_terms + ["criticism"], False, _any))
 
     result = []
     seen = set()
-    for perspective, reason, qtype, parts, terms in plans:
-        key = perspective.lower()
-        if key in seen:
+    for perspective, reason, qtype, part, terms, gdelt_only, check in plans:
+        if perspective.lower() in seen:
             continue
-        seen.add(key)
+        seen.add(perspective.lower())
         queries = []
         for prov in providers:
             if prov == "gdelt":
-                if not core:
+                text = None
+                for n in (3, 2, 1):  # fewer anchors until the perspective part fits
+                    kw_n = Keywords(phrases=kw.phrases, entities=kw.entities, countries=kw.countries,
+                                    terms=kw.terms, topic=kw.topic)
+                    core = _core_with(kw_n, n)
+                    if not core:
+                        break
+                    lang_part = "" if part.startswith("sourcecountry:") else lang
+                    cand = _fit([core, part], lang_part)
+                    if part in cand and not gdelt_query_problems(cand):
+                        text = cand
+                        break
+                if not text:
                     continue
-                text = _fit([core] + parts, "" if any(p.startswith("sourcecountry:") for p in parts) else lang)
-                if gdelt_query_problems(text):
-                    continue
+            elif gdelt_only:
+                continue  # local search and the Guardian cannot filter by country or site
             elif prov in ("archive", "feeds"):
                 text = ", ".join(dict.fromkeys(terms))
             elif prov == "guardian":
                 anchors = kw.anchors() or kw.terms[:3]
                 if not anchors:
                     continue
-                extra = [p for p in parts if not p.startswith(("sourcecountry:", "(domainis", "domainis"))]
-                text = _or(anchors) + (f" AND {extra[0]}" if extra else "")
+                text = f"{_or(anchors)} AND {part}"
             else:
                 continue
             qid = stable_hash(brief.event_id, "viewpoint", prov, text, start.isoformat(), now.isoformat())
             queries.append(ResearchQuery(query_id=qid, event_id=brief.event_id, query_type=qtype, provider=prov,
-                                         text=text, terms=list(dict.fromkeys(terms)), start=start, end=now,
-                                         origin="template"))
+                                         text=text, terms=list(dict.fromkeys(terms or base_terms)), start=start,
+                                         end=now, origin="template"))
         if queries:
-            result.append((perspective, reason, queries))
+            result.append((perspective, reason, queries, check))
     return result
+
+
+def _core_with(kw: Keywords, n_anchors: int) -> str:
+    """The GDELT event core using at most `n_anchors` names/phrases."""
+    anchors = kw.anchors(n_anchors)
+    if anchors:
+        kw = Keywords(phrases=[a for a in kw.phrases if a in anchors], entities=[a for a in kw.entities if a in anchors],
+                      countries=kw.countries, terms=kw.terms, topic=kw.topic)
+    return gdelt_core(kw)
 
 
 # -- summaries ------------------------------------------------------------------------------
@@ -344,9 +403,13 @@ def claim_uncertainties(claims: list[Claim]) -> list[str]:
     return out
 
 
-def no_disagreement_note(analysed: bool, questions, contested: list[str], n_sources: int) -> str:
+def no_disagreement_note(analysed: bool, questions, contested: list[str], n_sources: int,
+                         proposed: bool = False) -> str:
     if questions:
         return ""
+    if proposed:
+        return ("The model suggested possible disagreements, but none could be verified against the retrieved "
+                "sources (see 'rejected'); IntelPod does not present them as a debate.")
     if not analysed:
         if contested:
             return ""

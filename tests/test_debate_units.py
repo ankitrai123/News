@@ -120,8 +120,11 @@ def test_orientation_without_reference_is_not_reported(tmp_path):
     assert not p.documented("editorial_orientation")
     reg = Registry([p])
     assert reg.editorial_metadata("x.test", None)["editorial_orientation"] == "unknown"
+    p1 = SourceProfile(publisher="Z", domains=["z.test"], editorial_orientation="centre-left",
+                       references=["https://en.wikipedia.org/wiki/Z"])  # ownership page: not orientation evidence
+    assert not p1.documented("editorial_orientation")
     p2 = SourceProfile(publisher="Y", domains=["y.test"], editorial_orientation="centre-left",
-                       references=["https://example.org/study"])
+                       orientation_references=["https://example.org/study"])
     assert Registry([p2]).editorial_metadata("y.test", None)["editorial_orientation"] == "centre-left"
     bad = tmp_path / "s.yaml"
     bad.write_text("sources:\n  - {publisher: Ok, domains: [ok.test]}\n  - {domains: [missing-publisher.test]}\n")
@@ -216,14 +219,92 @@ def test_plan_searches_build_valid_provider_queries(taxonomy):
     plans = plan_searches(brief(), taxonomy, rep, out, NOW, 7, ["archive", "gdelt", "guardian"])
     names = [p[0] for p in plans]
     assert names[0] == "sources based in India" and "Indian borrowers" in names
-    for _, _, queries in plans:
+    for _, _, queries, _ in plans:
         for q in queries:
             if q.provider == "gdelt":
                 assert not gdelt_query_problems(q.text), q.text
     india = plans[0][2]
-    assert any("sourcecountry:india" in q.text for q in india if q.provider == "gdelt")
-    assert all("sourcecountry" not in q.text and "domainis" not in q.text for _, _, qs in plans
+    assert [q.provider for q in india] == ["gdelt"] and "sourcecountry:IN" in india[0].text  # FIPS code
+    assert all("sourcecountry" not in q.text and "domainis" not in q.text for _, _, qs, _ in plans
                for q in qs if q.provider == "guardian")
+    assert plans[0][3](res("x", "The Hindu", "t", country="IN"), Registry([]))
+    assert not plans[0][3](res("y", "BBC", "t", country="GB"), Registry([]))
+
+
+def test_long_anchors_never_drop_the_perspective_filter(taxonomy):
+    b = brief(title="Indian Ministry of Commerce and Industry announces comprehensive semiconductor manufacturing "
+                    "incentive programme", entities=["Indian Ministry of Commerce and Industry",
+                                                     "Semiconductor Industry Association of India"],
+              topic="semiconductors_minerals", countries=["India", "United Arab Emirates", "South Korea"])
+    rep = diversity_report(b, [res("a", "BBC", "x y z w", country="GB")] * 3, [], Registry([]))
+    for _, _, queries, _ in plan_searches(b, taxonomy, rep, None, NOW, 7, ["gdelt"]):
+        for q in queries:
+            assert ("sourcecountry:" in q.text or "domainis:" in q.text or "(" in q.text) and len(q.text) <= 200
+            assert not gdelt_query_problems(q.text)
+
+
+# -- review regressions ---------------------------------------------------------------------
+def test_syndicated_copy_is_not_independent_confirmation():
+    srcs = [res("a", "Reuters", "RBI cuts repo rate to 5.25% to support growth"),
+            res("b", "The Economic Times", "RBI cuts repo rate to 5.25% to support growth")]
+    c = build_claims(srcs)[0]
+    assert c.independent_sources == 1 and c.confidence == "reported"
+    srcs[1] = res("b", "Mint", "Repo rate cut to 5.25% by RBI to support growth")
+    srcs[0].syndicated_with = ["Mint"]
+    assert build_claims(srcs)[0].independent_sources == 1
+
+
+def test_different_periods_or_subjects_are_not_contradictions():
+    srcs = [res("a", "X", "India's retail inflation rose to 3.2% in March, government data showed."),
+            res("b", "Y", "India's retail inflation rose to 2.9% in February, government data showed.")]
+    assert all(c.confidence != "contested" for c in build_claims(srcs))
+    srcs = [res("a", "X", "Parliament rejected the opposition amendment to the farm bill on Tuesday."),
+            res("b", "Y", "Parliament passed the farm bill on Tuesday after a long debate.")]
+    assert all(c.confidence != "contested" for c in build_claims(srcs))
+
+
+def test_odd_model_json_is_coerced_not_fatal():
+    out = analysis.AnalysisOut.model_validate({
+        "questions": [{"question": None, "disagreement_type": None,
+                       "positions": [{"label": "A", "source_ids": "s1, s2"}, "junk"]}],
+        "uncertainties": "one thing", "would_change": None, "missing_perspectives": ["Indian refiners"]})
+    assert out.uncertainties == ["one thing"] and out.would_change == []
+    assert out.questions[0].positions[0].source_ids == ["s1", "s2"] and len(out.questions[0].positions) == 1
+    assert out.missing_perspectives[0].perspective == "Indian refiners"
+    assert analysis.AnalysisOut.model_validate({"questions": None}).questions == []
+
+
+def test_unsourced_position_label_never_shown():
+    ids = _ids()
+    out = analysis.AnalysisOut.model_validate({"questions": [{"question": "Growth or inflation?", "positions": [
+        {"label": "Growth", "summary": "The cut supports growth.", "source_ids": ["s1"]},
+        {"label": "Inflation", "summary": "Economists warned the cut could push inflation higher.", "source_ids": ["s2"]},
+        {"label": "Goldman Sachs sees 9% inflation by 2027", "summary": "x", "source_ids": ["s99"]}]}]})
+    qs, rejected = analysis.to_questions(out, ids, {})
+    assert len(qs) == 1 and len(qs[0].positions) == 2
+    assert "Goldman" not in qs[0].asymmetry and "Goldman" not in " ".join(p.label for p in qs[0].positions)
+
+
+def test_positions_resting_on_one_source_are_not_a_debate():
+    ids = _ids()
+    out = analysis.AnalysisOut.model_validate({"questions": [{"question": "Growth or inflation?", "positions": [
+        {"label": "Growth", "summary": "The cut supports growth.", "source_ids": ["s1"]},
+        {"label": "Rate", "summary": "The cut to 5.25% supports growth.", "source_ids": ["s1"]}]}]})
+    qs, rejected = analysis.to_questions(out, ids, {})
+    assert qs == [] and any("same source" in r for r in rejected)
+
+
+def test_rejected_model_disagreement_is_not_called_consensus():
+    note = no_disagreement_note(True, [], [], 5, proposed=True)
+    assert "could be verified" in note and "No meaningful disagreement" not in note
+
+
+def test_malformed_registry_file_is_not_fatal(tmp_path):
+    bad = tmp_path / "s.yaml"
+    bad.write_text("sources:\n  - {publisher: BBC, domains: [bbc.com]\n")
+    assert Registry.load(bad).profiles == []
+    bad.write_text("- just a list\n")
+    assert Registry.load(bad).profiles == []
 
 
 def test_labels_and_questions_are_not_claims():

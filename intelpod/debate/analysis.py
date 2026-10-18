@@ -20,7 +20,7 @@ IntelPod then enforces:
 """
 from __future__ import annotations
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from ..llm.parsing import unsupported_terms as _unsupported
 from ..textutil import STOPWORDS
@@ -79,7 +79,23 @@ def _short(v: str, n: int = 400) -> str:
     return (v or "").strip()[:n]
 
 
+def _as_list(v, split: bool = False) -> list:
+    """Models sometimes answer a list field with a string or null: accept both."""
+    if v is None:
+        return []
+    if isinstance(v, str):
+        return [x for x in (v.split(",") if split else [v]) if x.strip()]
+    if isinstance(v, (list, tuple)):
+        return list(v)
+    return [v]
+
+
+def _drop_nulls(v):
+    return {k: x for k, x in v.items() if x is not None} if isinstance(v, dict) else v
+
+
 class PositionOut(BaseModel):
+    _nulls = model_validator(mode="before")(classmethod(lambda cls, v: _drop_nulls(v)))
     label: str = ""
     summary: str = ""
     strongest_argument: str = ""
@@ -94,21 +110,50 @@ class PositionOut(BaseModel):
     @field_validator("source_ids", "challenged_by", mode="before")
     @classmethod
     def _ids(cls, v):
-        return [str(x).strip().lower() for x in (v or []) if str(x).strip()][:12]
+        return [str(x).strip().lower() for x in _as_list(v, split=True) if x is not None and str(x).strip()][:12]
 
 
 class QuestionOut(BaseModel):
+    _nulls = model_validator(mode="before")(classmethod(lambda cls, v: _drop_nulls(v)))
     question: str = ""
     disagreement_type: str = "none"
     positions: list[PositionOut] = Field(default_factory=list)
+
+    @field_validator("question", "disagreement_type", mode="before")
+    @classmethod
+    def _s(cls, v):
+        return _short(str(v)) if v is not None else ""
+
+    @field_validator("positions", mode="before")
+    @classmethod
+    def _p(cls, v):
+        return [x for x in _as_list(v) if isinstance(x, dict)]
 
 
 class Perspective(BaseModel):
     perspective: str = ""
     keywords: list[str] = Field(default_factory=list)
 
+    @model_validator(mode="before")
+    @classmethod
+    def _plain(cls, v):
+        if isinstance(v, str):  # "Indian refiners" -> the perspective, keywords from its words
+            return {"perspective": v, "keywords": [v]}
+        return _drop_nulls(v)
+
+    @field_validator("perspective", mode="before")
+    @classmethod
+    def _s(cls, v):
+        return _short(str(v), 80)
+
+    @field_validator("keywords", mode="before")
+    @classmethod
+    def _k(cls, v):
+        return [str(x) for x in _as_list(v, split=True) if x is not None and str(x).strip()][:6]
+
 
 class AnalysisOut(BaseModel):
+    _nulls = model_validator(mode="before")(classmethod(lambda cls, v: _drop_nulls(v)))
     questions: list[QuestionOut] = Field(default_factory=list)
     uncertainties: list[str] = Field(default_factory=list)
     would_change: list[str] = Field(default_factory=list)
@@ -117,7 +162,12 @@ class AnalysisOut(BaseModel):
     @field_validator("uncertainties", "would_change", mode="before")
     @classmethod
     def _list(cls, v):
-        return [_short(str(x), 300) for x in (v or []) if x and str(x).strip()][:5]
+        return [_short(str(x), 300) for x in _as_list(v) if x and isinstance(x, str) and len(x.split()) >= 2][:5]
+
+    @field_validator("questions", "missing_perspectives", mode="before")
+    @classmethod
+    def _objs(cls, v):
+        return _as_list(v)
 
 
 def source_text(r: ResearchResult) -> str:
@@ -167,6 +217,11 @@ def to_questions(out: AnalysisOut, ids: dict[str, ResearchResult], stakeholders:
             bad_ids = [i for i in p.source_ids if i not in ids]
             if bad_ids:
                 rejected.append(f"position '{p.label[:40]}': unknown source ids {bad_ids[:3]} dropped")
+            if not srcs:
+                # A view no retrieved source argues is not shown, not even as a label: the label
+                # itself would be unchecked model text.
+                rejected.append(f"position '{p.label[:40]}': no retrieved source argues it; dropped")
+                continue
             against = [ids[i] for i in dict.fromkeys(p.challenged_by) if i in ids and ids[i] not in srcs]
             text = " ".join(source_text(s) for s in srcs)
             summary, argument, label = p.summary, p.strongest_argument, p.label or "(unnamed position)"
@@ -194,7 +249,12 @@ def to_questions(out: AnalysisOut, ids: dict[str, ResearchResult], stakeholders:
             rejected.append(f"question '{q.question[:60]}': fewer than two positions backed by retrieved sources; "
                             f"not presented as a debate")
             continue
-        qtext = q.question
+        voices = {s.publisher.lower() for p in evidenced for s in (ids[k] for k in ids if ids[k].result_id in p.source_ids)}
+        if len(voices) < 2 or len({tuple(sorted(p.source_ids)) for p in evidenced}) < 2:
+            rejected.append(f"question '{q.question[:60]}': all positions rest on the same source; "
+                            f"not presented as a debate")
+            continue
+        qtext = q.question or "(the model gave no wording for this question; see positions)"
         all_text = " ".join(source_text(s) for s in ids.values())
         if unsupported_terms(qtext, all_text):
             rejected.append(f"question text names things not in the sources: {qtext[:60]}")

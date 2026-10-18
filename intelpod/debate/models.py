@@ -50,15 +50,19 @@ class SourceProfile(BaseModel):
     strengths: list[str] = Field(default_factory=list)
     limitations: list[str] = Field(default_factory=list)
     corrections_policy_url: str | None = None
-    references: list[str] = Field(default_factory=list)   # URLs supporting the classifications
+    references: list[str] = Field(default_factory=list)   # URLs supporting the factual fields
+    orientation_references: list[str] = Field(default_factory=list)  # published studies supporting orientation fields
     confidence: Literal["high", "medium", "low", "unknown"] = "unknown"
     disputed: bool = False
     last_reviewed: str | None = None            # YYYY-MM-DD
     notes: str = ""
 
     def documented(self, field: str) -> bool:
-        """An orientation counts only if it is set AND backed by at least one reference."""
-        return getattr(self, field, "unknown") not in ("unknown", "", None) and bool(self.references)
+        """An orientation counts only if it is set AND backed by an orientation-specific reference
+        (a general reference such as an ownership page is not evidence of orientation), and is not
+        marked disputed."""
+        return (getattr(self, field, "unknown") not in ("unknown", "", None) and bool(self.orientation_references)
+                and not self.disputed)
 
 
 class Claim(BaseModel):

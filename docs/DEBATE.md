@@ -35,7 +35,7 @@ intelpod sources [--gaps]            # the source registry; --gaps lists feed pu
   publishers does not turn a fact into a 50/50 dispute.
 * **No manufactured disagreement.** "No meaningful disagreement was found" is a normal result.
 * **No ideological labels from intuition.** Orientation fields in the registry count only when set
-  *and* backed by references; the shipped registry leaves them all `unknown`. Diversity is judged
+  *and* backed by orientation-specific references; the shipped registry leaves them all `unknown`. Diversity is judged
   from facts (country, economy, source type, who is quoted) and from what sources argue.
 * **Limitations are stated.** Perspectives looked for and not found, coverage gaps, model
   problems and rejected model output are all recorded.
@@ -74,7 +74,7 @@ intelpod sources [--gaps]            # the source registry; --gaps lists feed pu
    uncertainties, up to 3 kinds of evidence that would change the assessment, and up to 3
    missing perspectives with search keywords.
 5. **Viewpoint searches**: up to `viewpoint_searches_per_event` (3) searches for the most
-   important gaps and model-named missing perspectives — e.g. GDELT `sourcecountry:china` for a
+   important gaps and model-named missing perspectives — e.g. GDELT `sourcecountry:CH` (FIPS code for China) for a
    party with no local source, cue words for missing voices, `domainis:` official sites for a
    missing primary source. They go through Phase 2's own pipeline (robots.txt, paywalls,
    publisher opt-outs, dates, relevance ≥ `research.min_relevance`, quality) and add up to
@@ -99,10 +99,12 @@ and says that interpretive questions were not assessed.
 One entry per publisher: domains, country, region, source type, ownership, optional
 orientation fields (`editorial_orientation`, `economic_orientation`,
 `foreign_policy_orientation`), strengths, limitations, corrections-policy URL, **references**
-(URLs supporting the entry), confidence, `disputed`, `last_reviewed` and notes. The shipped
+(URLs supporting the factual fields), **orientation_references** (published studies supporting
+the orientation fields), confidence, `disputed`, `last_reviewed` and notes. The shipped
 entries record only facts with a Wikipedia or official reference (country, ownership, type);
 every orientation is `unknown`. To add an orientation, cite a published, reviewable source (e.g.
-a media-bias study) in `references`; without references it is ignored. Registry facts fill each
+a media-bias study) in `orientation_references`; without one — or if the entry is marked
+`disputed: true` — it is reported as `unknown`. Registry facts fill each
 research result's `editorial_metadata` and the corrections-policy component of its quality score.
 `intelpod sources --gaps` lists feed publishers the registry does not describe.
 

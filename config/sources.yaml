@@ -2,7 +2,8 @@
 #
 # Rules (product spec, Module 4):
 #  * Orientation labels (editorial / economic / foreign-policy) are ONLY used when backed by
-#    `references` to credible, documented assessments. IntelPod never infers them from a model or
+#    `orientation_references` to credible, documented assessments (a general `references` link,
+#    e.g. an ownership page, does not count), and not marked `disputed: true`. IntelPod never infers them from a model or
 #    from the publisher's reputation. "unknown" is the honest default; `disputed: true` marks
 #    contested classifications.
 #  * A publisher's orientation never decides whether one of its claims is true: claims are judged
@@ -11,14 +12,14 @@
 #  * `ownership` / `source_type` / `country` are factual; their references are given.
 #
 # All orientation fields below are deliberately "unknown": they were not assessed in the build
-# (no evidence was gathered). To add one, set the field, add references (e.g. published media
+# (no evidence was gathered). To add one, set the field, add orientation_references (e.g. published media
 # research, the outlet's own editorial-policy statements, press-council findings), a confidence
 # and `last_reviewed`. Unlisted publishers are simply "unknown".
 #
 # Fields: publisher, domains, country (ISO 3166 alpha-2), region, source_type
 # (news | wire | official | international_org | think_tank | academic), ownership,
 # editorial_orientation, economic_orientation, foreign_policy_orientation, strengths, limitations,
-# corrections_policy_url, references, confidence (high|medium|low|unknown), disputed, last_reviewed.
+# corrections_policy_url, references, orientation_references, confidence (high|medium|low|unknown), disputed, last_reviewed.
 
 sources:
   - {publisher: BBC, domains: [bbc.co.uk, bbc.com], country: GB, region: Europe, source_type: news,

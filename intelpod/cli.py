@@ -254,6 +254,8 @@ def cmd_research(args) -> int:
         print(f"note ({name}): {note}")
     for kind, path in (rep.get("paths") or {}).items():
         print(f"{kind} report: {path}")
+    if s.debate.enabled:
+        print(f"\nviewpoint analysis for re-researched events was cleared; run `intelpod debate --run-id {row.run_id}`")
     return 0
 
 
