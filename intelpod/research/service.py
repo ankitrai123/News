@@ -71,7 +71,7 @@ def own_report_hits(brief: EventBrief, articles: list[Article], limit: int = 8) 
 class ResearchService:
     def __init__(self, settings: Settings, store, taxonomy: Taxonomy, providers: dict[str, SearchProvider],
                  page_fetcher=None, llm_client=None, embedder: Callable | None = None,
-                 clock: Callable[[], float] = time.monotonic):
+                 clock: Callable[[], float] = time.monotonic, registry=None):
         self.settings = settings
         self.cfg = settings.research
         self.store = store
@@ -81,6 +81,7 @@ class ResearchService:
         self.llm = llm_client
         self.embedder = embedder
         self.clock = clock
+        self.registry = registry  # Phase 3 source registry: documented publisher facts only
         self.pages_fetched = 0
         self.page_stats: dict[str, int] = {}
         self.model_calls = 0
@@ -199,6 +200,51 @@ class ResearchService:
         self.store.save_event_research(pkg, results, statuses)
         return pkg
 
+    def supplement(self, run_id: str, brief: EventBrief, articles: list[Article], queries: list[ResearchQuery],
+                   now: datetime, existing: list[ResearchResult], reason: str, limit: int = 3) -> list[ResearchResult]:
+        """Phase 3 viewpoint search: run extra queries through the same pipeline (dedupe, pages
+        within robots/paywall rules, dates, relevance, quality) and add up to `limit` new relevant
+        sources to this run's research for the event. Returns the sources added."""
+        cfg = self.cfg
+        window_start = now - timedelta(days=cfg.window_days)
+        background_start = now - timedelta(days=max(cfg.background_days, cfg.window_days))
+        statuses, hits = self._search(queries)
+        known = {r.canonical_url for r in existing}
+        candidates = [c for c in dedupe_hits(hits, set(brief.article_urls)) if c.canonical_url not in known]
+        if not candidates:
+            return []
+        event_texts = [f"{a.title} {a.title} {a.description or ''}" for a in articles]
+        corpus = event_texts + [f"{r.title}" for r in existing] + [f"{c.title} {c.snippet or ''}" for c in candidates]
+        rel = RelevanceModel(brief, self.taxonomy, self.settings.clustering, corpus, embedder=self.embedder,
+                             event_texts=event_texts)
+        for c in candidates:
+            c.prescore = rel.score(c.title, c.snippet or "")[0]
+        candidates = sorted((c for c in candidates if c.prescore >= cfg.min_relevance), key=lambda c: -c.prescore)[:limit * 3]
+        pages = self._fetch_pages(candidates)
+        kw = event_keywords(brief, self.taxonomy)
+        terms = list(dict.fromkeys(kw.phrases + kw.terms))
+        retrieved = datetime.now(timezone.utc)
+        new = [r for c in candidates if (r := self._build_result(brief, c, pages.get(c.canonical_url), now, window_start,
+                                                                 background_start, rel, terms, list(kw.entities), retrieved))]
+        for r in new:
+            r.credibility_assessment = assess(r, pages.get(r.canonical_url), brief, existing + new)
+        def val(r):
+            q = r.credibility_assessment.score
+            return r.relevance_score * (0.5 + 0.5 * (q if q is not None else 0.5))
+        pubs = {r.publisher for r in existing if r.selected}
+        added = []
+        for r in sorted(new, key=lambda r: -val(r)):
+            if len(added) >= limit or r.relevance_score < cfg.min_relevance:
+                r.selection_reason = r.selection_reason or "not used: viewpoint search found stronger sources"
+                continue
+            r.selected = True
+            r.providers = list(dict.fromkeys(r.providers + ["viewpoint_search"]))
+            r.selection_reason = f"added by viewpoint search: {reason} (relevance {r.relevance_score:.2f})"
+            added.append(r)
+            pubs.add(r.publisher)
+        self.store.add_results(run_id, brief.event_id, new, statuses)
+        return added
+
     # -- steps --------------------------------------------------------------------------------
     def _search(self, queries: list[ResearchQuery]) -> tuple[list[QueryStatus], list[SearchHit]]:
         statuses, hits = [], []
@@ -286,6 +332,8 @@ class ResearchService:
         qtypes = label_query_types(title, c.snippet, notes_text, ctype, c.source_type, brief.countries, c.query_types)
         canon = c.canonical_url
         publisher = c.publisher or (page.sitename if page and page.sitename else None) or c.domain or domain_of(c.url) or "unknown"
+        meta = self.registry.editorial_metadata(c.domain or domain_of(c.url), publisher) if self.registry else \
+            {"status": "not assessed (no source registry loaded)"}
         return ResearchResult(
             result_id=stable_hash(brief.event_id, canon), event_id=brief.event_id, title=title, url=c.url,
             canonical_url=canon, publisher=publisher, domain=c.domain or domain_of(c.url),
@@ -294,8 +342,8 @@ class ResearchService:
             content_type=ctype, content_type_evidence=cevidence, query_types=qtypes, providers=c.providers,
             relevance_score=round(max(score, c.prescore if not text else score), 3), relevance_evidence=why,
             key_claims=claims, evidence_notes=notes, page_status=page.status if page else "not_fetched",
-            language=c.language, source_type=c.source_type, from_event=c.from_event,
-            syndicated_with=c.syndicated_with, retrieved_at=retrieved)
+            language=c.language, source_type=c.source_type, source_country=c.source_country, from_event=c.from_event,
+            syndicated_with=c.syndicated_with, editorial_metadata=meta, retrieved_at=retrieved)
 
     def _model_keywords(self, brief: EventBrief, articles: list[Article]) -> dict[str, list[str]] | None:
         if not self.cfg.model_queries or not self._model_ok():

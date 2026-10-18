@@ -113,7 +113,9 @@ def assess(result: ResearchResult, page: PageInfo | None, brief: EventBrief,
         add("expertise", None, "subject expertise not established")
 
     add("track_record", None, "needs the Phase 3 source registry (documented evidence), not reputation")
-    add("corrections_policy", None, "not recorded yet")
+    cp = (result.editorial_metadata or {}).get("corrections_policy_url")
+    add("corrections_policy", 1.0 if cp else None, f"published corrections policy: {cp}" if cp else
+        "not recorded in the source registry")
 
     # interested parties: an official voice of a country or body that is a party to the event
     if ct == "primary" and any(c.lower() in pub or (result.domain or "").endswith(_cc_tld(c)) for c in brief.countries):

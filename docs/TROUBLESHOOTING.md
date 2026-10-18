@@ -39,6 +39,11 @@ to `data/logs/intelpod.log` (set `app.log_json: true` for JSON lines).
 | Research: `query not sent (invalid for GDELT)` | a generated query broke GDELT's rules (too long, 2-letter word…) | the query is skipped, never sent; report it with the event title so the template can be improved |
 | Research: many sources "metadata only" | publishers opt out of text use, PDFs, or `no_extract_domains` | by design; the headline, date and link are still used |
 | `intelpod research` says "has no ranked events yet" | Phase 1 has not finished for that run | `intelpod run --resume` (or `--stop-after review`) first |
+| Debate: "No model available … claim map is complete" (status `partial`) | no model configured, `--no-llm`, or the provider failed | expected; the claim map, diversity and searches still run. Configure NVIDIA or Ollama and run `intelpod debate --refresh` |
+| Debate: "No meaningful disagreement was found" | the sources agree, or only one side is evidenced | by design: IntelPod does not manufacture a debate. Check "Who is represented" for coverage gaps |
+| Debate: many "rejected" model items | the model named people/numbers not in the cited sources | expected safety behaviour; the rest of the package is kept |
+| Debate: "Looked for … no relevant, accessible source was found" | the perspective is not covered by the archive, feeds, GDELT or Guardian (or GDELT's budget ran out) | add research feeds for that country/stakeholder, a Guardian key, or raise `debate.gdelt_requests_per_run` |
+| `intelpod debate` says "has not been researched yet" | Phase 2 has not run for that run | `intelpod research --run-id <id>` first |
 | `database is locked` | two processes writing at once | let the running job finish; SQLite WAL mode and a 5 s busy timeout are already set |
 
 ## Resetting

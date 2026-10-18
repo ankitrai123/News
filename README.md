@@ -61,9 +61,27 @@ help proposes search keywords and writes notes that are rejected if they name an
 from the source's own extracts. Details: [docs/RESEARCH.md](docs/RESEARCH.md).
 
 ```bash
-intelpod run                       # Phase 1 + Phase 2 + report
+intelpod run                       # Phase 1 + Phase 2 + Phase 3 + report
 intelpod run --stop-after review   # Phase 1 only
 intelpod research                  # Phase 2 on the latest run (or --run-id)
+```
+
+## What Phase 3 adds: viewpoints and evidence
+
+The `debate` stage maps each event's claims — verbatim statements from the retrieved sources,
+typed as fact, attributed statement, interpretation, forecast or value judgement — groups them
+across sources and labels each **confirmed, reported, plausible, contested or speculative**. It
+shows who is represented (countries, advanced/emerging economies, source types, quoted voices),
+runs targeted searches for missing perspectives, and (with a model) identifies interpretive
+questions on which credible sources genuinely disagree. IntelPod checks every model-written
+position against the sources it cites, computes evidence strength itself, refuses to present a
+one-sided question as a debate, and says so when there is no meaningful disagreement. Editorial
+orientation comes only from documented, referenced entries in `config/sources.yaml` (all
+`unknown` by default). Details: [docs/DEBATE.md](docs/DEBATE.md).
+
+```bash
+intelpod debate                    # Phase 3 on the latest researched run (or --run-id)
+intelpod sources --gaps            # feed publishers missing from the source registry
 ```
 
 ## Quick start
@@ -143,6 +161,7 @@ separated from the real-network tests in `tests/test_live.py`. Clustering qualit
 |---|---|
 | `config/config.yaml` | everything: lookback window, providers, GDELT queries, clustering thresholds, ranking weights, selection limits |
 | `config/feeds.yaml` | RSS feed registry (publisher, country, region, source type, enabled) |
+| `config/sources.yaml` | source registry: documented publisher facts (country, ownership, type) with references; orientation `unknown` unless referenced (Phase 3) |
 | `config/research_feeds.yaml` | research feeds: official bodies, international organisations, think tanks (Phase 2) |
 | `config/taxonomy.yaml` | topic keywords, India terms, significance terms, soft-news terms, synonyms |
 | `.env` | `NEWSDATA_API_KEY`, `NVIDIA_API_KEY`, `GUARDIAN_API_KEY` (all optional) and `INTELPOD_*` overrides (see `.env.example`) |
@@ -153,6 +172,7 @@ separated from the real-network tests in `tests/test_live.py`. Clustering qualit
 * [docs/PROVIDERS.md](docs/PROVIDERS.md) — every external dependency, free-tier limits, licences,
   and the NVIDIA trial terms ("internal testing and evaluation, not production"; don't publish
   model-written text from it — use Ollama for ongoing or shared use)
+* [docs/DEBATE.md](docs/DEBATE.md) — Phase 3: claim map, confidence labels, diversity, viewpoint searches, model checks
 * [docs/RESEARCH.md](docs/RESEARCH.md) — Phase 2: research questions, providers, page rules, dates, quality, selection
 * [docs/API.md](docs/API.md) — local HTTP API
 * [docs/OLLAMA.md](docs/OLLAMA.md) — installing Ollama and choosing models for your hardware

@@ -94,6 +94,39 @@ class ResearchStore:
             s.add(ResearchPackageRow(run_id=package.run_id, event_id=package.event_id, status=package.status,
                                      payload=package.model_dump(mode="json"), created_at=package.created_at))
 
+    def add_results(self, run_id: str, event_id: str, results: list[ResearchResult],
+                    queries: list[QueryStatus]) -> None:
+        """Append sources found later (Phase 3 viewpoint searches); selected ones join the package."""
+        with self.db.session() as s:
+            have = {row.result_id: row for row in s.scalars(select(ResearchResultRow).where(
+                ResearchResultRow.run_id == run_id, ResearchResultRow.event_id == event_id))}
+            for r in results:
+                if r.result_id in have:
+                    if r.selected and not have[r.result_id].selected:  # rejected earlier, chosen now
+                        have[r.result_id].selected = True
+                        have[r.result_id].payload = r.model_dump(mode="json")
+                    continue
+                s.add(ResearchResultRow(
+                    run_id=run_id, event_id=event_id, result_id=r.result_id, canonical_url=r.canonical_url,
+                    publisher=r.publisher, published_at=r.published_at, content_type=r.content_type,
+                    relevance=r.relevance_score, credibility=r.credibility_assessment.score, selected=r.selected,
+                    payload=r.model_dump(mode="json")))
+            qhave = set(s.scalars(select(ResearchQueryRow.query_id).where(
+                ResearchQueryRow.run_id == run_id, ResearchQueryRow.event_id == event_id)))
+            for q in queries:
+                if q.query_id not in qhave:
+                    s.add(ResearchQueryRow(run_id=run_id, event_id=event_id, query_id=q.query_id,
+                                           query_type=q.query_type, provider=q.provider, text=q.text, status=q.status,
+                                           hits=q.hits, error=(q.error or None) and q.error[:1000],
+                                           payload=q.model_dump(mode="json")))
+            row = s.scalars(select(ResearchPackageRow).where(ResearchPackageRow.run_id == run_id,
+                                                             ResearchPackageRow.event_id == event_id)).first()
+            if row is not None:
+                pkg = ResearchPackage.model_validate(row.payload)
+                pkg.result_ids = list(dict.fromkeys(pkg.result_ids + [r.result_id for r in results if r.selected]))
+                pkg.queries = pkg.queries + [q for q in queries if q.query_id not in {x.query_id for x in pkg.queries}]
+                row.payload = pkg.model_dump(mode="json")
+
     def package(self, run_id: str, event_id: str) -> ResearchPackage | None:
         with self.db.session() as s:
             row = s.scalars(select(ResearchPackageRow).where(ResearchPackageRow.run_id == run_id,

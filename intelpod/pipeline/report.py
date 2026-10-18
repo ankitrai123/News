@@ -38,9 +38,57 @@ def render_research(pkg, results) -> list[str]:
     return lines + [""]
 
 
+def render_debate(pkg, sources: dict) -> list[str]:
+    """Markdown for one event's debate package: agreement, disagreement, uncertainty."""
+    claims = {c.claim_id: c for c in pkg.claims}
+    if pkg.status in ("skipped", "failed"):
+        return ["**Viewpoints and evidence:** not available. " + " ".join(pkg.limitations), ""]
+
+    def cite(ids) -> str:
+        names = list(dict.fromkeys(sources[i].publisher for i in ids if i in sources))
+        return ", ".join(names[:4]) + (f" +{len(names) - 4}" if len(names) > 4 else "")
+
+    def claim_line(cid) -> str:
+        c = claims[cid]
+        extra = f"; contradicted by {cite(c.contradicted_by)}" if c.contradicted_by else ""
+        return f"- “{c.text}” — {cite(c.source_ids)} · _{c.confidence}: {c.confidence_reason}{extra}_"
+
+    lines = [f"**Viewpoints and evidence** (overall confidence: {pkg.overall_confidence} — {pkg.confidence_reason}):"]
+    for title, ids in (("Broadly agreed", pkg.consensus[:5]), ("Contested", pkg.contested[:5]),
+                       ("Single-source (unverified)", pkg.unverified[:4]), ("Forecasts", pkg.forecasts[:3])):
+        if ids:
+            lines += [f"_{title}:_"] + [claim_line(i) for i in ids]
+    for q in pkg.questions:
+        lines.append(f"_Question ({q.disagreement_type}):_ {q.question}")
+        for p in q.positions:
+            if p.found:
+                lines.append(f"- **{p.label}** ({p.evidence_strength}: {p.strength_reason}) — {p.summary} "
+                             f"[{cite(p.source_ids)}]" + (f"; challenged by {cite(p.challenged_by)}" if p.challenged_by else ""))
+            else:
+                lines.append(f"- {p.label}: no retrieved source argues this")
+        if q.asymmetry:
+            lines.append(f"  - _{q.asymmetry}_")
+    if pkg.no_disagreement_note:
+        lines.append(f"_{pkg.no_disagreement_note}_")
+    if pkg.uncertainties:
+        lines.append("_Uncertain:_ " + " ".join(pkg.uncertainties))
+    if pkg.would_change:
+        lines.append("_Would change the assessment:_ " + "; ".join(pkg.would_change))
+    d = pkg.diversity
+    lines.append(f"_Source mix:_ {d.sources} sources; countries {dict(d.countries)}; types {dict(d.content_types)}; "
+                 f"{d.registry_coverage}.")
+    if d.gaps:
+        lines.append("_Coverage gaps:_ " + " ".join(d.gaps))
+    if pkg.limitations:
+        lines.append("_Limitations:_ " + " ".join(pkg.limitations[:6]))
+    return lines + [""]
+
+
 def render_markdown(ctx: "RunContext", selected: list[RankedEvent], ranked: list[RankedEvent],
-                    candidates: dict[str, dict], articles: dict[str, Article], research: dict | None = None) -> str:
+                    candidates: dict[str, dict], articles: dict[str, Article], research: dict | None = None,
+                    debates: dict | None = None) -> str:
     research = research or {}
+    debates = debates or {}
     ingest = ctx.outputs.get("ingest", {})
     cluster = ctx.outputs.get("cluster", {})
     lines = [f"# Daily event selection — {ctx.now:%Y-%m-%d}", "",
@@ -104,6 +152,9 @@ def render_markdown(ctx: "RunContext", selected: list[RankedEvent], ranked: list
         lines.append("")
         if r.event_id in research:
             lines += render_research(*research[r.event_id])
+        if r.event_id in debates:
+            srcs = {x.result_id: x for x in (research.get(r.event_id) or (None, []))[1]}
+            lines += render_debate(debates[r.event_id], srcs)
     runners = [r for r in ranked if not r.selected][:10]
     if runners:
         lines += ["## Next in line (not selected)", ""]
@@ -118,10 +169,11 @@ def render_markdown(ctx: "RunContext", selected: list[RankedEvent], ranked: list
 
 
 def write_report(out_dir: Path, ctx: "RunContext", selected: list[RankedEvent], ranked: list[RankedEvent],
-                 candidates: dict[str, dict], articles: dict[str, Article], research: dict | None = None) -> dict[str, Path]:
+                 candidates: dict[str, dict], articles: dict[str, Article], research: dict | None = None,
+                 debates: dict | None = None) -> dict[str, Path]:
     out_dir.mkdir(parents=True, exist_ok=True)
     md = out_dir / "phase1_events.md"
-    md.write_text(render_markdown(ctx, selected, ranked, candidates, articles, research), encoding="utf-8")
+    md.write_text(render_markdown(ctx, selected, ranked, candidates, articles, research, debates), encoding="utf-8")
     js = out_dir / "phase1_events.json"
     payload = {
         "run_id": ctx.run_id, "generated_for": ctx.now.isoformat(),
@@ -141,4 +193,9 @@ def write_report(out_dir: Path, ctx: "RunContext", selected: list[RankedEvent], 
                                   for eid, (pkg, results) in research.items()}, indent=2, ensure_ascii=False),
                       encoding="utf-8")
         paths["research"] = rj
+    if debates:
+        dj = out_dir / "debate.json"
+        dj.write_text(json.dumps({eid: p.model_dump(mode="json") for eid, p in debates.items()}, indent=2,
+                                 ensure_ascii=False), encoding="utf-8")
+        paths["debate"] = dj
     return paths

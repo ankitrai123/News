@@ -1,0 +1,93 @@
+# Source registry (Phase 3) — human-reviewable metadata about publishers.
+#
+# Rules (product spec, Module 4):
+#  * Orientation labels (editorial / economic / foreign-policy) are ONLY used when backed by
+#    `references` to credible, documented assessments. IntelPod never infers them from a model or
+#    from the publisher's reputation. "unknown" is the honest default; `disputed: true` marks
+#    contested classifications.
+#  * A publisher's orientation never decides whether one of its claims is true: claims are judged
+#    on evidence (docs/DEBATE.md). Diversity is assessed issue by issue from what sources actually
+#    argue, who they quote, and where they are from.
+#  * `ownership` / `source_type` / `country` are factual; their references are given.
+#
+# All orientation fields below are deliberately "unknown": they were not assessed in the build
+# (no evidence was gathered). To add one, set the field, add references (e.g. published media
+# research, the outlet's own editorial-policy statements, press-council findings), a confidence
+# and `last_reviewed`. Unlisted publishers are simply "unknown".
+#
+# Fields: publisher, domains, country (ISO 3166 alpha-2), region, source_type
+# (news | wire | official | international_org | think_tank | academic), ownership,
+# editorial_orientation, economic_orientation, foreign_policy_orientation, strengths, limitations,
+# corrections_policy_url, references, confidence (high|medium|low|unknown), disputed, last_reviewed.
+
+sources:
+  - {publisher: BBC, domains: [bbc.co.uk, bbc.com], country: GB, region: Europe, source_type: news,
+     ownership: "public broadcaster (licence-fee funded, Royal Charter)",
+     references: ["https://en.wikipedia.org/wiki/BBC"], confidence: high, last_reviewed: "2026-10-18"}
+  - {publisher: The Guardian, domains: [theguardian.com], country: GB, region: Europe, source_type: news,
+     ownership: "private, owned by the Scott Trust Limited",
+     references: ["https://en.wikipedia.org/wiki/The_Guardian"], confidence: high, last_reviewed: "2026-10-18"}
+  - {publisher: Al Jazeera, domains: [aljazeera.com], country: QA, region: Middle East, source_type: news,
+     ownership: "state-funded (Qatar)",
+     limitations: ["funded by the government of Qatar: an interested party on stories involving Qatar"],
+     references: ["https://en.wikipedia.org/wiki/Al_Jazeera_Media_Network"], confidence: high, last_reviewed: "2026-10-18"}
+  - {publisher: NPR, domains: [npr.org], country: US, region: North America, source_type: news,
+     ownership: "non-profit public radio network",
+     references: ["https://en.wikipedia.org/wiki/NPR"], confidence: high, last_reviewed: "2026-10-18"}
+  - {publisher: CNBC, domains: [cnbc.com], country: US, region: North America, source_type: news,
+     ownership: "private (NBCUniversal, Comcast)",
+     references: ["https://en.wikipedia.org/wiki/CNBC"], confidence: high, last_reviewed: "2026-10-18"}
+  - {publisher: Fox News, domains: [foxnews.com], country: US, region: North America, source_type: news,
+     ownership: "private (Fox Corporation)",
+     references: ["https://en.wikipedia.org/wiki/Fox_News"], confidence: high, last_reviewed: "2026-10-18"}
+  - {publisher: France 24, domains: [france24.com], country: FR, region: Europe, source_type: news,
+     ownership: "state-owned (France Médias Monde)",
+     references: ["https://en.wikipedia.org/wiki/France_24"], confidence: high, last_reviewed: "2026-10-18"}
+  - {publisher: Deutsche Welle, domains: [dw.com], country: DE, region: Europe, source_type: news,
+     ownership: "public international broadcaster (German federal budget)",
+     references: ["https://en.wikipedia.org/wiki/Deutsche_Welle"], confidence: high, last_reviewed: "2026-10-18"}
+  - {publisher: South China Morning Post, domains: [scmp.com], country: HK, region: Asia, source_type: news,
+     ownership: "private (Alibaba Group)",
+     references: ["https://en.wikipedia.org/wiki/South_China_Morning_Post"], confidence: high, last_reviewed: "2026-10-18"}
+  - {publisher: Nikkei Asia, domains: [asia.nikkei.com, nikkei.com], country: JP, region: Asia, source_type: news,
+     ownership: "private (Nikkei Inc.)",
+     references: ["https://en.wikipedia.org/wiki/Nikkei_Asia"], confidence: high, last_reviewed: "2026-10-18"}
+  - {publisher: The Japan Times, domains: [japantimes.co.jp], country: JP, region: Asia, source_type: news,
+     ownership: private, references: ["https://en.wikipedia.org/wiki/The_Japan_Times"], confidence: medium,
+     last_reviewed: "2026-10-18"}
+  - {publisher: The Hindu, domains: [thehindu.com], country: IN, region: South Asia, source_type: news,
+     ownership: "private (THG Publishing)",
+     references: ["https://en.wikipedia.org/wiki/The_Hindu"], confidence: high, last_reviewed: "2026-10-18"}
+  - {publisher: The Indian Express, domains: [indianexpress.com], country: IN, region: South Asia, source_type: news,
+     ownership: "private (Indian Express Group)",
+     references: ["https://en.wikipedia.org/wiki/The_Indian_Express"], confidence: high, last_reviewed: "2026-10-18"}
+  - {publisher: The Economic Times, domains: [economictimes.indiatimes.com], country: IN, region: South Asia,
+     source_type: news, ownership: "private (The Times Group)",
+     references: ["https://en.wikipedia.org/wiki/The_Economic_Times"], confidence: high, last_reviewed: "2026-10-18"}
+  - {publisher: The Times of India, domains: [timesofindia.indiatimes.com], country: IN, region: South Asia,
+     source_type: news, ownership: "private (The Times Group)",
+     references: ["https://en.wikipedia.org/wiki/The_Times_of_India"], confidence: high, last_reviewed: "2026-10-18"}
+  - {publisher: Mint, domains: [livemint.com], country: IN, region: South Asia, source_type: news,
+     ownership: "private (HT Media)", references: ["https://en.wikipedia.org/wiki/Mint_(newspaper)"],
+     confidence: high, last_reviewed: "2026-10-18"}
+  - {publisher: US Federal Reserve, domains: [federalreserve.gov], country: US, region: North America,
+     source_type: official, ownership: "central bank (US)", references: ["https://www.federalreserve.gov/aboutthefed.htm"],
+     confidence: high, last_reviewed: "2026-10-18"}
+  - {publisher: European Central Bank, domains: [ecb.europa.eu], country: EU, region: Europe, source_type: official,
+     ownership: "central bank (euro area)", references: ["https://www.ecb.europa.eu/ecb/html/index.en.html"],
+     confidence: high, last_reviewed: "2026-10-18"}
+  - {publisher: Reserve Bank of India, domains: [rbi.org.in], country: IN, region: South Asia, source_type: official,
+     ownership: "central bank (India)", references: ["https://www.rbi.org.in/"], confidence: high,
+     last_reviewed: "2026-10-18"}
+  - {publisher: Bank of England, domains: [bankofengland.co.uk], country: GB, region: Europe, source_type: official,
+     ownership: "central bank (UK)", references: ["https://www.bankofengland.co.uk/about"], confidence: high,
+     last_reviewed: "2026-10-18"}
+  - {publisher: Press Information Bureau (Government of India), domains: [pib.gov.in], country: IN, region: South Asia,
+     source_type: official, ownership: "government of India (press office)", references: ["https://pib.gov.in/Aboutpib.aspx"],
+     limitations: ["communicates the government's own position"], confidence: high, last_reviewed: "2026-10-18"}
+  - {publisher: Brookings Institution, domains: [brookings.edu], country: US, region: North America, source_type: think_tank,
+     ownership: "non-profit", references: ["https://en.wikipedia.org/wiki/Brookings_Institution"], confidence: high,
+     last_reviewed: "2026-10-18"}
+  - {publisher: Atlantic Council, domains: [atlanticcouncil.org], country: US, region: North America, source_type: think_tank,
+     ownership: "non-profit", references: ["https://en.wikipedia.org/wiki/Atlantic_Council"], confidence: high,
+     last_reviewed: "2026-10-18"}

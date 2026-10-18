@@ -38,7 +38,7 @@ from .report import write_report
 
 log = logging.getLogger(__name__)
 
-STAGES = ("ingest", "cluster", "rank", "review", "research", "report")
+STAGES = ("ingest", "cluster", "rank", "review", "research", "debate", "report")
 PHASE1_STAGES = STAGES  # name kept for callers written before Phase 2
 DEDUP_MEMORY = timedelta(days=4)
 API_USER_AGENT = f"IntelPod/{__version__}"  # keyed APIs get no contact details (privacy)
@@ -102,7 +102,7 @@ class Phase1Pipeline:
         self.stage_fns: dict[str, Callable[[RunContext], dict]] = {
             "ingest": self.stage_ingest, "cluster": self.stage_cluster,
             "rank": self.stage_rank, "review": self.stage_review, "research": self.stage_research,
-            "report": self.stage_report,
+            "debate": self.stage_debate, "report": self.stage_report,
         }
 
     # -- orchestration ------------------------------------------------------
@@ -474,6 +474,11 @@ class Phase1Pipeline:
         from ..research.runner import run_research  # local import: Phase 1 works without it loaded
         return run_research(self, ctx)
 
+    def stage_debate(self, ctx: RunContext) -> dict:
+        """Phase 3: claims, viewpoints, agreement/disagreement and uncertainty (see intelpod.debate)."""
+        from ..debate.runner import run_debate
+        return run_debate(self, ctx)
+
     def stage_report(self, ctx: RunContext) -> dict:
         ranked = self.repo.scores_for_run(ctx.run_id)
         selected = [r for r in ranked if r.selected]
@@ -485,7 +490,9 @@ class Phase1Pipeline:
         store = ResearchStore(self.db)
         research = {r.event_id: (pkg, store.results(ctx.run_id, r.event_id, selected_only=True))
                     for r in selected if (pkg := store.package(ctx.run_id, r.event_id)) is not None}
-        paths = write_report(out_dir, ctx, selected, ranked, cands, articles, research)
+        from ..debate.store import DebateStore
+        debates = DebateStore(self.db).packages(ctx.run_id)
+        paths = write_report(out_dir, ctx, selected, ranked, cands, articles, research, debates)
         return {"paths": {k: str(v) for k, v in paths.items()}}
 
 

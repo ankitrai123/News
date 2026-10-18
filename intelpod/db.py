@@ -17,7 +17,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 from sqlalchemy.types import TypeDecorator
 
-SCHEMA_VERSION = 3  # v2: llm_calls, llm_cache, embedding_cache; v3: research tables (Phase 2)
+SCHEMA_VERSION = 4  # v2: llm tables; v3: research tables (Phase 2); v4: claims, debate_packages (Phase 3)
 
 
 def utcnow() -> datetime:
@@ -304,6 +304,34 @@ class PageCacheRow(Base):
     status: Mapped[str] = mapped_column(String(20))
     payload: Mapped[dict] = mapped_column(JSON)  # PageInfo without text
     fetched_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, index=True)
+
+
+class ClaimRow(Base):
+    """One claim of an event's evidence map in one run: verbatim text, kind, confidence, sources."""
+
+    __tablename__ = "claims"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    run_id: Mapped[str] = mapped_column(String(40), index=True)
+    event_id: Mapped[str] = mapped_column(String(40), index=True)
+    claim_id: Mapped[str] = mapped_column(String(32))
+    kind: Mapped[str] = mapped_column(String(20))
+    confidence: Mapped[str] = mapped_column(String(20), index=True)
+    text: Mapped[str] = mapped_column(Text)
+    payload: Mapped[dict] = mapped_column(JSON)   # full Claim (source ids, contradictions, speaker)
+    __table_args__ = (UniqueConstraint("run_id", "event_id", "claim_id", name="uq_claim"),)
+
+
+class DebatePackageRow(Base):
+    """Phase 3 output per run and event: positions, agreement, disagreement, uncertainty, diversity."""
+
+    __tablename__ = "debate_packages"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    run_id: Mapped[str] = mapped_column(String(40), index=True)
+    event_id: Mapped[str] = mapped_column(String(40), index=True)
+    status: Mapped[str] = mapped_column(String(20))
+    payload: Mapped[dict] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, index=True)
+    __table_args__ = (UniqueConstraint("run_id", "event_id", name="uq_debate_package"),)
 
 
 class MetaRow(Base):

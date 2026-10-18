@@ -26,7 +26,8 @@
 | Documents every external dependency | Done (docs/PROVIDERS.md) |
 | Researches recent online discussion | Phase 2 done (offline tests; live run pending): archive, research feeds, GDELT date-window search, optional Guardian; packages with explicit limitations |
 | Cites actual supporting sources | Phase 2 stores only retrieved, date-checked sources with URLs; model notes are rejected unless grounded in the source's own extracts |
-| Viewpoints, claims, business analysis, script, verification, audio, sample episode | Phases 3–6 |
+| Ideological and analytical diversity | Phase 3 done (offline tests): source registry with referenced facts, verbatim claim map with calibrated confidence, diversity gaps, viewpoint searches, model questions/positions checked against cited sources, honest "no disagreement" and limitations |
+| Business analysis, script, verification, audio, sample episode | Phases 4–6 |
 
 ## Known limitations (Phase 1)
 
@@ -67,14 +68,22 @@
 * **Relevance is lexical** (calibrated: 89% recall / 0.67 precision on the labelled corpus);
   embeddings are not yet used in research.
 
+## Known limitations (Phase 3)
+
+* **Lexical claim matching**: paraphrases with little overlap may not be grouped; contradictions
+  are detected only for differing figures or explicit denials.
+* **Orientation unknown for every shipped source**, by design (no referenced classification was
+  added); diversity is judged from geography, source type, quoted voices and stated arguments.
+* **Viewpoint searches depend on reachable discovery** (archive, feeds, GDELT, Guardian); a
+  perspective that none of them covers is reported as "looked for, not found".
+* **No live run yet**: the model analysis was tested with scripted model answers only.
+
 ## Exact next step
 
-Phase 3, step 1: a source registry (`config/sources.yaml` + table) with documented,
-human-reviewable editorial metadata (orientation per issue dimension, evidence links,
-confidence, last reviewed; "unknown" allowed), used by research to fill `editorial_metadata`
-and the track-record / corrections components; then viewpoint discovery per interpretive
-question with claim-level evidence maps.
+Phase 4, step 1: business and economic impact analysis per event (affected sectors, companies,
+markets, supply chains and India-specific channels), built on the Phase 3 claim map so every
+impact statement cites confirmed or clearly labelled claims.
 
-Before that: run Phases 1–2 against live sources (`intelpod feeds check`, `intelpod feeds check
---research`, `intelpod run`), confirm which research feeds and GDELT queries work, and review a
-few research packages for relevance.
+Before that: run Phases 1–3 against live sources (`intelpod feeds check --research`,
+`intelpod run`), read a few debate packages, and add referenced registry entries for the
+publishers `intelpod sources --gaps` lists.

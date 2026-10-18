@@ -60,7 +60,8 @@ tests/                 offline tests + fixtures; test_live.py for real network
 | `rank` | candidates from `cluster` output | `RankedEvent` list in `event_scores` (with full explanation) | retried once |
 | `review` | top-ranked events (default 12) | per-event model reviews; outliers unlinked; scores re-ranked and overwritten in `event_scores`; reviewed candidates | **never fails the run**: no key / disabled → `skipped`; provider rejects key, rate limit persists, or every configured model is retired → remaining reviews stop and keyword ranking stands (`failed_all` if none succeeded); one bad answer only affects that event |
 | `research` (Phase 2) | selected events (after review) | research packages and every assessed source in `research_*` tables; per-event status, provider notes, page outcomes | **never fails the run** for provider, page or model problems: each event's package records what went wrong; one event's crash marks only that package failed; resumable per event (finished events are skipped). See docs/RESEARCH.md |
-| `report` | ranked events + research packages | `data/runs/<run_id>/phase1_events.{md,json}` and `research.json` | retried once |
+| `debate` (Phase 3) | research packages + `config/sources.yaml` | claim map, diversity, viewpoint searches (new sources join the research package), checked model questions/positions; `debate_packages` and `claims` tables | **never fails the run**: one event's failure marks only its package; no model → claim map only (`partial`); resumable per event. See docs/DEBATE.md |
+| `report` | ranked events + research + debate packages | `data/runs/<run_id>/phase1_events.{md,json}` and `research.json` | retried once |
 
 Runs record their `now` timestamp, so a resumed run uses the identical time window.
 A run in progress blocks a second run (`--force` overrides a stale lock).

@@ -209,3 +209,16 @@ research:
     cache_days: 7                # page metadata only (never text)
     no_extract_domains: [nytimes.com]   # terms exclude automated/AI text use: metadata only
 
+
+debate:
+  # Phase 3: claim map (verbatim statements typed and grouped across sources), who is represented,
+  # targeted searches for missing perspectives, and model-assisted questions/positions that
+  # IntelPod checks against the cited sources. See docs/DEBATE.md.
+  enabled: true
+  sources_file: config/sources.yaml   # source registry: documented facts only; orientation "unknown" by default
+  viewpoint_searches_per_event: 3     # searches for missing countries / voices / analysis
+  sources_added_per_search: 2
+  gdelt_requests_per_run: 12          # extra GDELT requests for viewpoint searches (throttled, cached)
+  model_analysis: true                # questions and positions; off = claim map only
+  max_model_calls: 16                 # at most 2 per event
+  max_sources_to_model: 20

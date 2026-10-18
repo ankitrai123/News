@@ -3,11 +3,13 @@
   intelpod doctor                 inspect hardware, tools, Ollama and source reachability
   intelpod init                   create config/config.yaml and the database
   intelpod feeds check            fetch every feed once and record its health
-  intelpod run                    full pipeline (ingest -> cluster -> rank -> review -> research -> report)
+  intelpod run                    full pipeline (ingest -> cluster -> rank -> review -> research -> debate -> report)
   intelpod run --stop-after review   Phase 1 only (then `intelpod run --resume` or `intelpod research`)
   intelpod run --no-research      Phase 1 and the report, without Phase 2
   intelpod research [--run-id ID] [--refresh]   Phase 2 on an existing run's selected events
   intelpod feeds check --research   check the research feeds (config/research_feeds.yaml)
+  intelpod debate [--run-id ID] [--refresh]     Phase 3 (claims, viewpoints, disagreement) on a researched run
+  intelpod sources [--gaps]       the source registry (config/sources.yaml) and what it lacks
   intelpod run --resume [--run-id ID]  continue an interrupted/paused run
   intelpod events [--run ID] [--all]
   intelpod runs
@@ -46,6 +48,8 @@ def _settings(args) -> Settings:
         overrides["llm.enabled"] = False
     if getattr(args, "no_research", False):
         overrides["research.enabled"] = False
+    if getattr(args, "no_debate", False):
+        overrides["debate.enabled"] = False
     if getattr(args, "lookback_hours", None):
         overrides["ingestion.lookback_hours"] = args.lookback_hours
     s = load_settings(args.config, overrides)
@@ -253,6 +257,103 @@ def cmd_research(args) -> int:
     return 0
 
 
+def cmd_debate(args) -> int:
+    """Phase 3 on its own for an existing, researched run (default: latest), then rewrite its report."""
+    import time
+
+    from .debate.runner import run_debate
+    from .debate.store import DebateStore
+    from .pipeline.runner import Phase1Pipeline, RunContext, RUN_ID_RE
+
+    s = _settings(args)
+    pipe = Phase1Pipeline(s)
+    if args.run_id and not RUN_ID_RE.fullmatch(args.run_id):
+        print("invalid run id", file=sys.stderr)
+        return 1
+    row = pipe.repo.get_run(args.run_id) if args.run_id else pipe.repo.latest_run(status=None)
+    if row is None:
+        print("no run found; run `intelpod run` first", file=sys.stderr)
+        return 1
+    stages = pipe.repo.stages(row.run_id)
+    if not (stages.get("research") and stages["research"].status == "completed"):
+        print(f"run {row.run_id} has not been researched yet; run `intelpod research --run-id {row.run_id}`",
+              file=sys.stderr)
+        return 1
+    if pipe.repo.active_run() is not None:
+        print("a run is in progress; wait for it to finish", file=sys.stderr)
+        return 2
+    s.debate.enabled = True
+    ctx = RunContext(run_id=row.run_id, now=datetime.fromisoformat(row.params["now"]), params=row.params,
+                     outputs={k: v.output or {} for k, v in stages.items() if v.status == "completed"})
+    pipe.repo.stage_start(row.run_id, "debate")
+    t0 = time.monotonic()
+    try:
+        out = run_debate(pipe, ctx, refresh=args.refresh)
+    except Exception as e:  # noqa: BLE001
+        pipe.repo.stage_finish(row.run_id, "debate", "failed", error=f"{type(e).__name__}: {e}")
+        print(f"debate analysis failed: {e}", file=sys.stderr)
+        return 2
+    out["duration_s"] = round(time.monotonic() - t0, 2)
+    pipe.repo.stage_finish(row.run_id, "debate", "completed", output=out)
+    ctx.outputs["debate"] = out
+    pipe.repo.stage_start(row.run_id, "report")
+    rep = pipe.stage_report(ctx)
+    pipe.repo.stage_finish(row.run_id, "report", "completed", output=rep)
+    store = DebateStore(pipe.db)
+    print(f"run: {row.run_id}")
+    if out.get("status") == "skipped":
+        print(f"skipped: {out.get('reason')}")
+    for r in pipe.repo.scores_for_run(row.run_id, selected_only=True):
+        pkg = store.package(row.run_id, r.event_id)
+        if pkg is None:
+            continue
+        print(f"\n#{r.rank} {r.title}\n   {pkg.status}; confidence {pkg.overall_confidence}; {len(pkg.claims)} claims "
+              f"({len(pkg.consensus)} agreed, {len(pkg.contested)} contested, {len(pkg.unverified)} single-source); "
+              f"{len(pkg.questions)} debated question(s)")
+        if pkg.no_disagreement_note:
+            print(f"   {pkg.no_disagreement_note}")
+        for v in pkg.viewpoint_searches:
+            print(f"   searched: {v.perspective} -> {'found ' + str(len(v.added_source_ids)) if v.found else 'nothing found'}")
+        for lim in pkg.limitations[:4]:
+            print(f"   - {lim}")
+    for name, note in (out.get("provider_notes") or {}).items():
+        print(f"note ({name}): {note}")
+    for kind, path in (rep.get("paths") or {}).items():
+        print(f"{kind} report: {path}")
+    return 0
+
+
+def cmd_sources(args) -> int:
+    """List the source registry; with --gaps, show which feed publishers it does not describe."""
+    from .debate.registry import Registry, economy
+    from .providers.rss import load_feeds
+
+    s = _settings(args)
+    reg = Registry.load(s.resolve(s.debate.sources_file))
+    if not args.gaps:
+        for p in reg.profiles:
+            orient = [f"{f.split('_')[0]}={getattr(p, f)}" for f in
+                      ("editorial_orientation", "economic_orientation", "foreign_policy_orientation") if p.documented(f)]
+            print(f"{p.publisher:<28} {p.country or '?':<3} {economy(p.country):<9} {p.source_type or '?':<18} "
+                  f"{p.ownership or 'ownership unknown':<28} orientation: {', '.join(orient) or 'unknown'}"
+                  f"{' (disputed)' if p.disputed else ''}")
+        print(f"\n{len(reg.profiles)} sources in {s.debate.sources_file}. Orientation is shown only where documented "
+              f"with references.")
+        return 0
+    missing = []
+    for path in (s.ingestion.feeds_file, s.research.feeds.feeds_file):
+        if not s.resolve(path).exists():
+            continue
+        for f in load_feeds(s.resolve(path), include_disabled=True):
+            if reg.lookup(f.domain, f.publisher) is None:
+                missing.append(f"{f.publisher} ({f.domain})")
+    missing = sorted(set(missing))
+    print(f"{len(missing)} feed publisher(s) not in the registry:" if missing else "every feed publisher is in the registry")
+    for m in missing:
+        print(f"  - {m}")
+    return 0
+
+
 def _print_events(repo: Repository, run_id: str, show_all: bool) -> None:
     ranked = repo.scores_for_run(run_id, selected_only=not show_all)
     if not ranked:
@@ -412,17 +513,18 @@ def build_parser() -> argparse.ArgumentParser:
     chk.add_argument("--research", action="store_true", help="check config/research_feeds.yaml instead")
     chk.set_defaults(fn=cmd_feeds_check)
 
-    run = sub.add_parser("run", help="run the pipeline (Phase 1 news selection + Phase 2 research)")
+    run = sub.add_parser("run", help="run the pipeline (Phase 1 selection, Phase 2 research, Phase 3 viewpoints)")
     run.add_argument("--resume", action="store_true", help="resume the given (or latest) run")
     run.add_argument("--run-id", help="run id to resume")
-    run.add_argument("--stop-after", choices=["ingest", "cluster", "rank", "review", "research", "report"])
+    run.add_argument("--stop-after", choices=["ingest", "cluster", "rank", "review", "research", "debate", "report"])
     run.add_argument("--force", action="store_true", help="start even if another run looks active")
     run.add_argument("--no-gdelt", action="store_true")
     run.add_argument("--no-rss", action="store_true")
     run.add_argument("--no-newsdata", action="store_true")
     run.add_argument("--no-llm", action="store_true", help="skip the model review (keyword ranking only)")
     run.add_argument("--lookback-hours", type=int)
-    run.add_argument("--no-research", action="store_true", help="skip Phase 2 research")
+    run.add_argument("--no-research", action="store_true", help="skip Phase 2 research (and so Phase 3)")
+    run.add_argument("--no-debate", action="store_true", help="skip Phase 3 viewpoint and claim analysis")
     run.set_defaults(fn=cmd_run)
 
     rs = sub.add_parser("research", help="Phase 2: research the selected events of an existing run")
@@ -430,6 +532,16 @@ def build_parser() -> argparse.ArgumentParser:
     rs.add_argument("--refresh", action="store_true", help="research again events already researched in that run")
     rs.add_argument("--no-llm", action="store_true", help="no model keywords or notes")
     rs.set_defaults(fn=cmd_research)
+
+    db = sub.add_parser("debate", help="Phase 3: claims, viewpoints and disagreement for a researched run")
+    db.add_argument("--run-id", help="run id (default: latest run)")
+    db.add_argument("--refresh", action="store_true", help="analyse again events already analysed in that run")
+    db.add_argument("--no-llm", action="store_true", help="claim map only; no model questions or positions")
+    db.set_defaults(fn=cmd_debate)
+
+    so = sub.add_parser("sources", help="show the source registry (config/sources.yaml)")
+    so.add_argument("--gaps", action="store_true", help="list feed publishers the registry does not describe")
+    so.set_defaults(fn=cmd_sources)
 
     ev = sub.add_parser("events", help="show ranked events of a run")
     ev.add_argument("--run", help="run id (default: latest completed)")

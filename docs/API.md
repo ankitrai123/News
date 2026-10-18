@@ -18,6 +18,8 @@ No endpoint returns secrets.
 | GET | `/api/events/{event_id}` | event details, all linked articles, assessment history across runs |
 | GET | `/api/runs/{run_id}/research` | per selected event: package status, number of sources, coverage per research question, content mix, limitations |
 | GET | `/api/events/{event_id}/research?run=&all_sources=false` | the research package (latest, or for `run`) and its selected sources (`all_sources=true`: also those not used, with reasons); 404 if none |
+| GET | `/api/runs/{run_id}/debate` | per event: debate package status, claim counts (agreed / contested / single-source), debated questions, overall confidence, "no disagreement" note, limitations |
+| GET | `/api/events/{event_id}/debate?run=` | the full debate package (latest, or for `run`): claims with sources and confidence, questions and positions, diversity, viewpoint searches, rejected model output, limitations; 404 if none |
 | GET | `/api/feeds` | feed registry merged with health (last status, items, failures) |
 | GET | `/api/usage` | requests per provider (24 h), model calls/tokens per model (24 h), NewsData requests today vs budget |
 

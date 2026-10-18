@@ -217,6 +217,7 @@ class ResearchResult(BaseModel):
     page_status: PageStatus = "not_fetched"
     language: str | None = None
     source_type: str | None = None
+    source_country: str | None = None    # as the provider reported it (code or name)
     from_event: bool = False             # one of the event's own Phase 1 reports
     syndicated_with: list[str] = Field(default_factory=list)  # other publishers carrying the same headline
     selected: bool = False

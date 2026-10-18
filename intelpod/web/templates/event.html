@@ -59,6 +59,50 @@
   {% if 'gdelt' in research.queries|map(attribute='provider')|list %}<p class="small muted">Discovery via <a href="https://www.gdeltproject.org/" target="_blank" rel="noopener noreferrer">The GDELT Project</a>.</p>{% endif %}
 </div>
 {% endif %}
+{% macro cite(ids) %}{% for i in ids %}{% set r = src.get(i) %}{% if r %}<a href="{{ r.url|safe_url }}" target="_blank" rel="noopener noreferrer">{{ r.publisher }}</a>{% if not loop.last %}, {% endif %}{% endif %}{% endfor %}{% endmacro %}
+{% macro claim_rows(ids) %}{% for cid in ids %}{% set c = claims[cid] %}<tr><td>“{{ c.text }}”{% if c.speaker %}<div class="small muted">speaker: {{ c.speaker }}{% if c.stakeholder %} ({{ c.stakeholder|replace('_', ' ') }}){% endif %}</div>{% endif %}</td>
+  <td class="small">{{ cite(c.source_ids) }}{% if c.contradicted_by %}<div class="bad">contradicted by {{ cite(c.contradicted_by) }}</div>{% endif %}</td>
+  <td class="small"><span class="pill {{ 'warn' if c.confidence in ('contested', 'speculative') else '' }}" title="{{ confidence_help[c.confidence] }}">{{ c.confidence }}</span><div class="muted">{{ c.kind|replace('_', ' ') }} · {{ c.confidence_reason }}</div></td></tr>{% endfor %}{% endmacro %}
+{% if debate %}
+<div class="card scroll" id="debate"><h3>Viewpoints and evidence
+  <span class="small muted">overall confidence: <b>{{ debate.overall_confidence }}</b> — {{ debate.confidence_reason }}</span></h3>
+  <p class="small muted">Claims are verbatim statements from the sources above, grouped across sources. Confidence:
+  {% for k, v in confidence_help.items() %}<b>{{ k }}</b> = {{ v }}{% if not loop.last %}; {% endif %}{% endfor %}.
+  Positions are summarised by {{ debate.analysed_by or 'no model' }} and checked by IntelPod against the sources they cite;
+  evidence strength is computed by IntelPod.</p>
+  {% if debate.status in ('skipped', 'failed') %}<div class="banner">{{ debate.limitations|join(' ') }}</div>{% else %}
+  {% if debate.questions %}<h4>Where sources disagree</h4>
+  {% for q in debate.questions %}<div class="card"><b>{{ q.question }}</b> <span class="pill">{{ q.disagreement_type }} disagreement</span>
+    <table class="stack"><tr><th>Position</th><th>Argued by</th><th>Evidence</th></tr>
+    {% for p in q.positions %}<tr><td><b>{{ p.label }}</b>{% if p.summary %}<div class="small">{{ p.summary }}</div>{% endif %}
+      {% if p.strongest_argument %}<div class="small muted">Strongest argument: {{ p.strongest_argument }}</div>{% endif %}
+      {% if not p.found %}<div class="small warn">No retrieved source argues this.</div>{% endif %}</td>
+      <td class="small">{{ cite(p.source_ids) }}{% if p.stakeholders %}<div class="muted">voices: {{ p.stakeholders|join(', ')|replace('_', ' ') }}</div>{% endif %}
+        {% if p.challenged_by %}<div class="muted">challenged by {{ cite(p.challenged_by) }}</div>{% endif %}</td>
+      <td class="small"><span class="pill {{ 'warn' if p.evidence_strength in ('weak', 'none') else '' }}">{{ p.evidence_strength }}</span><div class="muted">{{ p.strength_reason }}</div></td></tr>{% endfor %}
+    </table>{% if q.asymmetry %}<p class="small warn">{{ q.asymmetry }}</p>{% endif %}</div>{% endfor %}{% endif %}
+  {% if debate.no_disagreement_note %}<p class="small"><b>{{ debate.no_disagreement_note }}</b></p>{% endif %}
+  {% for title, ids in [('Broadly agreed', debate.consensus), ('Contested', debate.contested), ('Single-source (not independently confirmed)', debate.unverified), ('Forecasts and expectations', debate.forecasts)] %}
+  {% if ids %}<h4>{{ title }} ({{ ids|length }})</h4><table class="stack"><tr><th>Statement</th><th>Sources</th><th>Confidence</th></tr>{{ claim_rows(ids[:12]) }}</table>{% endif %}{% endfor %}
+  {% if debate.uncertainties %}<h4>What remains uncertain</h4><ul class="small">{% for u in debate.uncertainties %}<li>{{ u }}</li>{% endfor %}</ul>{% endif %}
+  {% if debate.would_change %}<h4>What would change the assessment</h4><ul class="small">{% for u in debate.would_change %}<li>{{ u }}</li>{% endfor %}</ul>{% endif %}
+  {% set d = debate.diversity %}
+  <h4>Who is represented</h4>
+  <p class="small">{% for k, n in d.countries.items() %}<span class="pill">{{ k }} {{ n }}</span>{% endfor %}
+    {% for k, n in d.economies.items() %}<span class="pill">{{ k }} economy {{ n }}</span>{% endfor %}
+    {% for k, n in d.content_types.items() %}<span class="pill">{{ k }} {{ n }}</span>{% endfor %}
+    {% for k, n in d.stakeholders.items() %}<span class="pill">{{ k|replace('_', ' ') }} voices {{ n }}</span>{% endfor %}</p>
+  {% if d.gaps %}<ul class="small warn">{% for g in d.gaps %}<li>{{ g }}</li>{% endfor %}</ul>{% endif %}
+  <p class="small muted">{{ d.registry_coverage }}. Editorial orientation is shown only where documented with references in config/sources.yaml.</p>
+  {% if debate.viewpoint_searches %}<details><summary class="small">Viewpoint searches ({{ debate.viewpoint_searches|length }})</summary>
+    <table class="stack">{% for v in debate.viewpoint_searches %}<tr><td class="small"><b>{{ v.perspective }}</b><div class="muted">{{ v.reason }}</div></td>
+    <td class="small {{ 'ok' if v.found else 'warn' }}">{{ ('added ' ~ plural(v.added_source_ids|length, 'source')) if v.found else 'nothing relevant found' }}</td>
+    <td class="small">{% for q in v.queries %}<code>{{ q }}</code><br>{% endfor %}</td></tr>{% endfor %}</table></details>{% endif %}
+  {% if debate.limitations %}<div class="banner"><b>Limitations</b><ul class="small">{% for l in debate.limitations %}<li>{{ l }}</li>{% endfor %}</ul></div>{% endif %}
+  {% if debate.rejected %}<details><summary class="small">Model output rejected ({{ debate.rejected|length }})</summary><ul class="small muted">{% for x in debate.rejected %}<li>{{ x }}</li>{% endfor %}</ul></details>{% endif %}
+  {% endif %}
+</div>
+{% endif %}
 <div class="card scroll"><h3>Reports ({{ articles|length }})</h3>
 {% if articles_scope == 'run' and total_linked != articles|length %}<p class="small muted">Showing the {{ plural(articles|length, 'report') }} this event had in run {{ run.run_id }}; {{ total_linked }} are linked to it across all runs.</p>{% endif %}
 <table class="stack">

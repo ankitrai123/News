@@ -263,7 +263,7 @@ class LLMConfig(BaseModel):
         (which list only `event_review`) still get model help for research."""
         base = self.tasks.get("event_review")
         if base is not None:
-            for name, max_tokens in (("research_queries", 600), ("research_notes", 1800)):
+            for name, max_tokens in (("research_queries", 600), ("research_notes", 1800), ("debate_analysis", 2500)):
                 if name not in self.tasks:
                     self.tasks[name] = LLMTaskConfig(models=[m.model_copy() for m in base.models],
                                                      temperature=0.2, max_tokens=max_tokens)
@@ -353,6 +353,19 @@ class ResearchConfig(BaseModel):
         return self
 
 
+class DebateConfig(BaseModel):
+    """Phase 3: viewpoints, claim map, agreement/disagreement, uncertainty (docs/DEBATE.md)."""
+
+    enabled: bool = True
+    sources_file: str = "config/sources.yaml"        # source registry (documented facts; orientation unknown by default)
+    viewpoint_searches_per_event: int = Field(3, ge=0, le=8)
+    sources_added_per_search: int = Field(2, ge=0, le=5)
+    gdelt_requests_per_run: int = Field(12, ge=0)    # on top of research's budget; GDELT is throttled
+    model_analysis: bool = True                      # interpretive questions and positions (checked)
+    max_model_calls: int = Field(16, ge=0)           # at most 2 per event (before and after viewpoint searches)
+    max_sources_to_model: int = Field(20, ge=2, le=40)
+
+
 class Settings(BaseModel):
     app: AppConfig = Field(default_factory=AppConfig)
     http: HttpConfig = Field(default_factory=HttpConfig)
@@ -361,6 +374,7 @@ class Settings(BaseModel):
     ranking: RankingConfig = Field(default_factory=RankingConfig)
     llm: LLMConfig = Field(default_factory=LLMConfig)
     research: ResearchConfig = Field(default_factory=ResearchConfig)
+    debate: DebateConfig = Field(default_factory=DebateConfig)
     taxonomy_file: str = "config/taxonomy.yaml"
 
     def resolve(self, path: str) -> Path:

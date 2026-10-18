@@ -24,6 +24,8 @@ from ..repository import Repository
 from .. import labels
 from ..research.models import QUERY_TYPE_LABELS
 from ..research.store import ResearchStore
+from ..debate.models import CONFIDENCE_HELP
+from ..debate.store import DebateStore
 
 log = logging.getLogger(__name__)
 TEMPLATES = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
@@ -55,6 +57,7 @@ def create_app(settings: Settings | None = None, pipeline_factory=None,
     db = Database(settings.db_file)
     repo = Repository(db)
     rstore = ResearchStore(db)
+    dstore = DebateStore(db)
     app = FastAPI(title="IntelPod", version=__version__,
                   description="Local API for the geopolitical & business intelligence podcast agent (Phase 1).")
     hosts = list(allowed_hosts or []) + LOCAL_HOSTS
@@ -176,6 +179,24 @@ def create_app(settings: Settings | None = None, pipeline_factory=None,
         results = rstore.results(pkg.run_id, event_id, selected_only=not all_sources)
         return {"package": pkg.model_dump(mode="json"), "sources": [r.model_dump(mode="json") for r in results]}
 
+    @app.get("/api/runs/{run_id}/debate")
+    def api_run_debate(run_id: str):
+        run_or_404(run_id)
+        return {eid: {"status": p.status, "claims": len(p.claims), "consensus": len(p.consensus),
+                      "contested": len(p.contested), "unverified": len(p.unverified), "questions": len(p.questions),
+                      "overall_confidence": p.overall_confidence, "no_disagreement_note": p.no_disagreement_note,
+                      "limitations": p.limitations}
+                for eid, p in dstore.packages(run_id).items()}
+
+    @app.get("/api/events/{event_id}/debate")
+    def api_event_debate(event_id: str, run: str | None = Query(None, max_length=80)):
+        if repo.event(event_id) is None:
+            raise HTTPException(404, "event not found")
+        pkg = dstore.package(run, event_id) if run else dstore.latest_package(event_id)
+        if pkg is None:
+            raise HTTPException(404, "no debate package for this event" + (f" in run {run}" if run else ""))
+        return pkg.model_dump(mode="json")
+
     @app.get("/api/events/latest")
     def api_latest_events(selected_only: bool = True):
         run = repo.latest_run()
@@ -245,6 +266,7 @@ def create_app(settings: Settings | None = None, pipeline_factory=None,
                     run_stage=repo.current_stage(run_row.run_id) if run_row else None,
                     ingest=out("ingest"), review=out("review"), cluster=out("cluster"),
                     research=rstore.packages(run_row.run_id) if run_row else {},
+                    debates=dstore.packages(run_row.run_id) if run_row else {},
                     min_events=settings.ranking.min_events)
 
     @app.get("/events/{event_id}", response_class=HTMLResponse)
@@ -265,9 +287,13 @@ def create_app(settings: Settings | None = None, pipeline_factory=None,
         results = rstore.results(pkg.run_id, event_id) if pkg else []
         order = {rid: i for i, rid in enumerate(pkg.result_ids)} if pkg else {}
         sources = sorted((r for r in results if r.selected), key=lambda r: order.get(r.result_id, 99))
+        debate = dstore.package(pkg.run_id, event_id) if pkg else None
+        by_id = {r.result_id: r for r in results}
+        claims = {c.claim_id: c for c in debate.claims} if debate else {}
         return page(request, "event.html", ev=ev, score=score, run=run_row, articles=articles,
                     research=pkg, sources=sources, rejected=[r for r in results if not r.selected][:40],
-                    queries=pkg.queries if pkg else [],
+                    queries=pkg.queries if pkg else [], debate=debate, src=by_id, claims=claims,
+                    confidence_help=CONFIDENCE_HELP,
                     articles_scope="run" if run_ids is not None else "all", total_linked=len(all_articles),
                     history=repo.event_score_history(event_id))
 
