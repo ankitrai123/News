@@ -33,10 +33,13 @@ class Toolkit:
     clients: list[HttpClient] = field(default_factory=list)
 
     def close(self, repo, run_id: str) -> None:
-        for p in self.providers.values():
+        from ..providers import gdelt_backoff
+        for name, p in self.providers.items():
             inner = getattr(p, "inner", p)
             if getattr(inner, "fetches", None):
                 repo.log_fetches(run_id, inner.fetches)
+                if name == "gdelt":
+                    gdelt_backoff.note(repo.db, inner.fetches)
                 inner.fetches = []
         for c in self.clients:
             c.close()
@@ -86,7 +89,11 @@ def build_toolkit(pipe, ctx, store: ResearchStore, refresh_feeds: bool, gdelt_ma
     cache_age = timedelta(hours=cfg.search_cache_hours)
     ingest_gdelt = ((ctx.outputs.get("ingest") or {}).get("providers") or {}).get("gdelt") or {}
     research_gdelt = " ".join((ctx.outputs.get("research") or {}).get("provider_notes", {}).values())
-    if cfg.gdelt.enabled and gdelt_max_requests > 0:
+    from ..providers import gdelt_backoff
+    gdelt_until = gdelt_backoff.blocked_until(repo.db) if cfg.gdelt.enabled and gdelt_max_requests > 0 else None
+    if gdelt_until:
+        notes["gdelt"] = gdelt_backoff.reason(gdelt_until)
+    elif cfg.gdelt.enabled and gdelt_max_requests > 0:
         if "refusing" in (ingest_gdelt.get("note") or "") or "refusing" in research_gdelt:
             notes["gdelt"] = "GDELT refused requests earlier in this run; not queried again"
         else:

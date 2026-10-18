@@ -129,6 +129,11 @@ def cmd_doctor(args) -> int:
     if feeds:
         probes[f"rss:{feeds[0].name}"] = feeds[0].url
     report["network"] = {}
+    from .providers import gdelt_backoff
+    gdelt_until = gdelt_backoff.blocked_until(Database(s.db_file))
+    if gdelt_until:  # do not poke GDELT while it is refusing us
+        probes.pop("gdelt")
+        report["network"]["gdelt"] = f"not probed: {gdelt_backoff.reason(gdelt_until)}"
     for name, url in probes.items():
         try:
             r = httpx.get(url, timeout=15, headers={"User-Agent": s.app.user_agent}, follow_redirects=True)

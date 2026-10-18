@@ -232,7 +232,12 @@ class Phase1Pipeline:
                                          max_description_chars=cfg.max_description_chars,
                                          max_workers=cfg.providers.rss.max_workers))
         if cfg.providers.gdelt.enabled and cfg.providers.gdelt.queries:
-            providers.append(GdeltProvider(http, cfg.providers.gdelt, domain_publishers))
+            from ..providers import gdelt_backoff
+            until = gdelt_backoff.blocked_until(self.db)
+            if until:
+                self._provider_notes["gdelt"] = gdelt_backoff.reason(until)
+            else:
+                providers.append(GdeltProvider(http, cfg.providers.gdelt, domain_publishers))
         nd = cfg.providers.newsdata
         if nd.enabled and nd.queries:
             api_http = HttpClient(self.settings.http, API_USER_AGENT)
@@ -282,6 +287,9 @@ class Phase1Pipeline:
                 # log the requests but do not count them toward pausing feeds.
                 all_failed = p.name == "rss" and len(res.fetches) > 1 and not any(f.ok for f in res.fetches)
                 self.repo.log_fetches(ctx.run_id, res.fetches, feed_health=not all_failed)
+                if p.name == "gdelt":
+                    from ..providers import gdelt_backoff
+                    gdelt_backoff.note(self.db, res.fetches)
                 skipped = getattr(p, "skipped_reason", None)
                 normalized = [a for it in res.items
                               if (a := normalize_item(it, now=datetime.now(timezone.utc),

@@ -160,3 +160,27 @@ def test_ctrl_c_marks_run_and_stage_failed(settings):
     stages = pipe.repo.stages(run.run_id)
     assert run.status == "failed" and stages["cluster"].status == "failed"
     assert "interrupted" in stages["cluster"].error
+
+
+def test_gdelt_refusals_are_remembered_between_runs(settings):
+    from datetime import datetime, timezone
+    from intelpod.providers import gdelt_backoff
+    from intelpod.providers.base import FetchRecord
+    db = Database(settings.db_file)
+    now = datetime.now(timezone.utc)
+    refused = [FetchRecord(provider="gdelt", target="q", started_at=now, duration_ms=1, ok=False, status_code=429,
+                           error="HTTP 429: rate limited by GDELT")]
+    gdelt_backoff.note(db, refused, now=now)
+    assert gdelt_backoff.blocked_until(db, now) == now + timedelta(minutes=30)
+    gdelt_backoff.note(db, refused, now=now)
+    assert gdelt_backoff.blocked_until(db, now) == now + timedelta(minutes=60)   # doubles
+    # The next run skips GDELT and says why; RSS still runs.
+    with respx.mock(assert_all_called=False) as router:
+        mock_sources(router)
+        gd = router.route(host="api.gdeltproject.org")
+        pipe = Phase1Pipeline(settings, stage_retry_delay=0)
+        run_id = pipe.run(now=sn.NOW)
+    assert "skipped until" in pipe.repo.stages(run_id)["ingest"].output["providers"]["gdelt"]["note"]
+    ok = [FetchRecord(provider="gdelt", target="q", started_at=now, duration_ms=1, ok=True, status_code=200)]
+    gdelt_backoff.note(db, ok, now=now)
+    assert gdelt_backoff.blocked_until(db, now) is None                          # success resets

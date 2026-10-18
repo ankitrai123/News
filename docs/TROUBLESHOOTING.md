@@ -49,6 +49,7 @@ to `data/logs/intelpod.log` (set `app.log_json: true` for JSON lines).
 | Impact: "No retrieved source discusses India" | no statement mentions India/RBI/rupee etc. | by design: India implications are not invented. Add Indian research feeds or a Guardian key for wider coverage |
 | Few or no "Connections between events" | no source of one event mentions another | by design: events are not linked on timing alone |
 | `intelpod impact` says "has no completed rank stage" | Phase 1 not finished for that run | `intelpod run --resume` first |
+| "GDELT skipped until HH:MM UTC" | GDELT refused every request in a recent run; IntelPod waits 30 min (doubling up to 6 h) before asking again, so it does not extend GDELT's block | nothing to do: RSS, NewsData and the Guardian keep working. Shared networks (campus or office Wi-Fi, VPNs) are often rate-limited by GDELT; a home connection usually works better |
 | `database is locked` | two processes writing at once | let the running job finish; SQLite WAL mode and a 5 s busy timeout are already set |
 
 ## Resetting

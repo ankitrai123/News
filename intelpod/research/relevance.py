@@ -18,6 +18,9 @@ from ..textutil import COUNTRY_TOKEN_PREFIX, Taxonomy, fold_countries, is_countr
 from .models import EventBrief
 
 ENTITY_WEIGHT = 0.3
+KEY_TERMS = 10          # the event's most distinctive terms (no countries) used as anchors
+TOP_TERMS = 4           # one of these alone is enough
+OFF_TOPIC_FACTOR = 0.4  # score multiplier for results that mention none of the event's anchors
 
 
 class RelevanceModel:
@@ -38,6 +41,11 @@ class RelevanceModel:
             for t, w in self._vec(text).items():
                 acc[t] = acc.get(t, 0.0) + w
         self.profile = _norm(acc)
+        self.key_terms = {t for t, _ in sorted(self.profile.items(), key=lambda kv: -kv[1])
+                          if not t.startswith(("pair:", COUNTRY_TOKEN_PREFIX)) and len(t) > 2}
+        ranked = sorted(self.key_terms, key=lambda t: -self.profile[t])
+        self.key_terms = set(ranked[:KEY_TERMS])
+        self.top_terms = set(ranked[:TOP_TERMS])
         self.entities = [e for e in brief.entities if not is_country_alias(e)][:8]
         self.embedder = embedder
         self._event_dense = None
@@ -67,6 +75,12 @@ class RelevanceModel:
         hits = [e for e in self.entities if e.lower() in low]
         ent = len(hits) / len(self.entities) if self.entities else 0.0
         score = combine_similarity(cos, ent, ENTITY_WEIGHT)
+        # Similarity alone lets a long unrelated article through on shared common words and a shared
+        # country ("US" midterms vs a US sanctions story). A result must name one of the event's
+        # actors, one of its four most distinctive terms, or two of its top ten, near the top.
+        head = set(self._tokens(f"{title} {text[:1500]}"))
+        anchored = (bool(hits) or bool(head & self.top_terms) or len(head & self.key_terms) >= 2
+                    or not self.key_terms)
         if self._event_dense is not None:
             try:
                 vecs = self.embedder([f"{title}. {text[:500]}"])
@@ -82,6 +96,9 @@ class RelevanceModel:
             why.append("shares terms: " + ", ".join(shared))
         if hits:
             why.append("names: " + ", ".join(hits[:4]))
+        if not anchored:
+            score *= OFF_TOPIC_FACTOR
+            why.append("names none of the event's actors or distinctive terms (score reduced)")
         return round(min(1.0, score), 3), "; ".join(why) or "few shared terms"
 
 

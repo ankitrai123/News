@@ -437,3 +437,17 @@ def test_skipped_events_are_researched_on_resume(settings, taxonomy):
     out = ResearchService(settings, store, taxonomy, {}).research_events("run_x", events, NOW)
     assert [e["status"] for e in out["events"]][0] == "already_done"
     assert store.packages("run_x")["e1"].status != "skipped"
+
+
+def test_off_topic_result_without_event_anchors_is_penalised(taxonomy):
+    from intelpod.config import ClusteringConfig
+    from intelpod.research.models import EventBrief
+    from intelpod.research.relevance import RelevanceModel
+    b = EventBrief(event_id="e", run_id="r", title="US grants sanctions waiver for buyers of Russian oil",
+                   topic="energy_commodities", countries=["United States", "Russia"], entities=["Rubio"])
+    texts = ["US grants sanctions waiver for buyers of Russian oil", "Rubio defends Russian oil sanctions waiver"]
+    corpus = texts + ["US midterms: Democrats lead in polls in key states", "Oil waiver criticised by Kyiv"]
+    m = RelevanceModel(b, taxonomy, ClusteringConfig(), corpus, event_texts=texts)
+    off, why = m.score("US midterms: Democrats lead in polls in key states", "Voters in the United States head to polls.")
+    on, _ = m.score("Kyiv criticises US waiver on Russian oil sanctions", "")
+    assert off < 0.12 and "score reduced" in why and on > off

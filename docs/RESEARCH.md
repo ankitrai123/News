@@ -166,3 +166,13 @@ Tables (schema v3): `research_items` (research-feed items), `research_queries`,
   date only, and the package says how many.
 * Interpretive balance (viewpoint diversity, claim-level evidence maps, disagreement analysis) is
   Phase 3.
+
+
+## Relevance anchor (added after the first live runs)
+
+Similarity alone let long unrelated articles through on shared common words and a shared country
+(a US midterms story attached to a US sanctions event). A result must now name one of the event's
+actors, one of its four most distinctive terms, or two of its top ten, in its title, snippet or
+extracts; otherwise its relevance is multiplied by 0.4 and the reason is shown. On the labelled
+corpus at the default threshold (0.12) precision rose from 0.67 to 0.78 and recall went from
+0.89 to 0.78 (F1 0.76 → 0.78); off-topic matches roughly halved.
