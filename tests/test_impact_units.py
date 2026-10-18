@@ -206,7 +206,14 @@ def test_forecast_ledger_upsert_and_resolve(tmp_path):
     got = store.forecasts()[0]
     assert got.status == "resolved" and got.verdict == "correct" and got.last_run_id == "r2"
     assert set(got.source_ids) == {"a", "b"}                     # outcome kept, sources merged
-    assert store.resolve_forecast("nope", "correct", "x") is None
+    assert store.resolve_forecast("nope", "correct", "xyz") is None
+    import pytest
+    with pytest.raises(ValueError):
+        store.resolve_forecast("f1", "incorrect", "overwrite attempt")       # recorded outcome is protected
+    with pytest.raises(ValueError):
+        store.resolve_forecast("f1", "incorrect", "  ", amend=True)          # empty outcome refused
+    amended = store.resolve_forecast("f1", "partly", "Revised: CPI 4.1%", amend=True)
+    assert amended.verdict == "partly" and amended.history[0]["verdict"] == "correct"
 
 
 def test_claims_from_build_claims_feed_tagging():
@@ -222,3 +229,98 @@ def test_sentence_start_words_vs_invented_names():
     assert unsupported_terms("Savers lose out. Cheaper loans help exporters.", src) == []
     assert unsupported_terms("Tata Motors gains.", src) == ["Tata", "Motors"]
     assert unsupported_terms("Infosys gains.", src) == ["Infosys"]
+
+
+# -- review regressions -------------------------------------------------------------------------
+def test_no_link_from_shared_entities_titles_or_shared_sources():
+    a = brief(event_id="a", title="Apple reports record iPhone sales in India", entities=["Apple"],
+              countries=["India"], centroid={"iphone": 1.0})
+    b = brief(event_id="b", title="EU fines Apple over App Store rules", entities=["Apple", "European Commission"],
+              countries=["Belgium"], centroid={"fines": 1.0})
+    sa = [res("x1", "Mint", "Apple reports record iPhone sales in India")]
+    sb = [res("y1", "FT", "EU fines Apple over App Store rules")]
+    assert [link.kind for link in find_links("r", [(a, sa), (b, sb)])] == []
+    s1 = brief(event_id="s1", title="US tariffs on steel imports raise prices", entities=[], countries=["United States"])
+    s2 = brief(event_id="s2", title="India steel tariffs to protect local mills", entities=[], countries=["India"])
+    t1 = [res("p1", "AP", "US tariffs on steel imports raise prices")]
+    t2 = [res("q1", "Mint", "India steel tariffs to protect local mills")]
+    assert all(link.kind != "evidenced" for link in find_links("r", [(s1, t1), (s2, t2)]))
+    rx = res("rx", "Reuters", "Roundup: OPEC cut and RBI decision")
+    rbi = brief(event_id="rbi", title="RBI cuts repo rate", entities=["Reserve Bank of India"], countries=["India"])
+    oil = brief(event_id="oil", title="OPEC agrees output cut", entities=["OPEC"], countries=["Saudi Arabia"])
+    links = find_links("r", [(rbi, [rx]), (oil, [rx])])
+    assert all(link.kind != "evidenced" for link in links)
+
+
+def test_invented_one_word_names_and_quantities_rejected():
+    rejected = []
+    out = _out(actors=[{"group": "Pfizer", "effect": "benefits", "reason": "Gains share."},
+                       {"group": "Boeing", "effect": "harmed", "reason": "Higher costs."},
+                       {"group": "Exporters", "effect": "harmed", "reason": "Could lose a third of sales."}],
+               chains=[{"title": "T", "steps": [{"text": "Oil prices rose 3% after OPEC+ agreed to cut output.",
+                                                 "claim_ids": ["c2"]},
+                                                {"text": "Fuel costs could rise 3% within a year."}]}])
+    assert analysis.to_actors(out, _ids(), ALL, rejected) == []
+    assert analysis.to_chains(out, _ids(), ALL, rejected) == []
+    text = " ".join(rejected)
+    assert "Pfizer" in text and "Boeing" in text and "quantity" in text
+
+
+def test_forecast_cannot_be_restated_as_fact_and_value_chain_not_measured():
+    rejected = []
+    out = _out(chains=[{"title": "T", "steps": [
+        {"text": "Economists expect inflation to ease to 4% next year.", "claim_ids": ["c3"]},
+        {"text": "Borrowing gets cheaper."}]},
+        {"title": "U", "steps": [{"text": "Inflation eases to 4%.", "claim_ids": ["c3"]}, {"text": "Demand rises."}]}])
+    chains = analysis.to_chains(out, _ids(), ALL, rejected)
+    assert len(chains) == 1 and chains[0].status == "conditional"            # hedged forecast kept, stated one dropped
+    assert any("forecast as fact" in r for r in rejected)
+    vj = {"v1": claim("v1", "The tariff is a reckless mistake.", kind="value_judgement", confidence="reported"),
+          "v2": claim("v2", "The tariff is wrong for workers.", kind="value_judgement", confidence="reported")}
+    out = _out(chains=[{"title": "V", "steps": [{"text": "The tariff is a reckless mistake.", "claim_ids": ["v1"]},
+                                                {"text": "The tariff is wrong for workers.", "claim_ids": ["v2"]}]}])
+    ch = analysis.to_chains(out, vj, "x", [])[0]
+    assert ch.status == "conditional"
+
+
+def test_explain_links_checked_against_quotes():
+    from intelpod.impact.links import explain_links
+    from intelpod.impact.models import EventLink, LinkEvidence
+    link = EventLink(run_id="r", link_id="l", event_a="a", event_b="b", title_a="RBI cuts rate", title_b="OPEC cut",
+                     kind="evidenced", evidence=[LinkEvidence(event_id="a", result_id="x", publisher="Mint", url="u",
+                                                              text="The RBI said oil prices after the OPEC cut could lift inflation.")])
+    bad = link.model_copy(deep=True)
+
+    class Client:
+        def __init__(self, text):
+            self.text = text
+
+        def chat_json(self, task, messages, schema):
+            return schema.model_validate({"links": [{"link": "L1", "explanation": self.text}]}), "m"
+
+    explain_links(Client("Oil prices after the OPEC cut could lift inflation, the RBI said."), [link])
+    assert link.explanation and link.explanation_by == "m"
+    _, rej = explain_links(Client("Morgan Stanley says the cut adds 0.5% to inflation."), [bad])
+    assert not bad.explanation and rej
+
+
+def test_brief_markdown_escapes_untrusted_text():
+    from intelpod.debate.models import DebatePackage
+    from intelpod.impact.models import EventLink, Figure, IntelligenceBrief, LinkEvidence
+    from intelpod.impact.report import render_brief
+    from intelpod.schemas import RankedEvent
+    evil = "Evil [click](https://evil.test) <img src=x onerror=alert(1)>"
+    c = claim("k1", "Prices rose 5% [see](https://evil.test).", sources=("s1",))
+    a = ImpactAnalysis(run_id="r", event_id="e1", event_title="t", status="completed", created_at=NOW,
+                       figures=[Figure(figure="5%", claim_id="k1", text=c.text, source_ids=["s1"], kind="measured")])
+    dp = DebatePackage(run_id="r", event_id="e1", event_title="t", status="completed", claims=[c], consensus=["k1"],
+                       created_at=NOW)
+    src = res("s1", evil, "x")
+    link = EventLink(run_id="r", link_id="l", event_a="e1", event_b="e2", title_a="A", title_b="B", kind="evidenced",
+                     evidence=[LinkEvidence(event_id="e1", result_id="s1", publisher=evil, url="u", text=c.text)])
+    brief_ = IntelligenceBrief(run_id="r", generated_for=NOW, links=[link], created_at=NOW)
+    ranked = [RankedEvent.model_construct(event_id="e1", rank=1, title="T [x](https://evil.test)")]
+    md = render_brief("r", NOW, ranked, {"e1": a}, {"e1": dp}, {"e1": {"s1": src}}, brief_, [])
+    import re
+    assert not re.search(r"(?<!\\)\]\(https://evil", md) and not re.search(r"(?<!\\)<img", md)
+    assert "## Connections between events" in md and "evidenced" in md

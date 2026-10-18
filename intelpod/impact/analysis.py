@@ -23,6 +23,8 @@ IntelPod then enforces:
 """
 from __future__ import annotations
 
+import re
+
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from ..debate.analysis import _as_list, _drop_nulls, unsupported_terms
@@ -89,10 +91,15 @@ class ChainOut(BaseModel):
     steps: list[StepOut] = Field(default_factory=list)
     _n = model_validator(mode="before")(classmethod(lambda cls, v: _drop_nulls(v)))
 
-    @field_validator("title", "horizon", "direction", mode="before")
+    @field_validator("title", mode="before")
     @classmethod
     def _s(cls, v):
-        return " ".join(str(v or "").split())[:120]
+        return " ".join(v.split())[:120] if isinstance(v, str) else ""
+
+    @field_validator("horizon", "direction", mode="before")
+    @classmethod
+    def _e(cls, v):
+        return "_".join(v.lower().replace("-", " ").split()) if isinstance(v, str) else ""
 
     @field_validator("dimensions", "sectors", mode="before")
     @classmethod
@@ -118,10 +125,15 @@ class ActorOut(BaseModel):
     _n = model_validator(mode="before")(classmethod(lambda cls, v: _drop_nulls(v)))
     _ids = field_validator("claim_ids", mode="before")(classmethod(lambda cls, v: StepOut._ids.__func__(cls, v)))
 
-    @field_validator("group", "effect", "reason", mode="before")
+    @field_validator("group", "reason", mode="before")
     @classmethod
     def _s(cls, v):
-        return " ".join(str(v or "").split())[:200]
+        return " ".join(v.split())[:200] if isinstance(v, str) else ""
+
+    @field_validator("effect", mode="before")
+    @classmethod
+    def _e(cls, v):
+        return v.strip().lower() if isinstance(v, str) else ""
 
 
 class InterpOut(BaseModel):
@@ -131,10 +143,15 @@ class InterpOut(BaseModel):
     _n = model_validator(mode="before")(classmethod(lambda cls, v: _drop_nulls(v)))
     _ids = field_validator("claim_ids", mode="before")(classmethod(lambda cls, v: StepOut._ids.__func__(cls, v)))
 
-    @field_validator("stance", "summary", mode="before")
+    @field_validator("summary", mode="before")
     @classmethod
     def _s(cls, v):
-        return " ".join(str(v or "").split())[:300]
+        return " ".join(v.split())[:300] if isinstance(v, str) else ""
+
+    @field_validator("stance", mode="before")
+    @classmethod
+    def _e(cls, v):
+        return v.strip().lower() if isinstance(v, str) else ""
 
 
 class ImpactOut(BaseModel):
@@ -148,7 +165,7 @@ class ImpactOut(BaseModel):
     @field_validator("what_happened", "india_summary", mode="before")
     @classmethod
     def _s(cls, v):
-        return " ".join(str(v or "").split())[:400]
+        return " ".join(v.split())[:400] if isinstance(v, str) else ""
 
     @field_validator("chains", "actors", "interpretations", mode="before")
     @classmethod
@@ -179,6 +196,21 @@ def _check(text: str, against: str) -> list[str]:
     return unsupported_terms(text, against) if text else []
 
 
+# Reasoning (uncited) text may not carry any quantity: that would be an invented estimate.
+QUANTITY = re.compile(r"\d|%|\b(per ?cent|percent|percentage points?|basis points|bps|half|halve[sd]?|third|"
+                      r"quarter of|double[sd]?|triple[sd]?|twice|thrice|one|two|three|four|five|six|seven|eight|"
+                      r"nine|ten|eleven|twelve|twenty|thirty|forty|fifty|hundreds?|thousands?|millions?|"
+                      r"billions?|trillions?|crores?|lakhs?|dozens?)\b", re.I)
+HEDGE = re.compile(r"\b(could|may|might|would|will|expected|expects?|forecasts?|projected|likely|unlikely|possible|"
+                   r"possibly|risk|risks|potential|potentially|set to|poised to|plans?|planned|aims? to|seen as|"
+                   r"predicts?|predicted|outlook)\b", re.I)
+
+
+def quantity_in(text: str) -> str | None:
+    m = QUANTITY.search(text or "")
+    return m.group(0) if m else None
+
+
 def to_chains(out: ImpactOut, ids: dict[str, Claim], all_text: str, rejected: list[str]) -> list[CausalChain]:
     chains: list[CausalChain] = []
     for ch in out.chains[:4]:
@@ -187,6 +219,7 @@ def to_chains(out: ImpactOut, ids: dict[str, Claim], all_text: str, rejected: li
             rejected.append(f"chain '{title[:40]}': title names things not in the sources; title replaced")
             title = "(chain title rejected)"
         steps: list[CausalStep] = []
+        facts: dict[int, bool] = {}   # step index -> cites only factual/attributed statements
         ok = True
         for st in ch.steps[:5]:
             if not st.text:
@@ -202,16 +235,22 @@ def to_chains(out: ImpactOut, ids: dict[str, Claim], all_text: str, rejected: li
                                     f"({', '.join(issues[:4])}); chain dropped")
                     ok = False
                     break
+                if any(c.kind == "forecast" for c in cited) and not HEDGE.search(st.text):
+                    rejected.append(f"chain '{title[:40]}': a step states a forecast as fact; chain dropped")
+                    ok = False
+                    break
                 worst = min(RANK[c.confidence] for c in cited)
                 if any(c.kind == "forecast" for c in cited):
                     worst = min(worst, RANK["speculative"])
                 steps.append(CausalStep(text=st.text, basis="reported", claim_ids=[c.claim_id for c in cited],
                                         confidence=BY_RANK[worst]))
+                facts[len(steps) - 1] = all(c.kind in ("factual", "attributed") for c in cited)
             else:
                 issues = _check(st.text, all_text)
-                if issues:
-                    rejected.append(f"chain '{title[:40]}': reasoning step introduces names/numbers "
-                                    f"({', '.join(issues[:4])}); chain dropped")
+                q = quantity_in(st.text)
+                if issues or q:
+                    what = f"names/numbers ({', '.join(issues[:4])})" if issues else f"a quantity ('{q}')"
+                    rejected.append(f"chain '{title[:40]}': reasoning step introduces {what}; chain dropped")
                     ok = False
                     break
                 steps.append(CausalStep(text=st.text, basis="inferred", confidence="plausible"))
@@ -230,7 +269,8 @@ def to_chains(out: ImpactOut, ids: dict[str, Claim], all_text: str, rejected: li
             else:
                 level = min(level, RANK[s.confidence])
             s.confidence = BY_RANK[level] if s.basis == "inferred" else s.confidence
-        measured = all(s.basis == "reported" and s.confidence in ("confirmed", "reported") for s in steps)
+        measured = all(s.basis == "reported" and s.confidence in ("confirmed", "reported") and facts.get(i)
+                       for i, s in enumerate(steps))
         reason = (f"{sum(s.basis == 'reported' for s in steps)} sourced step(s), {inferred} inferred; "
                   f"weakest: {BY_RANK[level]}")
         chains.append(CausalChain(
@@ -251,8 +291,10 @@ def to_actors(out: ImpactOut, ids: dict[str, Claim], all_text: str, rejected: li
         cited = [ids[i] for i in a.claim_ids if i in ids]
         against = " ".join(c.text for c in cited) if cited else all_text
         issues = _check(a.group, all_text) + _check(a.reason, against)
-        if issues:
-            rejected.append(f"actor '{a.group[:40]}': names/numbers not in the sources ({', '.join(issues[:4])})")
+        q = None if cited else (quantity_in(a.reason) or quantity_in(a.group))
+        if issues or q:
+            what = f"names/numbers not in the sources ({', '.join(issues[:4])})" if issues else f"a quantity ('{q}')"
+            rejected.append(f"an affected group was rejected: {what}")
             continue
         actors.append(Actor(group=a.group, effect=a.effect, reason=a.reason, claim_ids=[c.claim_id for c in cited],
                             basis="reported" if cited else "inferred"))

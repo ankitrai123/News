@@ -411,7 +411,11 @@ def cmd_forecasts(args) -> int:
             print("usage: intelpod forecasts resolve ID --verdict correct|incorrect|partly|unresolvable "
                   "--outcome \"what happened\"", file=sys.stderr)
             return 1
-        f = store.resolve_forecast(args.id, args.verdict, args.outcome)
+        try:
+            f = store.resolve_forecast(args.id, args.verdict, args.outcome, amend=args.amend)
+        except ValueError as e:
+            print(str(e), file=sys.stderr)
+            return 1
         if f is None:
             print(f"no forecast {args.id}", file=sys.stderr)
             return 1
@@ -657,6 +661,7 @@ def build_parser() -> argparse.ArgumentParser:
     fc.add_argument("--status", choices=["open", "resolved", "all"], default="all")
     fc.add_argument("--verdict", choices=["correct", "incorrect", "partly", "unresolvable"])
     fc.add_argument("--outcome", help="what actually happened, with a source if possible")
+    fc.add_argument("--amend", action="store_true", help="change an outcome already recorded (the old one is kept)")
     fc.set_defaults(fn=cmd_forecasts)
 
     so = sub.add_parser("sources", help="show the source registry (config/sources.yaml)")

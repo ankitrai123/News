@@ -5,7 +5,8 @@ from datetime import datetime, timezone
 
 from sqlalchemy import delete, select
 
-from ..db import (Database, EventLinkRow, EventRow, ForecastRow, ImpactAnalysisRow, IntelligenceBriefRow)
+from ..db import (Database, EventLinkRow, EventRow, ForecastRow, ImpactAnalysisRow, IntelligenceBriefRow,
+                  PipelineRunRow)
 from .models import EventLink, Forecast, ImpactAnalysis, IntelligenceBrief
 
 
@@ -38,14 +39,18 @@ class ImpactStore:
                             .order_by(ImpactAnalysisRow.created_at.desc(), ImpactAnalysisRow.id.desc())).first()
             return ImpactAnalysis.model_validate(row.payload) if row else None
 
-    def previous_analysis(self, event_id: str, run_id: str) -> ImpactAnalysis | None:
-        """The most recent analysis of this event from another (earlier) run."""
+    def previous_analyses(self, event_id: str, run_id: str, limit: int = 5) -> list[ImpactAnalysis]:
+        """Analyses of this event from runs that STARTED BEFORE `run_id`, newest first (re-analysing
+        an old run never compares it with a later one)."""
         with self.db.session() as s:
-            row = s.scalars(select(ImpactAnalysisRow).where(ImpactAnalysisRow.event_id == event_id,
-                                                            ImpactAnalysisRow.run_id != run_id,
-                                                            ImpactAnalysisRow.status.in_(("completed", "partial")))
-                            .order_by(ImpactAnalysisRow.created_at.desc(), ImpactAnalysisRow.id.desc())).first()
-            return ImpactAnalysis.model_validate(row.payload) if row else None
+            cur = s.get(PipelineRunRow, run_id)
+            q = (select(ImpactAnalysisRow).join(PipelineRunRow, PipelineRunRow.run_id == ImpactAnalysisRow.run_id)
+                 .where(ImpactAnalysisRow.event_id == event_id, ImpactAnalysisRow.run_id != run_id,
+                        ImpactAnalysisRow.status.in_(("completed", "partial"))))
+            if cur is not None:
+                q = q.where(PipelineRunRow.started_at < cur.started_at)
+            rows = s.scalars(q.order_by(PipelineRunRow.started_at.desc(), ImpactAnalysisRow.id.desc()).limit(limit)).all()
+            return [ImpactAnalysis.model_validate(r.payload) for r in rows]
 
     def done_event_ids(self, run_id: str) -> set[str]:
         with self.db.session() as s:
@@ -93,23 +98,36 @@ class ImpactStore:
                 row.updated_at = datetime.now(timezone.utc)
         return new
 
-    def forecasts(self, status: str | None = None, event_id: str | None = None, limit: int = 500) -> list[Forecast]:
+    def forecasts(self, status: str | None = None, event_id: str | None = None, limit: int = 500,
+                  first_run_id: str | None = None) -> list[Forecast]:
         with self.db.session() as s:
             q = select(ForecastRow)
             if status:
                 q = q.where(ForecastRow.status == status)
             if event_id:
                 q = q.where(ForecastRow.event_id == event_id)
-            rows = s.scalars(q.order_by(ForecastRow.first_seen_at.desc()).limit(limit)).all()
-            return [Forecast.model_validate(r.payload) for r in rows]
+            rows = s.scalars(q.order_by(ForecastRow.first_seen_at.desc()).limit(limit if not first_run_id else 100000)).all()
+            out = [Forecast.model_validate(r.payload) for r in rows]
+            return [f for f in out if f.first_run_id == first_run_id] if first_run_id else out
 
-    def resolve_forecast(self, forecast_id: str, verdict: str, outcome: str) -> Forecast | None:
+    def resolve_forecast(self, forecast_id: str, verdict: str, outcome: str, amend: bool = False) -> Forecast | None:
+        """Record an outcome. An already-recorded outcome is only changed with `amend=True`, and the
+        earlier verdict is kept in `history`. Raises ValueError for an empty outcome or a resolved
+        forecast without `amend`."""
+        outcome = (outcome or "").strip()
+        if len(outcome) < 3:
+            raise ValueError("describe the outcome (at least 3 characters), ideally with a source")
         with self.db.session() as s:
             row = s.get(ForecastRow, forecast_id)
             if row is None:
                 return None
             f = Forecast.model_validate(row.payload)
-            f.status, f.verdict, f.outcome = "resolved", verdict, outcome.strip()[:1000]
+            if f.status == "resolved":
+                if not amend:
+                    raise ValueError(f"forecast {forecast_id} already resolved ({f.verdict}); use amend to change it")
+                f.history.append({"verdict": f.verdict, "outcome": f.outcome,
+                                  "evaluated_at": f.evaluated_at.isoformat() if f.evaluated_at else None})
+            f.status, f.verdict, f.outcome = "resolved", verdict, outcome[:1000]
             f.evaluated_at = datetime.now(timezone.utc)
             row.status, row.payload, row.updated_at = f.status, f.model_dump(mode="json"), f.evaluated_at
             return f

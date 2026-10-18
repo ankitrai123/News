@@ -358,7 +358,11 @@ def create_app(settings: Settings | None = None, pipeline_factory=None,
     @app.post("/forecasts/{forecast_id}/resolve")
     def forecasts_resolve(forecast_id: str, verdict: str = Form(..., pattern="^(correct|incorrect|partly|unresolvable)$"),
                           outcome: str = Form(..., min_length=3, max_length=1000)):
-        if istore.resolve_forecast(forecast_id[:32], verdict, outcome) is None:
+        try:
+            found = istore.resolve_forecast(forecast_id[:32], verdict, outcome)  # never overwrites a recorded outcome
+        except ValueError as e:
+            raise HTTPException(409, str(e))
+        if found is None:
             raise HTTPException(404, "forecast not found")
         return RedirectResponse("/forecasts", status_code=303)
 

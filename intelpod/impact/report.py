@@ -7,6 +7,7 @@ limitations. Then connections between events and new forecasts."""
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 from .models import DIMENSIONS, SECTORS
@@ -14,9 +15,14 @@ from .models import DIMENSIONS, SECTORS
 BASIS = {"reported": "sourced", "inferred": "inference"}
 
 
-def _md(text: str) -> str:
-    """Quoted source text must not become links or formatting in the Markdown file."""
-    return (text or "").replace("[", "\\[").replace("]", "\\]").replace("<", "&lt;").replace("*", "\\*")
+_MD_SPECIAL = re.compile(r"([\\`*_\[\]()<>!#|~{}])")
+
+
+def _md(text) -> str:
+    """Untrusted text (source titles, publisher names, model output) must not become links, HTML
+    or formatting in the Markdown file: every Markdown-special character is escaped, newlines
+    flattened."""
+    return _MD_SPECIAL.sub(r"\\\1", " ".join(str(text or "").split()))
 
 
 def render_brief(run_id: str, now, ranked: list, analyses: dict, debates: dict, sources: dict, brief, forecasts) -> str:
@@ -33,7 +39,7 @@ def render_brief(run_id: str, now, ranked: list, analyses: dict, debates: dict, 
         srcs = sources.get(r.event_id, {})
 
         def cite(ids) -> str:
-            pubs = list(dict.fromkeys(srcs[i].publisher for i in ids if i in srcs))
+            pubs = list(dict.fromkeys(_md(srcs[i].publisher) for i in ids if i in srcs))
             return ", ".join(pubs[:3]) + (f" +{len(pubs) - 3}" if len(pubs) > 3 else "")
 
         def quote(cid) -> str:
@@ -45,19 +51,19 @@ def render_brief(run_id: str, now, ranked: list, analyses: dict, debates: dict, 
             lines += ["_Not analysed:_ " + " ".join(a.limitations), ""]
             continue
         ctx = a.context
-        lines += [f"**What happened** ({ctx.what_happened_basis}): {_md(ctx.what_happened)}", ""]
+        lines += [f"**What happened** ({_md(ctx.what_happened_basis)}): {_md(ctx.what_happened)}", ""]
         lines += ["**What is new:** " + " ".join(_md(x) for x in ctx.whats_new), ""]
         if ctx.timeline:
             lines.append("**Timeline:**")
             for t in ctx.timeline:
                 when = t.when.strftime("%Y-%m-%d") if t.when else "undated"
-                label = {"earlier_event": "earlier event", "background_source": t.publisher or "source",
+                label = {"earlier_event": "earlier event", "background_source": _md(t.publisher or "source"),
                          "this_event": "this event"}[t.kind]
                 lines.append(f"- {when} — {_md(t.text)} _({label})_")
             lines.append("")
         if ctx.earlier_events:
             lines.append("**Earlier related events** (shared actors; context, not demonstrated causes): "
-                         + "; ".join(f"{_md(p.title)} ({', '.join(p.shared)})" for p in ctx.earlier_events))
+                         + "; ".join(f"{_md(p.title)} ({_md(', '.join(p.shared))})" for p in ctx.earlier_events))
             lines.append("")
         if dp and dp.status not in ("skipped", "failed"):
             agreed = [quote(c) for c in dp.consensus[:3]]
@@ -122,7 +128,7 @@ def render_brief(run_id: str, now, ranked: list, analyses: dict, debates: dict, 
                 head += f" (channels: {', '.join(link.channels)})"
             lines.append(head)
             if link.explanation:
-                lines.append(f"  - {_md(link.explanation)} _(worded by {link.explanation_by}, checked against the quotes)_")
+                lines.append(f"  - {_md(link.explanation)} _(worded by {_md(link.explanation_by)}, checked against the quotes)_")
             for e in link.evidence[:2]:
                 lines.append(f"  - “{_md(e.text)}” — {_md(e.publisher)}")
             if link.kind == "shared_driver":
@@ -132,7 +138,7 @@ def render_brief(run_id: str, now, ranked: list, analyses: dict, debates: dict, 
         lines += ["## New forecasts recorded in the ledger", ""]
         for f in forecasts:
             lines.append(f"- “{_md(f.text)}” — {_md(f.speaker or f.publisher or 'unknown')}"
-                         + (f", timeframe: {f.timeframe}" if f.timeframe else ", no timeframe stated")
+                         + (f", timeframe: {_md(f.timeframe)}" if f.timeframe else ", no timeframe stated")
                          + f" · `{f.forecast_id}`")
         lines.append("")
     if brief and brief.limitations:

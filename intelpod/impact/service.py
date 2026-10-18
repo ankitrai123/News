@@ -22,7 +22,7 @@ from ..debate.claims import FORECAST
 from ..debate.models import Claim, DebatePackage
 from ..research.model_assist import safe_call
 from ..research.models import EventBrief, ResearchResult
-from ..textutil import normalize_title, stable_hash
+from ..textutil import stable_hash
 from . import analysis
 from .context import build_context
 from .links import explain_links, find_links
@@ -71,6 +71,8 @@ class ImpactService:
         limitations = list(dict.fromkeys(self.notes))
         if link_rejected:
             limitations.append(f"{len(link_rejected)} model link explanation(s) rejected as unsupported by the quotes.")
+        # New this run = first recorded by this run (also on resume/refresh, when nothing is "new" to the ledger).
+        new_forecasts = [f.forecast_id for f in self.store.forecasts(first_run_id=run_id)]
         self.store.save_brief(IntelligenceBrief(run_id=run_id, generated_for=now, event_ids=[b.event_id for b in events],
                                                 links=links, new_forecasts=new_forecasts, limitations=limitations,
                                                 created_at=datetime.now(timezone.utc)))
@@ -109,8 +111,12 @@ class ImpactService:
         dp = self.dstore.package(run_id, brief.event_id)
         sources = self._sources(run_id, brief.event_id, dp)
         claims = dp.claims if dp else []
-        previous = self.store.previous_analysis(brief.event_id, run_id)
-        prev_dp = self.dstore.package(previous.run_id, brief.event_id) if previous else None
+        previous, prev_dp = None, None
+        for cand in self.store.previous_analyses(brief.event_id, run_id):
+            dp_old = self.dstore.package(cand.run_id, brief.event_id)
+            if dp_old is not None and dp_old.claims:  # compare only with an earlier run that had a claim map
+                previous, prev_dp = cand, dp_old
+                break
         ctx = build_context(brief, dp, sources, self.store, previous, prev_dp.claims if prev_dp else None, now,
                             self.cfg.context_lookback_days)
         a = ImpactAnalysis(run_id=run_id, event_id=brief.event_id, event_title=brief.title, status="completed",
@@ -158,16 +164,23 @@ class ImpactService:
         a.chains = analysis.to_chains(out, ids, all_text, a.rejected)
         a.actors = analysis.to_actors(out, ids, all_text, a.rejected)
         a.interpretations, a.interpretation_note = analysis.to_interpretations(out, ids, a.rejected)
-        if out.what_happened and not analysis.unsupported_terms(out.what_happened, all_text):
+        # "What happened" may only restate facts: forecasts, contested and value statements are excluded.
+        facts = [c for c in claims if c.kind in ("factual", "attributed") and c.confidence in ("confirmed", "reported")]
+        fact_text = " ".join(c.text for c in facts)
+        if out.what_happened and facts and not analysis.unsupported_terms(out.what_happened, fact_text):
             a.context.what_happened = out.what_happened
-            a.context.what_happened_basis = f"summary by {model}, checked against the statements"
+            a.context.what_happened_basis = f"summary by {model}, checked against confirmed/reported statements"
+            a.context.what_happened_claim_ids = [c.claim_id for c in facts]
         elif out.what_happened:
-            a.rejected.append("'what happened' summary named things not in the statements; lead statement kept")
+            a.rejected.append("'what happened' summary was not supported by confirmed or reported factual statements; "
+                              "lead statement kept")
         if out.india_summary:
+            india_ids = set(a.india.claim_ids) if a.india else set()
+            india_text = " ".join(c.text for c in claims if c.claim_id in india_ids)
             if a.india is None:
                 a.rejected.append("India summary dropped: no retrieved statement concerns India")
-            elif analysis.unsupported_terms(out.india_summary, all_text):
-                a.rejected.append("India summary named things not in the statements; dropped")
+            elif analysis.unsupported_terms(out.india_summary, india_text):
+                a.rejected.append("India summary named things not in the India-related statements; dropped")
             else:
                 a.india_summary = out.india_summary
         if not a.chains:
@@ -185,7 +198,8 @@ class ImpactService:
             src = next((by_id[s] for s in c.source_ids if s in by_id), None)
             m = FORECAST.search(c.text)
             out.append(Forecast(
-                forecast_id=stable_hash("forecast", normalize_title(c.text)), text=c.text, event_id=brief.event_id,
+                forecast_id=stable_hash("forecast", brief.event_id, " ".join(c.text.lower().split())), text=c.text,
+                event_id=brief.event_id,
                 event_title=brief.title, first_run_id=run_id, last_run_id=run_id, first_seen_at=now,
                 publisher=src.publisher if src else None, url=src.url if src else None, speaker=c.speaker,
                 published_at=src.published_at if src else None, timeframe=timeframe(c.text),

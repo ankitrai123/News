@@ -100,7 +100,9 @@ def figures(claims: list[Claim]) -> list[Figure]:
             if key in seen:
                 continue
             seen.add(key)
-            kind = "forecast" if c.kind == "forecast" else ("measured" if c.kind in ("factual", "attributed") else "stated")
+            # "measured" only for an uncontested plain fact; an attributed figure is what someone stated.
+            kind = "forecast" if c.kind == "forecast" else (
+                "measured" if c.kind == "factual" and c.confidence in ("confirmed", "reported") else "stated")
             out.append(Figure(figure=fig, claim_id=c.claim_id, text=c.text, source_ids=c.source_ids, kind=kind,
                               confidence=c.confidence))
     return out[:20]

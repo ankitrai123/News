@@ -28,6 +28,9 @@ intelpod forecasts resolve ID --verdict correct|incorrect|partly|unresolvable --
   containing a number or name that is not in the statements it cites is rejected.
 * **Reporting vs reasoning.** In an effect chain, each step is either *sourced* (cites
   statements, checked against them) or *inference* (IntelPod/model reasoning in general words).
+  Reasoning steps may contain no quantity at all (no digits, percentages or number words), so a
+  number in a chain always comes from the statement a step cites. A step citing a forecast must
+  keep its hedging ("could", "expected"); stating a forecast as fact drops the chain.
   Chains must start from a sourced step. Confidence decays along the chain (first inference:
   at most "plausible"; second: "speculative"), and a chain is *measured* only if every step is
   sourced reporting; otherwise it is *conditional*.
@@ -36,21 +39,24 @@ intelpod forecasts resolve ID --verdict correct|incorrect|partly|unresolvable --
 * **Connections need evidence.** Events are linked only when a source of one refers to the
   other (*evidenced*, quoted), or when both discuss the same economic channel and share a
   country or actor (*shared driver*, labelled as context, not causation). Coincidence in time
-  is never a link.
+  is never a link. Evidence must name something specific to the *other* event (an entity or two
+  title words the first event does not share); an event's own reports, and any source used by
+  both events, never count (a shared source is flagged as "may be one story").
 * **Forecasts are not facts.** They go to a ledger with source, date and stated timeframe, and
-  stay *open* until someone records the outcome.
+  stay *open* until someone records the outcome. A recorded outcome is never overwritten: changing
+  it needs `--amend` (CLI) and the earlier verdict is kept in the entry's history.
 
 ## What the brief contains, per event
 
 | Section | How it is built |
 |---|---|
-| What happened | the best-supported factual statement (confirmed first, primary sources first), or a one-sentence model summary checked against the statements |
-| What is new | compared with IntelPod's last analysis of the same event in an earlier run: new statements (verbatim); or "first time analysed" |
+| What happened | the best-supported factual statement (confirmed first, primary sources first), or a one-sentence model summary checked against confirmed/reported factual statements only (never forecasts or contested claims) |
+| What is new | compared with IntelPod's last analysis of the same event in a run that started earlier and had a claim map: new statements (verbatim); or "first time analysed" |
 | Timeline | earlier related events from IntelPod's database (shared named entities, or same topic and country, within `context_lookback_days`), sources published before the event, and this event |
 | Agreed / disputed / debated | from the Phase 3 debate package |
 | Impact evidence | for 11 dimensions (growth; inflation and rates; energy and commodities; currencies and capital; trade and tariffs; corporate revenues and costs; competition; supply chains; technology investment; jobs and demand; budgets and regulation) and 12 sectors: which statements discuss them, from how many sources; and which dimensions **no source discusses** |
 | India | statements concerning India (India, RBI, rupee, Sensex, Indian cities...), plus a checked model summary; if none, "not assessed" |
-| Figures | numbers with a unit or currency quoted from statements, measured vs forecast |
+| Figures | numbers with a unit or currency quoted from statements: *measured* (an uncontested factual statement), *stated* (attributed or contested), or *forecast* |
 | Effect chains | model-proposed, checked as above: horizon (short/long term), direction, dimensions, sectors, India flag |
 | Beneficiaries, adversely affected, unintended consequences | model-proposed groups; *sourced* if they cite statements, else *inference*; invented names rejected |
 | Strongest readings | positive / negative, each tied to statements |
@@ -92,8 +98,9 @@ without one the analysis is `partial` and says so.
   event's sources); paraphrased references are missed.
 * "What is new" compares statement wording with the previous run's claim map; rephrased old
   facts can appear as new.
-* The sentence-start name check treats a single capitalised word ending in a common suffix
-  ("Savers", "Exporters") as an ordinary word; a one-word company name with such an ending could
-  pass. Multi-word names are always checked.
+* The name check treats a capitalised first word as an ordinary word only if it is on a fixed
+  list of common words ("Savers", "Exporters", "Higher") or appears in lower case in the sources;
+  anything else ("Pfizer", "Boeing") must appear in the sources. A real common word missing from
+  the list can cause a harmless false rejection.
 * Model reasoning steps are checked for invented names and numbers, not for economic soundness;
   they are labelled *inference* so a reader weighs them accordingly.

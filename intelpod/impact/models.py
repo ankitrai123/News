@@ -193,6 +193,7 @@ class Forecast(BaseModel):
     verdict: Literal["correct", "incorrect", "partly", "unresolvable"] | None = None
     outcome: str = ""
     evaluated_at: datetime | None = None
+    history: list[dict] = Field(default_factory=list)   # earlier verdicts, when an outcome was amended
 
 
 class IntelligenceBrief(BaseModel):

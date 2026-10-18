@@ -506,22 +506,30 @@ class Phase1Pipeline:
         from ..debate.store import DebateStore
         debates = DebateStore(self.db).packages(ctx.run_id)
         paths = write_report(out_dir, ctx, selected, ranked, cands, articles, research, debates)
-        from ..impact.report import write_brief
-        from ..impact.store import ImpactStore
-        istore = ImpactStore(self.db)
-        analyses = istore.analyses(ctx.run_id)
-        if analyses:
-            brief = istore.brief(ctx.run_id)
-            new = set(brief.new_forecasts) if brief else set()
-            forecasts = [f for f in istore.forecasts() if f.forecast_id in new]
-            sources = {eid: {x.result_id: x for x in rs} for eid, (_, rs) in research.items()}
-            for eid in analyses:  # sources added by viewpoint searches are in the research store too
-                sources.setdefault(eid, {})
-                for x in store.results(ctx.run_id, eid):
-                    sources[eid].setdefault(x.result_id, x)
-            paths.update(write_brief(out_dir, ctx.run_id, ctx.now, selected, analyses, debates, sources, brief,
-                                     forecasts))
-        return {"paths": {k: str(v) for k, v in paths.items()}}
+        brief_error = None
+        try:  # the intelligence brief is extra: a problem with it must not lose the main report
+            from ..impact.report import write_brief
+            from ..impact.store import ImpactStore
+            istore = ImpactStore(self.db)
+            analyses = istore.analyses(ctx.run_id)
+            if analyses:
+                brief = istore.brief(ctx.run_id)
+                new = set(brief.new_forecasts) if brief else set()
+                forecasts = [f for f in istore.forecasts() if f.forecast_id in new]
+                sources = {eid: {x.result_id: x for x in rs} for eid, (_, rs) in research.items()}
+                for eid in analyses:  # sources added by viewpoint searches are in the research store too
+                    sources.setdefault(eid, {})
+                    for x in store.results(ctx.run_id, eid):
+                        sources[eid].setdefault(x.result_id, x)
+                paths.update(write_brief(out_dir, ctx.run_id, ctx.now, selected, analyses, debates, sources, brief,
+                                         forecasts))
+        except Exception as e:  # noqa: BLE001
+            log.exception("[%s] intelligence brief could not be written", ctx.run_id)
+            brief_error = f"{type(e).__name__}: {str(e)[:300]}"
+        out = {"paths": {k: str(v) for k, v in paths.items()}}
+        if brief_error:
+            out["brief_error"] = brief_error
+        return out
 
 
 def selected_events(repo: Repository, run_id: str) -> list[RankedEvent]:

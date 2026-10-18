@@ -66,7 +66,7 @@ def test_impact_stage_with_model_builds_checked_brief(settings, tmp_path):
     stages = pipe.repo.stages(run_id)
     assert list(stages) == ["ingest", "cluster", "rank", "review", "research", "debate", "impact", "report"]
     out = stages["impact"].output
-    assert out["status"] == "completed" and out["links"] >= 1 and out["new_forecasts"] >= 1
+    assert out["status"] == "completed" and out["new_forecasts"] >= 1
     store = ImpactStore(pipe.db)
     analyses = store.analyses(run_id)
     a = next(x for x in analyses.values() if x.chains)
@@ -79,10 +79,13 @@ def test_impact_stage_with_model_builds_checked_brief(settings, tmp_path):
     assert "does not add an opposing one" in a.interpretation_note
 
     brief = store.brief(run_id)
-    assert brief and brief.links and any(link.kind == "evidenced" for link in brief.links)
+    assert brief is not None
+    # In this fixture the only cross-event "evidence" is one event's own article reused in another
+    # event's research: that is not a source referring to the other event, so no link is evidenced.
+    assert all(link.kind != "evidenced" for link in brief.links)
     run_dir = settings.data_path / "runs" / run_id
     md = (run_dir / "intelligence_brief.md").read_text()
-    assert "## Connections between events" in md and "Effect chain — Costs for companies" in md
+    assert "Effect chain — Costs for companies" in md
     assert "inference" in md and "Goldman" not in md
     js = json.loads((run_dir / "intelligence_brief.json").read_text())
     assert js["events"] and js["links"] and "growth" in js["dimensions"]
@@ -92,7 +95,7 @@ def test_impact_stage_with_model_builds_checked_brief(settings, tmp_path):
     page = client.get(f"/events/{a.event_id}?run={run_id}")
     assert page.status_code == 200 and 'id="impact"' in page.text and "Costs for companies" in page.text
     home = client.get(f"/?run={run_id}")
-    assert 'id="connections"' in home.text and "Impact:" in home.text
+    assert "Impact:" in home.text
     assert client.get(f"/api/events/{a.event_id}/impact", params={"run": run_id}).json()["event_id"] == a.event_id
     assert client.get(f"/api/runs/{run_id}/brief").json()["brief"]["run_id"] == run_id
     fc = client.get("/api/forecasts").json()
@@ -103,6 +106,8 @@ def test_impact_stage_with_model_builds_checked_brief(settings, tmp_path):
     r = client.post(f"/forecasts/{fid}/resolve", data={"verdict": "partly", "outcome": "Half of it happened."},
                     follow_redirects=False)
     assert r.status_code == 303
+    again = client.post(f"/forecasts/{fid}/resolve", data={"verdict": "correct", "outcome": "Overwrite attempt"})
+    assert again.status_code == 409
     assert client.get("/api/forecasts", params={"status": "resolved"}).json()[0]["verdict"] == "partly"
     assert client.post("/forecasts/nope/resolve", data={"verdict": "correct", "outcome": "xyz"}).status_code == 404
     assert client.post(f"/forecasts/{fid}/resolve", data={"verdict": "maybe", "outcome": "xyz"}).status_code == 422
@@ -137,4 +142,13 @@ def test_second_run_reports_whats_new_and_cli(settings, tmp_path, monkeypatch, c
     fid = re.search(r"^([0-9a-f]{16})", listed, re.M).group(1)
     assert cli.main(["forecasts", "resolve", fid, "--verdict", "unresolvable", "--outcome", "No data yet."]) == 0
     assert cli.main(["forecasts", "resolve", fid]) == 1
+    assert cli.main(["forecasts", "resolve", fid, "--verdict", "correct", "--outcome", "again"]) == 1  # protected
+    assert cli.main(["forecasts", "resolve", fid, "--verdict", "correct", "--outcome", "Data out.", "--amend"]) == 0
+
+    # Refreshing a run keeps its new forecasts in the brief; an old run is never compared with a later one.
+    brief_before = store.brief(second).new_forecasts
+    assert cli.main(["impact", "--run-id", second, "--refresh"]) == 0
+    assert store.brief(second).new_forecasts == brief_before
+    assert cli.main(["impact", "--run-id", first, "--refresh"]) == 0
+    assert all(a.context.previous_run_id != second for a in store.analyses(first).values())
     assert cli.main(["impact", "--run-id", "bad id!"]) == 1

@@ -38,14 +38,19 @@ def _texts(r: ResearchResult) -> list[str]:
     return [r.title] + [n.text for n in r.evidence_notes if n.kind == "extract"] + list(r.key_claims)
 
 
-def anchors(brief: EventBrief) -> list[re.Pattern]:
-    """What identifies an event in other text: its named entities (not countries) and its most
-    distinctive title words. A mention needs one entity, or two distinctive words together."""
+def anchors(brief: EventBrief, exclude: set[str] = frozenset()) -> list[re.Pattern]:
+    """What identifies an event in other text: its named entities (not countries, and not ones
+    the other event shares). A mention needs one such entity, or two distinctive words."""
     pats = []
     for e in brief.entities:
-        if not is_country_alias(e) and len(e) >= 3:
+        if not is_country_alias(e) and len(e) >= 3 and e.lower() not in exclude:
             pats.append(re.compile(r"\b" + re.escape(e) + r"\b", re.I))
     return pats
+
+
+def _title_words(brief: EventBrief) -> set[str]:
+    title = (brief.headline or brief.title).lower()
+    return {w for w in re.findall(r"[a-z][a-z\-]{3,}", title) if w not in STOPWORDS}
 
 
 def distinctive_words(brief: EventBrief, n: int = 4) -> list[str]:
@@ -73,9 +78,19 @@ def find_links(run_id: str, events: list[tuple[EventBrief, list[ResearchResult]]
     chans = {b.event_id: channel_counts(b, srcs) for b, srcs in events}
     for (a, sa), (b, sb) in combinations(events, 2):
         evidence: list[LinkEvidence] = []
+        # A source used by both events is not one event pointing at the other: it may be the same
+        # story split in two, or a round-up. Such sources are never evidence.
+        shared_urls = {r.canonical_url for r in sa} & {r.canonical_url for r in sb}
+        possible_duplicate = bool(shared_urls)
         for (x, sx), y in (((a, sa), b), ((b, sb), a)):
-            pats, words = anchors(y), distinctive_words(y)
+            # Only what is specific to the OTHER event counts: shared entities and words that are
+            # also in this event's own title prove nothing.
+            x_entities = {e.lower() for e in x.entities}
+            pats = anchors(y, exclude=x_entities)
+            words = [w for w in distinctive_words(y) if w not in _title_words(x)]
             for r in sx:
+                if r.canonical_url in shared_urls or r.from_event:
+                    continue  # this event's own reports, or a source both events use
                 for t in _texts(r):
                     if mentions(t, pats, words) and len(evidence) < 4 and t not in {e.text for e in evidence}:
                         evidence.append(LinkEvidence(event_id=x.event_id, result_id=r.result_id,
@@ -90,11 +105,15 @@ def find_links(run_id: str, events: list[tuple[EventBrief, list[ResearchResult]]
                       title_b=b.title, channels=shared_ch, shared=shared)
         if evidence:
             links.append(EventLink(kind="evidenced", evidence=evidence,
-                                   note="a source of one event refers to the other (quoted)", **common))
+                                   note="a source of one event refers to the other (quoted)"
+                                        + ("; the events also share sources and may be one story"
+                                           if possible_duplicate else ""), **common))
         elif shared_ch and shared:
             links.append(EventLink(kind="shared_driver",
                                    note="both events' sources discuss the same channel and involve a common "
-                                        "country or actor; this is context, not evidence that one affects the other",
+                                        "country or actor; this is context, not evidence that one affects the other"
+                                        + ("; the events also share sources and may be one story"
+                                           if possible_duplicate else ""),
                                    **common))
     links.sort(key=lambda link: (link.kind != "evidenced", -len(link.evidence), -len(link.channels)))
     return links

@@ -75,21 +75,33 @@ GROUP_WORDS = {"savers", "borrowers", "exporters", "importers", "farmers", "hous
                "cheaper", "costlier", "lower", "higher", "rising", "falling", "weaker", "stronger", "tighter", "looser",
                "reduced", "increased", "demand", "supply", "prices", "costs", "exports", "imports", "loans", "rates",
                "this", "these", "those", "such", "some", "many", "most", "both", "each", "other", "firms", "industries"}
+GROUP_WORDS |= {"consumers", "investors", "companies", "businesses", "manufacturers", "workers", "farmers",
+                "governments", "regulators", "policymakers", "economists", "analysts", "critics", "supporters",
+                "importers", "exporters", "shareholders", "bondholders", "renters", "homeowners", "drivers",
+                "travellers", "travelers", "students", "patients", "smallholders", "producers", "consumer",
+                "export", "import", "rate", "price", "cost", "growth", "inflation", "stocks", "shares", "bonds",
+                "jobs", "wages", "taxes", "tariffs", "duties", "subsidies", "sales", "profits", "margins",
+                "earnings", "revenues", "investment", "spending", "borrowing", "lending", "trade", "output",
+                "production", "manufacturing", "energy", "oil", "fuel", "food", "chip", "chips", "steel",
+                "currency", "markets", "banking", "slower", "faster", "reduced", "expanded", "tougher", "new",
+                "further", "continued", "sustained", "short", "long", "near", "longer", "shorter", "possible",
+                "potential", "likely", "uncertain", "greater", "less", "fewer", "more", "rival", "rivals"}
 _NAMEY_NEXT = re.compile(r"\s+[A-Z]")
-_COMMON_SUFFIX = re.compile(r"(ers|er|ing|ed|ly|ions?|ity|ment|ness|al|ive|ous|able|ies)$")
 
 
 def unsupported_terms(generated: str, sources: str) -> list[str]:
     """Like llm.parsing.unsupported_terms, but an ordinary word capitalised only because it
     starts a sentence ("Whether ...", "Cheaper loans ...", "Savers ...") is not treated as a
-    name. A sentence-initial word followed by another capitalised word ("Tata Motors") is still
-    checked as a name."""
+    name. Only words on an explicit list, or written in lower case somewhere in the sources,
+    are relaxed this way: "Pfizer", "Boeing" or "Goyal" at the start of a sentence are still
+    checked as names, as is anything followed by another capitalised word ("Tata Motors")."""
+    lower_in_sources = set(re.findall(r"(?<![A-Za-z])[a-z][a-z'\-]+", sources))
+
     def fix(m):
         lw = m.group(2).lower()
-        rest = generated[m.end():]
-        if _NAMEY_NEXT.match(rest):
+        if _NAMEY_NEXT.match(generated[m.end():]):
             return m.group(0)
-        if lw in LEAD_WORDS or lw in STOPWORDS or lw in GROUP_WORDS or _COMMON_SUFFIX.search(lw):
+        if lw in LEAD_WORDS or lw in STOPWORDS or lw in GROUP_WORDS or lw in lower_in_sources:
             return m.group(1) + lw
         return m.group(0)
     fixed = re.sub(r"(^|[.!?:;]\s+)([A-Z][a-z]+)\b", fix, generated.strip())
