@@ -89,6 +89,22 @@ def _mem_gb() -> float | None:
             return round(int(subprocess.check_output(["sysctl", "-n", "hw.memsize"])) / 1024 ** 3, 1)
         except Exception:  # noqa: BLE001
             return None
+    if sys.platform == "win32":
+        try:
+            import ctypes
+
+            class MemoryStatus(ctypes.Structure):
+                _fields_ = [("dwLength", ctypes.c_ulong), ("dwMemoryLoad", ctypes.c_ulong),
+                            ("ullTotalPhys", ctypes.c_ulonglong), ("ullAvailPhys", ctypes.c_ulonglong),
+                            ("ullTotalPageFile", ctypes.c_ulonglong), ("ullAvailPageFile", ctypes.c_ulonglong),
+                            ("ullTotalVirtual", ctypes.c_ulonglong), ("ullAvailVirtual", ctypes.c_ulonglong),
+                            ("ullAvailExtendedVirtual", ctypes.c_ulonglong)]
+            st = MemoryStatus()
+            st.dwLength = ctypes.sizeof(MemoryStatus)
+            if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(st)):
+                return round(st.ullTotalPhys / 1024 ** 3, 1)
+        except Exception:  # noqa: BLE001
+            return None
     return None
 
 
@@ -139,8 +155,8 @@ def cmd_doctor(args) -> int:
             report["llm"] = {"provider": s.llm.provider, "available": False, "reason": why}
     except (LLMError, Exception) as e:  # noqa: BLE001 - doctor must always print a report
         report["llm"] = {"provider": s.llm.provider, "available": False, "reason": f"{type(e).__name__}: {str(e)[:200]}"}
-    ram = report["ram_gb"] or 0
-    report["recommendation"] = (
+    ram = report["ram_gb"]
+    report["recommendation"] = "RAM could not be detected; see docs/OLLAMA.md to choose a model size" if ram is None else (
         "lightweight mode: lexical clustering only; for later phases use a 1-3B model (e.g. qwen2.5:3b / llama3.2:3b)"
         if ram < 12 else
         "standard mode: 7-8B instruct model for analysis (e.g. qwen2.5:7b / llama3.1:8b); nomic-embed-text for clustering"
