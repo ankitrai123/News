@@ -7,12 +7,12 @@ open-source software, keyless public data sources, and two optional free tiers:
 and embeddings (or local models through Ollama). No paid service is required; without any
 keys IntelPod still runs end to end on RSS + GDELT with keyword-based analysis.
 
-> **Status: Phases 1–4 of 7 are complete.** IntelPod ingests news, groups it into events and
+> **Status: Phases 1–5 of 7 are complete.** IntelPod ingests news, groups it into events and
 > ranks them (Phase 1), researches each selected event (Phase 2), maps claims, viewpoints and
-> disagreement (Phase 3), and writes an intelligence brief with context, business impact and
-> connections between events (Phase 4), shown in a CLI, Markdown/JSON reports and a local
-> dashboard. Script writing, audio and automation come in Phases 5–7 (see
-> [docs/ROADMAP.md](docs/ROADMAP.md)). No module in this repository is an empty placeholder.
+> disagreement (Phase 3), writes an intelligence brief with context, business impact and
+> connections (Phase 4), and writes a two-host podcast script verified line by line against the
+> sources (Phase 5), shown in a CLI, Markdown/JSON files and a local dashboard. Audio and
+> automation come in Phases 6–7 (see [docs/ROADMAP.md](docs/ROADMAP.md)).
 
 ## What Phase 1 does
 
@@ -61,7 +61,7 @@ help proposes search keywords and writes notes that are rejected if they name an
 from the source's own extracts. Details: [docs/RESEARCH.md](docs/RESEARCH.md).
 
 ```bash
-intelpod run                       # Phases 1-4 + reports
+intelpod run                       # Phases 1-5 + reports
 intelpod run --stop-after review   # Phase 1 only
 intelpod research                  # Phase 2 on the latest run (or --run-id)
 ```
@@ -100,6 +100,20 @@ intelpod impact                    # Phase 4 on the latest run (or --run-id)
 intelpod forecasts                 # the forecast ledger
 ```
 
+## What Phase 5 adds: a verified podcast script
+
+The `script` stage picks the best-supported stories (fewer, deeper), builds a numbered fact sheet
+for each from Phases 3–4, and has two hosts — an anchor and an analyst — discuss them, with every
+factual line citing the fact sheet. Every line is then checked: names, numbers and quotations must
+be in what it cites, forecasts and inferences must be hedged, disputed claims flagged, single-source
+claims attributed, causal claims backed. Failing lines are revised once by the model and re-checked,
+or removed and listed. Output: `script.md`, `transcript.json` (source-linked), `episode_notes.md`,
+`evidence_report.md`, and the dashboard's **Episode** page. Details: [docs/SCRIPT.md](docs/SCRIPT.md).
+
+```bash
+intelpod script                    # Phase 5 on the latest run (or --run-id)
+```
+
 ## Quick start
 
 Requirements: Python 3.11+ (developed on 3.13), internet access. Works on Linux, macOS and
@@ -120,7 +134,7 @@ intelpod feeds check               # fetch every feed once; disable any that fai
 intelpod newsdata test             # optional: 1 request with your NewsData key (1 credit)
 intelpod llm models                # optional: models your NVIDIA key can use
 intelpod llm test                  # optional: one small call to check key + model
-intelpod run                       # full pipeline, Phases 1–4 (~5–25 minutes with a model)
+intelpod run                       # full pipeline, Phases 1–5 (~5–25 minutes with a model)
 intelpod serve                     # dashboard at http://127.0.0.1:8000
 ```
 
@@ -188,6 +202,7 @@ separated from the real-network tests in `tests/test_live.py`. Clustering qualit
 * [docs/PROVIDERS.md](docs/PROVIDERS.md) — every external dependency, free-tier limits, licences,
   and the NVIDIA trial terms ("internal testing and evaluation, not production"; don't publish
   model-written text from it — use Ollama for ongoing or shared use)
+* [docs/SCRIPT.md](docs/SCRIPT.md) — Phase 5: story selection, two-host script, line-by-line verification, outputs
 * [docs/IMPACT.md](docs/IMPACT.md) — Phase 4: context, impact evidence, effect chains, connections, forecast ledger
 * [docs/DEBATE.md](docs/DEBATE.md) — Phase 3: claim map, confidence labels, diversity, viewpoint searches, model checks
 * [docs/RESEARCH.md](docs/RESEARCH.md) — Phase 2: research questions, providers, page rules, dates, quality, selection

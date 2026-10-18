@@ -17,7 +17,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 from sqlalchemy.types import TypeDecorator
 
-SCHEMA_VERSION = 5  # v2: llm; v3: research (Phase 2); v4: claims, debate_packages (Phase 3); v5: impact (Phase 4)
+SCHEMA_VERSION = 6  # v2: llm; v3: research; v4: claims/debate; v5: impact; v6: episodes (Phase 5)
 
 
 def utcnow() -> datetime:
@@ -378,6 +378,17 @@ class IntelligenceBriefRow(Base):
     run_id: Mapped[str] = mapped_column(String(40), primary_key=True)
     payload: Mapped[dict] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+
+
+class EpisodeRow(Base):
+    """Phase 5: one validated podcast script per run (re-running the stage replaces it)."""
+
+    __tablename__ = "episodes"
+    run_id: Mapped[str] = mapped_column(String(40), primary_key=True)
+    episode_id: Mapped[str] = mapped_column(String(60), index=True)
+    status: Mapped[str] = mapped_column(String(20))
+    payload: Mapped[dict] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, index=True)
 
 
 class MetaRow(Base):

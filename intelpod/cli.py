@@ -3,7 +3,7 @@
   intelpod doctor                 inspect hardware, tools, Ollama and source reachability
   intelpod init                   create config/config.yaml and the database
   intelpod feeds check            fetch every feed once and record its health
-  intelpod run                    full pipeline (ingest -> cluster -> rank -> review -> research -> debate -> impact -> report)
+  intelpod run                    full pipeline (ingest -> cluster -> rank -> review -> research -> debate -> impact -> script -> report)
   intelpod run --stop-after review   Phase 1 only (then `intelpod run --resume` or `intelpod research`)
   intelpod run --no-research      Phase 1 and the report, without Phase 2
   intelpod research [--run-id ID] [--refresh]   Phase 2 on an existing run's selected events
@@ -12,6 +12,7 @@
   intelpod sources [--gaps]       the source registry (config/sources.yaml) and what it lacks
   intelpod impact [--run-id ID] [--refresh]     Phase 4 (context, impact, connections) -> intelligence brief
   intelpod forecasts [--status open]            the forecast ledger
+  intelpod script [--run-id ID] [--refresh]     Phase 5: verified two-host podcast script
   intelpod forecasts resolve ID --verdict correct|incorrect|partly|unresolvable --outcome "..."
   intelpod run --resume [--run-id ID]  continue an interrupted/paused run
   intelpod events [--run ID] [--all]
@@ -55,6 +56,8 @@ def _settings(args) -> Settings:
         overrides["debate.enabled"] = False
     if getattr(args, "no_impact", False):
         overrides["impact.enabled"] = False
+    if getattr(args, "no_script", False):
+        overrides["script.enabled"] = False
     if getattr(args, "lookback_hours", None):
         overrides["ingestion.lookback_hours"] = args.lookback_hours
     s = load_settings(args.config, overrides)
@@ -432,6 +435,56 @@ def cmd_impact(args) -> int:
     return 0
 
 
+def cmd_script(args) -> int:
+    """Phase 5 on its own for an existing run (default: latest), then rewrite its reports."""
+    import time
+
+    from .pipeline.runner import Phase1Pipeline, RunContext
+    from .script.runner import run_script
+    from .script.store import EpisodeStore
+
+    s = _settings(args)
+    pipe = Phase1Pipeline(s)
+    found, code = _existing_run(pipe, args.run_id, "rank")
+    if found is None:
+        return code
+    row, stages = found
+    s.script.enabled = True
+    ctx = RunContext(run_id=row.run_id, now=datetime.fromisoformat(row.params["now"]), params=row.params,
+                     outputs={k: v.output or {} for k, v in stages.items() if v.status == "completed"})
+    pipe.repo.stage_start(row.run_id, "script")
+    t0 = time.monotonic()
+    try:
+        out = run_script(pipe, ctx, refresh=args.refresh)
+    except Exception as e:  # noqa: BLE001
+        pipe.repo.stage_finish(row.run_id, "script", "failed", error=f"{type(e).__name__}: {e}")
+        print(f"script writing failed: {e}", file=sys.stderr)
+        return 2
+    out["duration_s"] = round(time.monotonic() - t0, 2)
+    pipe.repo.stage_finish(row.run_id, "script", "completed", output=out)
+    ctx.outputs["script"] = out
+    pipe.repo.stage_start(row.run_id, "report")
+    rep = pipe.stage_report(ctx)
+    pipe.repo.stage_finish(row.run_id, "report", "completed", output=rep)
+    ep = EpisodeStore(pipe.db).episode(row.run_id)
+    print(f"run: {row.run_id}")
+    if ep is None:
+        print(f"no episode: {out.get('reason', out.get('status'))}")
+        return 0
+    v = ep.verification
+    print(f"{ep.title}: {ep.status}; {len(ep.plan.stories)} stories; {ep.word_count} words (~{ep.est_minutes} min); "
+          f"written by {ep.written_by}")
+    print(f"verification: {v.lines} lines, {v.supported} supported, {v.fixed} fixed, {v.revised} revised, "
+          f"{v.removed} removed")
+    for lim in ep.limitations[:4]:
+        print(f"  - {lim}")
+    for name, note in (out.get("notes") or {}).items():
+        print(f"note ({name}): {note}")
+    for kind, path in (rep.get("paths") or {}).items():
+        print(f"{kind}: {path}")
+    return 0
+
+
 def cmd_forecasts(args) -> int:
     from .impact.store import ImpactStore
 
@@ -656,7 +709,7 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--resume", action="store_true", help="resume the given (or latest) run")
     run.add_argument("--run-id", help="run id to resume")
     run.add_argument("--stop-after", choices=["ingest", "cluster", "rank", "review", "research", "debate", "impact",
-                                              "report"])
+                                              "script", "report"])
     run.add_argument("--force", action="store_true", help="start even if another run looks active")
     run.add_argument("--no-gdelt", action="store_true")
     run.add_argument("--no-rss", action="store_true")
@@ -666,6 +719,7 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--no-research", action="store_true", help="skip Phase 2 research (and so Phase 3)")
     run.add_argument("--no-debate", action="store_true", help="skip Phase 3 viewpoint and claim analysis")
     run.add_argument("--no-impact", action="store_true", help="skip Phase 4 impact analysis")
+    run.add_argument("--no-script", action="store_true", help="skip Phase 5 script writing")
     run.set_defaults(fn=cmd_run)
 
     rs = sub.add_parser("research", help="Phase 2: research the selected events of an existing run")
@@ -685,6 +739,12 @@ def build_parser() -> argparse.ArgumentParser:
     im.add_argument("--refresh", action="store_true", help="analyse again events already analysed in that run")
     im.add_argument("--no-llm", action="store_true", help="evidence tables only; no model effect chains")
     im.set_defaults(fn=cmd_impact)
+
+    sc = sub.add_parser("script", help="Phase 5: write and verify the two-host podcast script for a run")
+    sc.add_argument("--run-id", help="run id (default: latest run)")
+    sc.add_argument("--refresh", action="store_true", help="write the script again")
+    sc.add_argument("--no-llm", action="store_true", help="template script from verified statements only")
+    sc.set_defaults(fn=cmd_script)
 
     fc = sub.add_parser("forecasts", help="the forecast ledger (list, or resolve one)")
     fc.add_argument("action", nargs="?", choices=["list", "resolve"], default="list")

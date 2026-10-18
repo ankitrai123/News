@@ -8,8 +8,8 @@
 | 2 | Research: per-event query generation (10 query types), archive/feeds/GDELT/Guardian adapters, 10–21 day window, page fetching within robots/paywall/opt-out rules, date validation, 10–15 results per event, source-quality assessment, persistence and caches, dashboard/API/CLI (docs/RESEARCH.md) | **Done** — running live; GDELT often rate-limited |
 | 3 | Source registry with evidence-backed editorial metadata, viewpoint discovery, claim-level evidence map, agreement/disagreement, uncertainty (docs/DEBATE.md) | **Done** — running live; first-run quality fixes applied |
 | 4 | Historical context, event relationships, causal business/economic chains, India impact, forecast ledger (docs/IMPACT.md) | **Done** — running live; first-run quality fixes applied |
-| 5 | Narrative plan, two-host script, citation-linked transcript, fact verification | next |
-| 6 | Local TTS (Piper/Kokoro evaluated), two voices, FFmpeg assembly, audio checks | planned |
+| 5 | Story selection and order, two-host script, citation-linked transcript, line-by-line fact verification, episode notes, evidence report (docs/SCRIPT.md) | **Done** — tested offline with a scripted model; awaiting a live run |
+| 6 | Local TTS (Piper/Kokoro evaluated), two voices, FFmpeg assembly, audio checks | next |
 | 7 | Scheduling (APScheduler; optional n8n export), notifications, retry policies, quota tracking, end-to-end tests | planned |
 
 ## Final acceptance criteria — where the project stands
@@ -27,7 +27,8 @@
 | Cites actual supporting sources | Phase 2 stores only retrieved, date-checked sources with URLs; model notes are rejected unless grounded in the source's own extracts |
 | Ideological and analytical diversity | Phase 3 done (offline tests): source registry with referenced facts, verbatim claim map with calibrated confidence, diversity gaps, viewpoint searches, model questions/positions checked against cited sources, honest "no disagreement" and limitations |
 | Business impact and context | Phase 4 done (offline tests): intelligence brief with context and timeline, impact evidence by dimension/sector/India, quoted figures, checked effect chains (sourced vs inference), evidenced event connections, forecast ledger |
-| Script, verification, audio, sample episode | Phases 5–6 |
+| Script and fact verification | Phase 5 done (offline tests): verified two-host script, source-linked transcript, episode notes, evidence report |
+| Audio, sample episode | Phase 6 |
 
 ## Known limitations (Phase 1)
 
@@ -85,11 +86,20 @@
 * **Effect chains need a model** and were tested with scripted answers only; reasoning steps are
   checked for invented names/numbers, not for economic soundness (they are labelled *inference*).
 
+## Known limitations (Phase 5)
+
+* **Lexical verification**: invented names, numbers, quotations, missing hedges and unsupported
+  causal wording are caught; subtler distortions of meaning are not. The evidence report lists each
+  line's support for a human check.
+* **Tested with a scripted model only**; script quality depends on the model (gpt-oss-20b or a
+  local Ollama model).
+* **Template script without a model** is accurate but list-like and often short of the target.
+
 ## Exact next step
 
-Phase 5, step 1: the podcast script generator — two distinct hosts working from the intelligence
-brief, with every factual line tied to claim ids so Module 10's fact verification can check the
-script against the sources before audio.
+Phase 6, step 1: local text-to-speech for the two hosts (evaluate Piper and Kokoro on your
+machine: licence, voice quality, speed on CPU), synthesise `transcript.json` line by line with
+pronunciation notes applied, and assemble the episode with FFmpeg.
 
-Before that: run Phases 1–4 live (`intelpod run`), read `intelligence_brief.md` for a few days,
-and record outcomes for forecasts as they resolve (`intelpod forecasts`).
+Before that: run Phases 1–5 live (`intelpod run`), read `script.md` and `evidence_report.md`, and
+check whether removed lines and revisions look right.

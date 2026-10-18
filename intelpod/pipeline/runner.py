@@ -38,7 +38,7 @@ from .report import write_report
 
 log = logging.getLogger(__name__)
 
-STAGES = ("ingest", "cluster", "rank", "review", "research", "debate", "impact", "report")
+STAGES = ("ingest", "cluster", "rank", "review", "research", "debate", "impact", "script", "report")
 PHASE1_STAGES = STAGES  # name kept for callers written before Phase 2
 DEDUP_MEMORY = timedelta(days=4)
 API_USER_AGENT = f"IntelPod/{__version__}"  # keyed APIs get no contact details (privacy)
@@ -102,7 +102,8 @@ class Phase1Pipeline:
         self.stage_fns: dict[str, Callable[[RunContext], dict]] = {
             "ingest": self.stage_ingest, "cluster": self.stage_cluster,
             "rank": self.stage_rank, "review": self.stage_review, "research": self.stage_research,
-            "debate": self.stage_debate, "impact": self.stage_impact, "report": self.stage_report,
+            "debate": self.stage_debate, "impact": self.stage_impact,
+            "script": self.stage_script, "report": self.stage_report,
         }
 
     # -- orchestration ------------------------------------------------------
@@ -503,6 +504,15 @@ class Phase1Pipeline:
             log.exception("[%s] impact stage failed", ctx.run_id)
             return {"status": "failed", "reason": f"{type(e).__name__}: {str(e)[:300]}"}
 
+    def stage_script(self, ctx: RunContext) -> dict:
+        """Phase 5: two-host script, verified line by line (see intelpod.script)."""
+        from ..script.runner import run_script
+        try:
+            return run_script(self, ctx)
+        except Exception as e:  # noqa: BLE001 - the briefing must still be written
+            log.exception("[%s] script stage failed", ctx.run_id)
+            return {"status": "failed", "reason": f"{type(e).__name__}: {str(e)[:300]}"}
+
     def stage_report(self, ctx: RunContext) -> dict:
         ranked = self.repo.scores_for_run(ctx.run_id)
         selected = [r for r in ranked if r.selected]
@@ -537,6 +547,17 @@ class Phase1Pipeline:
         except Exception as e:  # noqa: BLE001
             log.exception("[%s] intelligence brief could not be written", ctx.run_id)
             brief_error = f"{type(e).__name__}: {str(e)[:300]}"
+        try:  # episode files (Phase 5)
+            from ..script.report import write_episode
+            from ..script.store import EpisodeStore
+            ep = EpisodeStore(self.db).episode(ctx.run_id)
+            if ep is not None and ep.lines:
+                all_sources = {x.result_id: x for eid in {s.event_id for s in ep.plan.stories}
+                               for x in store.results(ctx.run_id, eid)}
+                paths.update(write_episode(out_dir, ep, all_sources))
+        except Exception as e:  # noqa: BLE001
+            log.exception("[%s] episode files could not be written", ctx.run_id)
+            brief_error = (brief_error + "; " if brief_error else "") + f"episode: {type(e).__name__}: {str(e)[:200]}"
         out = {"paths": {k: str(v) for k, v in paths.items()}}
         if brief_error:
             out["brief_error"] = brief_error

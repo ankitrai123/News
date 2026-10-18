@@ -21,6 +21,7 @@ No endpoint returns secrets.
 | GET | `/api/runs/{run_id}/debate` | per event: debate package status, claim counts (agreed / contested / single-source), debated questions, overall confidence, "no disagreement" note, limitations |
 | GET | `/api/events/{event_id}/debate?run=` | the full debate package (latest, or for `run`): claims with sources and confidence, questions and positions, diversity, viewpoint searches, rejected model output, limitations; 404 if none |
 | GET | `/api/runs/{run_id}/brief` | the run's intelligence brief (connections, new forecasts, limitations) and per-event impact summaries; 404 if none |
+| GET | `/api/runs/{run_id}/episode` | the verified episode: plan, fact sheet, script lines with citations and check status, removed lines, pronunciations, glossary, verification summary; 404 if none |
 | GET | `/api/events/{event_id}/impact?run=` | the full impact analysis (context, dimensions, sectors, India, figures, effect chains, groups, readings, limitations, rejected model output); 404 if none |
 | GET | `/api/forecasts?status=open\|resolved&event_id=` | the forecast ledger |
 | GET | `/api/feeds` | feed registry merged with health (last status, items, failures) |

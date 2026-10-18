@@ -232,3 +232,17 @@ impact:
   explain_links: true           # one model call per run to word evidenced connections
   max_model_calls: 12
   context_lookback_days: 45     # earlier related events searched this far back
+
+script:
+  # Phase 5: two-host script built only from checked material, verified line by line; lines that
+  # cannot be supported are removed and listed in the evidence report. See docs/SCRIPT.md.
+  enabled: true
+  target_words: 1800            # 12-15 minutes
+  words_per_minute: 140
+  max_stories: 4                # the word budget may allow fewer: depth over breadth
+  min_story_words: 300
+  host_a: Maya                  # anchor: timeline, questions, transitions, challenges claims
+  host_b: Arjun                 # analyst: interpretations, business impact, India, uncertainty
+  model_writing: true           # false = template script quoting verified statements
+  revise: true                  # one model revision pass for lines that fail checks
+  max_model_calls: 14

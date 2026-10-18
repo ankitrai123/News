@@ -28,6 +28,7 @@ from ..debate.models import CONFIDENCE_HELP
 from ..debate.store import DebateStore
 from ..impact.models import DIMENSIONS, SECTORS
 from ..impact.store import ImpactStore
+from ..script.store import EpisodeStore
 
 log = logging.getLogger(__name__)
 TEMPLATES = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
@@ -61,6 +62,7 @@ def create_app(settings: Settings | None = None, pipeline_factory=None,
     rstore = ResearchStore(db)
     dstore = DebateStore(db)
     istore = ImpactStore(db)
+    estore = EpisodeStore(db)
     app = FastAPI(title="IntelPod", version=__version__,
                   description="Local API for the geopolitical & business intelligence podcast agent (Phase 1).")
     hosts = list(allowed_hosts or []) + LOCAL_HOSTS
@@ -221,6 +223,14 @@ def create_app(settings: Settings | None = None, pipeline_factory=None,
             raise HTTPException(404, "no impact analysis for this event" + (f" in run {run}" if run else ""))
         return a.model_dump(mode="json")
 
+    @app.get("/api/runs/{run_id}/episode")
+    def api_run_episode(run_id: str):
+        run_or_404(run_id)
+        ep = estore.episode(run_id)
+        if ep is None:
+            raise HTTPException(404, "no episode for this run")
+        return ep.model_dump(mode="json")
+
     @app.get("/api/forecasts")
     def api_forecasts(status: str | None = Query(None, pattern="^(open|resolved)$"),
                       event_id: str | None = Query(None, max_length=40)):
@@ -349,6 +359,24 @@ def create_app(settings: Settings | None = None, pipeline_factory=None,
         except HTTPException as e:
             key = next((k for k, v in MESSAGES.items() if v == e.detail), "nothing")
         return RedirectResponse(f"/runs?msg={quote(key)}", status_code=303)
+
+    @app.get("/episode", response_class=HTMLResponse)
+    def episode_page(request: Request, run: str | None = Query(None, max_length=80)):
+        if run:
+            run_or_404(run)
+            ep = estore.episode(run)
+        else:
+            eps = estore.episodes(1)
+            ep = eps[0] if eps else None
+        cites, listed = {}, []
+        if ep is not None:
+            from ..script.report import citations
+            srcs = {x.result_id: x for eid in {s.event_id for s in ep.plan.stories}
+                    for x in rstore.results(ep.run_id, eid)}
+            cites, listed = citations(ep, srcs)
+        return page(request, "episode.html", active="episode", ep=ep, cites=cites, sources_list=listed,
+                    titles={s.event_id: s.title for s in ep.plan.stories} if ep else {},
+                    history=estore.episodes(15))
 
     @app.get("/forecasts", response_class=HTMLResponse)
     def forecasts_page(request: Request, status: str | None = Query(None, pattern="^(open|resolved)$")):

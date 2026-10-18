@@ -88,6 +88,18 @@ GROUP_WORDS |= {"consumers", "investors", "companies", "businesses", "manufactur
                 "currency", "markets", "banking", "slower", "faster", "reduced", "expanded", "tougher", "new",
                 "further", "continued", "sustained", "short", "long", "near", "longer", "shorter", "possible",
                 "potential", "likely", "uncertain", "greater", "less", "fewer", "more", "rival", "rivals"}
+# Conversational words that start sentences in a script.
+LEAD_WORDS |= {"welcome", "everything", "according", "i'm", "i", "we", "we're", "we've", "let's", "today", "first",
+               "next", "now", "so", "also", "still", "thanks", "thank", "that's", "here's", "there", "there's",
+               "it's", "what's", "worth", "one", "another", "finally", "meanwhile", "but", "and", "yes", "no",
+               "right", "well", "indeed", "exactly", "sure", "good", "great", "okay", "however", "both", "either",
+               "neither", "not", "then", "later", "earlier", "before", "after", "since", "while", "although",
+               "though", "even", "just", "only", "especially", "overall", "together", "instead", "perhaps", "maybe",
+               "certainly", "clearly", "importantly", "notably", "briefly", "our", "your", "their", "its", "his",
+               "her", "several", "few", "some", "many", "most", "much", "let", "look", "consider", "think",
+               "remember", "keep", "watch", "for", "on", "in", "at", "by", "as", "with", "from", "to", "of",
+               "if", "when", "where", "why", "how", "who", "which", "will", "can", "does", "do", "did", "is",
+               "are", "was", "were", "has", "have", "had", "it", "they", "he", "she", "you", "this", "that"}
 _NAMEY_NEXT = re.compile(r"\s+[A-Z]")
 # Ordinary English words seen in lower case in IntelPod's own stored news text (filled per run by
 # `register_vocabulary`). A capitalised sentence-start word found here ("Exact", "Scope") is an
@@ -119,7 +131,8 @@ def unsupported_terms(generated: str, sources: str) -> list[str]:
         if lw in LEAD_WORDS or lw in STOPWORDS or lw in GROUP_WORDS or lw in lower_in_sources or lw in _VOCAB:
             return m.group(1) + lw
         return m.group(0)
-    fixed = re.sub(r"(^|[.!?:;]\s+)([A-Z][a-z]+)\b", fix, generated.strip())
+    fixed = re.sub(r"\bI(?=(?:['’](?:m|ve|d|ll))?\b)", "i", generated.strip())   # the pronoun "I"
+    fixed = re.sub(r"(^|[.!?:;]\s+)([A-Z][a-z]+)\b", fix, fixed)
     return _unsupported(fixed, sources)
 
 

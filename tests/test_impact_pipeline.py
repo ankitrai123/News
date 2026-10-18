@@ -64,7 +64,7 @@ def test_impact_stage_with_model_builds_checked_brief(settings, tmp_path):
     model = ScriptedModel()
     pipe, run_id = run(settings, tmp_path, model)
     stages = pipe.repo.stages(run_id)
-    assert list(stages) == ["ingest", "cluster", "rank", "review", "research", "debate", "impact", "report"]
+    assert list(stages) == ["ingest", "cluster", "rank", "review", "research", "debate", "impact", "script", "report"]
     out = stages["impact"].output
     assert out["status"] == "completed" and out["new_forecasts"] >= 1
     store = ImpactStore(pipe.db)

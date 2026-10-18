@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Episode · IntelPod{% endblock %}
+{% block content %}
+{% if not ep %}
+<h1>Episode</h1>
+<div class="card">No episode yet. The script is written by the <code>script</code> stage of <code>intelpod run</code>, or with <code>intelpod script</code>.</div>
+{% else %}
+{% set v = ep.verification %}
+<h1>{{ ep.title }}</h1>
+<p class="small muted">Run <a href="/?run={{ ep.run_id }}">{{ ep.run_id }}</a> · hosts <b>{{ ep.hosts.A }}</b> (anchor) and <b>{{ ep.hosts.B }}</b> (analyst) ·
+ {{ ep.word_count }} words · about {{ ep.est_minutes }} min · written by {{ ep.written_by }} ·
+ <span class="pill {{ '' if ep.status == 'validated' else 'warn' }}">{{ ep.status }}</span></p>
+<div class="card"><b>Fact check:</b> {{ v.lines }} lines checked against the statements they cite —
+ {{ v.supported }} supported, {{ v.fixed }} fixed automatically, {{ v.revised }} revised and re-checked,
+ <span class="{{ 'warn' if v.removed else '' }}">{{ v.removed }} removed</span>.
+ <span class="small muted">Numbers in brackets are sources (listed below). Audio comes in Phase 6.</span></div>
+{% if ep.limitations %}<div class="banner"><ul class="small">{% for l in ep.limitations %}<li>{{ l }}</li>{% endfor %}</ul></div>{% endif %}
+<div class="card scroll" id="script">
+{% set ns = namespace(seg=None) %}
+{% for x in ep.lines %}
+  {% set key = x.segment ~ (x.event_id or '') %}
+  {% if key != ns.seg %}{% set ns.seg = key %}<h3>{{ titles.get(x.event_id) if x.segment == 'story' else x.segment|capitalize }}</h3>{% endif %}
+  <p><b>{{ ep.hosts[x.speaker] }}:</b> {{ x.text }}
+   {% for n in cites.get(x.line_id, []) %}<a href="#src{{ n }}" class="small">[{{ n }}]</a>{% endfor %}
+   {% if x.kind in ('analysis', 'uncertainty', 'explainer') %}<span class="pill">{{ x.kind }}</span>{% endif %}
+   {% if x.check.status in ('fixed', 'revised') %}<span class="pill" title="{{ x.check.problems|join('; ') }} — before: {{ x.check.original }}">{{ x.check.status }}</span>{% endif %}</p>
+{% endfor %}
+</div>
+{% if ep.removed %}<details class="card"><summary>Removed lines ({{ ep.removed|length }}) — could not be supported</summary>
+<ul class="small">{% for x in ep.removed %}<li>“{{ x.text }}” <span class="muted">— {{ x.check.problems|join('; ') }}</span></li>{% endfor %}</ul></details>{% endif %}
+{% if ep.pronunciations or ep.glossary %}<div class="card">
+{% if ep.pronunciations %}<h3>Pronunciation notes <span class="small muted">(suggestions for the voices)</span></h3><ul class="small">{% for p in ep.pronunciations %}<li>{{ p.name }}: <i>{{ p.say }}</i></li>{% endfor %}</ul>{% endif %}
+{% if ep.glossary %}<h3>Terms explained <span class="small muted">(general knowledge, not from the sources)</span></h3><ul class="small">{% for g in ep.glossary %}<li><b>{{ g.term }}</b>: {{ g.explanation }}</li>{% endfor %}</ul>{% endif %}
+</div>{% endif %}
+<div class="card scroll"><h3>Sources</h3><ol class="small">{% for s in sources_list %}<li id="src{{ s.n }}"><a href="{{ s.url|safe_url }}" target="_blank" rel="noopener noreferrer">{{ s.title }}</a> — {{ s.publisher }}{% if s.published_at %}, {{ s.published_at[:10] }}{% endif %}</li>{% endfor %}</ol></div>
+<div class="card"><h3>Stories</h3><ul class="small">{% for s in ep.plan.stories %}<li><a href="/events/{{ s.event_id }}?run={{ ep.run_id }}">{{ s.title }}</a> <span class="muted">— {{ s.why }}</span></li>{% endfor %}</ul>
+{% if ep.plan.dropped %}<p class="small muted">Not covered: {{ ep.plan.dropped|join('; ') }}</p>{% endif %}</div>
+{% endif %}
+{% if history|length > 1 %}<div class="card"><h3>Earlier episodes</h3><ul class="small">{% for h in history %}<li><a href="/episode?run={{ h.run_id }}">{{ h.title }}</a> — {{ h.word_count }} words, {{ h.status }}</li>{% endfor %}</ul></div>{% endif %}
+{% endblock %}

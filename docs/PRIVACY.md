@@ -16,6 +16,7 @@ IntelPod is a single-user local application. It has no telemetry, accounts or cl
 | Research (Phase 2) | `research_items`, `research_queries`, `research_results`, `research_packages` | research-feed item metadata; the searches run; for each assessed source: title, URL, publisher, dates, scores, and at most 3 verbatim extracts of ≤ 300 characters plus up to 3 attributed sentences and IntelPod/model notes |
 | Debate (Phase 3) | `debate_packages`, `claims` | claims: the same short verbatim statements already stored with research results (headlines, extracts, attributed sentences), with source ids; model-written position summaries checked against the cited sources; no new page text is stored |
 | Impact (Phase 4) | `impact_analyses`, `event_links`, `forecasts`, `intelligence_briefs` | references to stored claims, short quotes already stored, checked model-written chains/summaries, forecast ledger entries (verbatim forecast, source, date, your recorded outcome) |
+| Script (Phase 5) | `episodes` | the script, its fact sheet (statements already stored), checks and removed lines |
 | Research caches | `search_cache`, `page_cache` | search answers (metadata) for 12 h; page metadata and fetch outcome (never page text) for 7 days |
 | Reports | `data/runs/<run_id>/` | Markdown/JSON reports linking to the original articles; `research.json`, `debate.json`, `intelligence_brief.{md,json}` |
 | Logs | `data/logs/` | rotating, 3 × 5 MB; API keys and `token=`/`apikey=` parameters are redacted |
@@ -47,6 +48,9 @@ opt out (`noai`, `noarchive`, `nosnippet`, TDM reservation) or are paywalled con
 * **Impact (Phase 4):** with a model configured, the event title and its numbered statements
   (verbatim claims with publisher names) are sent to NVIDIA/Ollama; no new network requests to
   publishers are made.
+* **Script (Phase 5):** with a model configured, each story's fact sheet (stored statements with
+  publisher names) is sent to NVIDIA/Ollama to write dialogue. Remember NVIDIA's trial terms
+  before publishing model-written text; Ollama keeps everything local.
 * **Ollama** runs on your machine; nothing leaves it.
 
 API keys live only in your environment or `.env` (git-ignored). They are never written to the

@@ -50,6 +50,9 @@ to `data/logs/intelpod.log` (set `app.log_json: true` for JSON lines).
 | Few or no "Connections between events" | no source of one event mentions another | by design: events are not linked on timing alone |
 | `intelpod impact` says "has no completed rank stage" | Phase 1 not finished for that run | `intelpod run --resume` first |
 | "GDELT skipped until HH:MM UTC" | GDELT refused every request in a recent run; IntelPod waits 30 min (doubling up to 6 h) before asking again, so it does not extend GDELT's block | nothing to do: RSS, NewsData and the Guardian keep working. Shared networks (campus or office Wi-Fi, VPNs) are often rate-limited by GDELT; a home connection usually works better |
+| Script: "Script is N words, short of the target" | not enough verified material (few stories passed Phases 3–4) | by design: IntelPod does not pad. More sources (Guardian key, research feeds) give more material |
+| Script: many lines removed | the model named people/numbers not in the fact sheet, or stated forecasts as fact | see `evidence_report.md`; try another model (`llm.tasks.script_writing.models`) |
+| Script: "template" instead of dialogue | no model, `--no-llm`, or the model failed | configure NVIDIA or Ollama and run `intelpod script --refresh` |
 | `database is locked` | two processes writing at once | let the running job finish; SQLite WAL mode and a 5 s busy timeout are already set |
 
 ## Resetting

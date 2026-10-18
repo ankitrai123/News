@@ -265,7 +265,7 @@ class LLMConfig(BaseModel):
         base = self.tasks.get("event_review")
         if base is not None:
             for name, max_tokens in (("research_queries", 600), ("research_notes", 1800), ("debate_analysis", 2500),
-                                     ("impact_analysis", 3000)):
+                                     ("impact_analysis", 3000), ("script_writing", 3500)):
                 if name not in self.tasks:
                     self.tasks[name] = LLMTaskConfig(models=[m.model_copy() for m in base.models],
                                                      temperature=0.2, max_tokens=max_tokens)
@@ -378,6 +378,21 @@ class ImpactConfig(BaseModel):
     context_lookback_days: int = Field(45, ge=1, le=365)
 
 
+class ScriptConfig(BaseModel):
+    """Phase 5: two-host script, citation-linked transcript, fact verification (docs/SCRIPT.md)."""
+
+    enabled: bool = True
+    target_words: int = Field(1800, ge=400, le=4000)   # 12-15 minutes at ~130-150 spoken words/minute
+    words_per_minute: int = Field(140, ge=80, le=220)
+    max_stories: int = Field(4, ge=1, le=8)             # fewer stories, more depth
+    min_story_words: int = Field(300, ge=100)
+    host_a: str = "Maya"                                # anchor: timeline, questions, challenges claims
+    host_b: str = "Arjun"                               # analyst: interpretations, business, uncertainty
+    model_writing: bool = True                          # off = template script from verified statements only
+    revise: bool = True                                 # one model revision pass for lines that fail checks
+    max_model_calls: int = Field(14, ge=0)
+
+
 class Settings(BaseModel):
     app: AppConfig = Field(default_factory=AppConfig)
     http: HttpConfig = Field(default_factory=HttpConfig)
@@ -388,6 +403,7 @@ class Settings(BaseModel):
     research: ResearchConfig = Field(default_factory=ResearchConfig)
     debate: DebateConfig = Field(default_factory=DebateConfig)
     impact: ImpactConfig = Field(default_factory=ImpactConfig)
+    script: ScriptConfig = Field(default_factory=ScriptConfig)
     taxonomy_file: str = "config/taxonomy.yaml"
 
     def resolve(self, path: str) -> Path:
