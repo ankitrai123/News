@@ -103,6 +103,51 @@
   {% endif %}
 </div>
 {% endif %}
+{% if impact %}
+{% set dclaims = claims %}
+{% macro claim_cite(cids) %}{% set ns = namespace(ids=[]) %}{% for cid in cids %}{% if cid in dclaims %}{% set ns.ids = ns.ids + dclaims[cid].source_ids %}{% endif %}{% endfor %}{{ cite(ns.ids|unique|list) }}{% endmacro %}
+{% macro iquote(cid) %}{% set c = dclaims.get(cid) %}{% if c %}“{{ c.text }}” <span class="small muted">({{ c.confidence }}; {{ cite(c.source_ids) }})</span>{% endif %}{% endmacro %}
+<div class="card scroll" id="impact"><h3>Context and business impact <span class="small muted">run {{ impact.run_id }}{% if impact.analysed_by %} · effect chains by {{ impact.analysed_by }}, checked by IntelPod{% endif %}</span></h3>
+  {% if impact.status in ('skipped', 'failed') %}<div class="banner">{{ impact.limitations|join(' ') }}</div>{% else %}
+  {% set cx = impact.context %}
+  <p><b>What happened</b> <span class="small muted">({{ cx.what_happened_basis }})</span>: {{ cx.what_happened }}</p>
+  <p class="small"><b>What is new:</b> {{ cx.whats_new|join(' ') }}</p>
+  {% if cx.timeline|length > 1 or cx.earlier_events %}<h4>Timeline</h4><ul class="small">
+    {% for t in cx.timeline %}<li>{{ t.when|dt if t.when else 'undated' }} — {% if t.kind == 'earlier_event' %}<a href="/events/{{ t.ref }}">{{ t.text }}</a> <span class="muted">(earlier event)</span>{% elif t.kind == 'background_source' %}<a href="{{ t.url|safe_url }}" target="_blank" rel="noopener noreferrer">{{ t.text }}</a> <span class="muted">({{ t.publisher }})</span>{% else %}<b>{{ t.text }}</b> <span class="muted">(this event)</span>{% endif %}</li>{% endfor %}</ul>
+    {% if cx.earlier_events %}<p class="small muted">Earlier events are shown because they share actors with this one ({% for p in cx.earlier_events[:3] %}{{ p.shared|join(', ') }}{% if not loop.last %}; {% endif %}{% endfor %}) — context, not demonstrated causes.</p>{% endif %}{% endif %}
+  <h4>What the sources say about economic impact</h4>
+  {% if impact.dimensions %}<table class="stack"><tr><th>Dimension</th><th>Statements</th><th>Example</th></tr>
+  {% for d in impact.dimensions %}<tr><td><b>{{ d.label }}</b></td><td class="small"><span class="lbl">Statements </span>{{ d.claim_ids|length }} from {{ plural(d.source_ids|length, 'source') }}</td><td class="small">{{ iquote(d.claim_ids[0]) }}</td></tr>{% endfor %}</table>{% endif %}
+  {% if impact.not_discussed %}<p class="small muted">Not discussed by any retrieved source: {{ impact.not_discussed|join(', ') }}.</p>{% endif %}
+  {% if impact.sectors %}<p class="small"><b>Sectors mentioned:</b> {% for sct in impact.sectors %}<span class="pill" title="{{ sct.claim_ids|length }} statement(s)">{{ sct.label }} · {{ sct.source_ids|length }}</span>{% endfor %}</p>{% endif %}
+  <h4>India</h4>
+  {% if impact.india %}{% if impact.india_summary %}<p>{{ impact.india_summary }} <span class="small muted">(model summary, checked against the statements)</span></p>{% endif %}
+    <ul class="small">{% for cid in impact.india.claim_ids[:4] %}<li>{{ iquote(cid) }}</li>{% endfor %}</ul>
+  {% else %}<p class="small warn">No retrieved source discusses India in connection with this event.</p>{% endif %}
+  {% if impact.figures %}<h4>Figures stated by sources</h4><table class="stack"><tr><th>Figure</th><th>Kind</th><th>Statement</th></tr>
+    {% for f in impact.figures %}<tr><td><b>{{ f.figure }}</b></td><td class="small"><span class="pill {{ 'warn' if f.kind == 'forecast' else '' }}">{{ f.kind }}</span> {{ f.confidence }}</td><td class="small">“{{ f.text }}” <span class="muted">({{ cite(f.source_ids) }})</span></td></tr>{% endfor %}</table>
+    <p class="small muted">Figures are quoted from the sources; IntelPod does not estimate numbers.</p>{% endif %}
+  {% if impact.chains %}<h4>First- and second-order effects</h4>
+  {% for ch in impact.chains %}<div class="card"><b>{{ ch.title }}</b>
+    <span class="pill">{{ ch.horizon|replace('_', ' ') }}</span><span class="pill">{{ ch.direction }}</span>
+    <span class="pill {{ 'warn' if ch.status == 'conditional' else '' }}" title="measured = every step is sourced reporting; conditional = includes forecasts or inference">{{ ch.status }}</span>
+    <span class="pill {{ 'warn' if ch.confidence in ('speculative', 'contested') else '' }}" title="{{ ch.confidence_reason }}">{{ ch.confidence }}</span>
+    {% if ch.india %}<span class="pill">India</span>{% endif %}
+    {% for sct in ch.sectors %}<span class="pill">{{ sector_labels[sct] }}</span>{% endfor %}
+    <ol class="small">{% for st in ch.steps %}<li>{{ st.text }} <span class="muted">— {{ 'first-order' if loop.first else ('second-order' if loop.index == 2 else 'further') }};
+      {% if st.basis == 'reported' %}sourced: {{ claim_cite(st.claim_ids) }}{% else %}<span class="warn">inference</span>{% endif %}; {{ st.confidence }}</span></li>{% endfor %}</ol></div>{% endfor %}{% endif %}
+  {% set groups = [('benefits', 'Likely beneficiaries'), ('harmed', 'Adversely affected'), ('unintended', 'Unintended consequences')] %}
+  {% for key, title in groups %}{% set items = impact.actors|selectattr('effect', 'equalto', key)|list %}{% if items %}
+  <h4>{{ title }}</h4><ul class="small">{% for a in items %}<li><b>{{ a.group }}</b> — {{ a.reason }} <span class="muted">({{ 'sourced' if a.basis == 'reported' else 'inference' }})</span></li>{% endfor %}</ul>{% endif %}{% endfor %}
+  {% if impact.interpretations or impact.interpretation_note %}<h4>Strongest readings</h4>
+    {% for it in impact.interpretations %}<p class="small"><span class="pill">{{ it.stance }}</span> {{ it.summary }} <span class="muted">({{ cite(it.source_ids) }})</span></p>{% endfor %}
+    {% if impact.interpretation_note %}<p class="small muted">{{ impact.interpretation_note }}</p>{% endif %}{% endif %}
+  {% if event_forecasts %}<h4>Forecasts in the ledger</h4><ul class="small">{% for f in event_forecasts %}<li>“{{ f.text }}” — {{ f.speaker or f.publisher or 'unknown' }}{% if f.timeframe %} · {{ f.timeframe }}{% endif %} · <span class="pill {{ '' if f.status == 'resolved' else 'warn' }}">{{ f.verdict or f.status }}</span></li>{% endfor %}</ul>{% endif %}
+  {% if impact.limitations %}<div class="banner"><b>Limitations</b><ul class="small">{% for l in impact.limitations %}<li>{{ l }}</li>{% endfor %}</ul></div>{% endif %}
+  {% if impact.rejected %}<details><summary class="small">Model output rejected ({{ impact.rejected|length }})</summary><ul class="small muted">{% for x in impact.rejected %}<li>{{ x }}</li>{% endfor %}</ul></details>{% endif %}
+  {% endif %}
+</div>
+{% endif %}
 <div class="card scroll"><h3>Reports ({{ articles|length }})</h3>
 {% if articles_scope == 'run' and total_linked != articles|length %}<p class="small muted">Showing the {{ plural(articles|length, 'report') }} this event had in run {{ run.run_id }}; {{ total_linked }} are linked to it across all runs.</p>{% endif %}
 <table class="stack">

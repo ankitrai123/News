@@ -33,7 +33,7 @@ ATTRIB = re.compile(r"\b(said|says|told|according to|announced|stated|added|warn
 INTERPRET = re.compile(r"\b(means|signals?|suggests?|reflects?|underscores?|because|due to|aimed at|in an effort to|"
                        r"designed to|amounts to|is seen as|a sign that|a bid to)\b", re.I)
 DENIAL = re.compile(r"\b(denied|denies|rejected|rejects|dismissed|dismisses|false|untrue|refuted|no evidence)\b", re.I)
-NUMBER = re.compile(r"(?<![\w.])(\d[\d,]*(?:\.\d+)?)\s*(%|per ?cent|bps|basis points|billion|million|trillion)?", re.I)
+NUMBER = re.compile(r"(?<![\w.])(\d[\d,]*(?:\.\d+)?)\s*(%|per ?cent|bps|basis points|billion|million|trillion|crore|lakh)?", re.I)
 SPEAKER = [re.compile(r"^(?P<s>[A-Z][\w'’.\- ]{2,80}?)\s+(?:said|says|told|announced|warned|argued|noted|wrote|"
                       r"stated|insisted|claimed|confirmed|denied|added)\b"),
            re.compile(r"\baccording to (?:the )?(?P<s>[A-Za-z][\w'’.\- ]{2,60}?)(?:[,.;]|$)", re.I),

@@ -20,6 +20,9 @@ No endpoint returns secrets.
 | GET | `/api/events/{event_id}/research?run=&all_sources=false` | the research package (latest, or for `run`) and its selected sources (`all_sources=true`: also those not used, with reasons); 404 if none |
 | GET | `/api/runs/{run_id}/debate` | per event: debate package status, claim counts (agreed / contested / single-source), debated questions, overall confidence, "no disagreement" note, limitations |
 | GET | `/api/events/{event_id}/debate?run=` | the full debate package (latest, or for `run`): claims with sources and confidence, questions and positions, diversity, viewpoint searches, rejected model output, limitations; 404 if none |
+| GET | `/api/runs/{run_id}/brief` | the run's intelligence brief (connections, new forecasts, limitations) and per-event impact summaries; 404 if none |
+| GET | `/api/events/{event_id}/impact?run=` | the full impact analysis (context, dimensions, sectors, India, figures, effect chains, groups, readings, limitations, rejected model output); 404 if none |
+| GET | `/api/forecasts?status=open\|resolved&event_id=` | the forecast ledger |
 | GET | `/api/feeds` | feed registry merged with health (last status, items, failures) |
 | GET | `/api/usage` | requests per provider (24 h), model calls/tokens per model (24 h), NewsData requests today vs budget |
 

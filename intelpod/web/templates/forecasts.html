@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Forecast ledger · IntelPod{% endblock %}
+{% block content %}
+<h1>Forecast ledger</h1>
+<p class="small muted">Statements about the future quoted from retrieved sources — what an analyst, official or publisher
+expects, never a verified event. IntelPod records each one with its source, date and stated timeframe; record the outcome
+when it is known so later episodes can say who was right.</p>
+<p class="small"><a href="/forecasts">All</a> · <a href="/forecasts?status=open">Open</a> · <a href="/forecasts?status=resolved">Resolved</a></p>
+{% if not forecasts %}<div class="card">No forecasts {{ 'with status ' ~ status if status else 'yet' }}. They are added by the impact stage from forecast statements in the sources.</div>{% else %}
+<div class="card scroll"><table class="stack"><tr><th>Forecast</th><th>Who / when</th><th>Status</th></tr>
+{% for f in forecasts %}<tr>
+  <td>“{{ f.text }}”<div class="small muted"><a href="/events/{{ f.event_id }}">{{ f.event_title or f.event_id }}</a> · <code>{{ f.forecast_id }}</code></div></td>
+  <td class="small">{{ f.speaker or '—' }}{% if f.publisher %}<br>{% if f.url %}<a href="{{ f.url|safe_url }}" target="_blank" rel="noopener noreferrer">{{ f.publisher }}</a>{% else %}{{ f.publisher }}{% endif %}{% endif %}
+    <br><span class="muted">{{ f.published_at|dt if f.published_at else 'undated' }} · timeframe: {{ f.timeframe or 'not stated' }}{% if f.hedge %} · wording: “{{ f.hedge }}”{% endif %}</span></td>
+  <td class="small">{% if f.status == 'resolved' %}<span class="pill">{{ f.verdict }}</span><div>{{ f.outcome }}</div><div class="muted">{{ f.evaluated_at|dt }}</div>
+    {% else %}<span class="pill warn">open</span>
+    <details><summary>record outcome</summary><form method="post" action="/forecasts/{{ f.forecast_id }}/resolve">
+      <label>Verdict <select name="verdict"><option>correct</option><option>incorrect</option><option>partly</option><option>unresolvable</option></select></label>
+      <label>What happened (with a source) <textarea name="outcome" required minlength="3" maxlength="1000" rows="2"></textarea></label>
+      <button class="secondary">Save</button></form></details>{% endif %}</td>
+</tr>{% endfor %}</table></div>{% endif %}
+{% endblock %}

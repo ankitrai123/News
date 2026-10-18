@@ -222,3 +222,12 @@ debate:
   model_analysis: true                # questions and positions; off = claim map only
   max_model_calls: 16                 # at most 2 per event
   max_sources_to_model: 20
+
+impact:
+  # Phase 4: context, business/economic impact, connections between events, forecast ledger.
+  # Builds on the Phase 3 claim map; never estimates numbers. See docs/IMPACT.md.
+  enabled: true
+  model_analysis: true          # effect chains, affected groups, readings (checked); off = evidence tables only
+  explain_links: true           # one model call per run to word evidenced connections
+  max_model_calls: 12
+  context_lookback_days: 45     # earlier related events searched this far back

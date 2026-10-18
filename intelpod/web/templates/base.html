@@ -45,6 +45,7 @@ pre{white-space:pre-wrap;word-break:break-word;font-size:12px;background:var(--b
 <header><b>IntelPod</b>
 <nav aria-label="Main">
 <a href="/" {% if active == 'briefing' %}aria-current="page"{% endif %}>Briefing</a>
+<a href="/forecasts" {% if active == 'forecasts' %}aria-current="page"{% endif %}>Forecasts</a>
 <a href="/runs" {% if active == 'runs' %}aria-current="page"{% endif %}>Runs &amp; status</a>
 <a href="/feeds" {% if active == 'feeds' %}aria-current="page"{% endif %}>Sources</a>
 <a href="/settings" {% if active == 'settings' %}aria-current="page"{% endif %}>Settings</a>

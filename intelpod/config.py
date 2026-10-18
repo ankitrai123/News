@@ -263,7 +263,8 @@ class LLMConfig(BaseModel):
         (which list only `event_review`) still get model help for research."""
         base = self.tasks.get("event_review")
         if base is not None:
-            for name, max_tokens in (("research_queries", 600), ("research_notes", 1800), ("debate_analysis", 2500)):
+            for name, max_tokens in (("research_queries", 600), ("research_notes", 1800), ("debate_analysis", 2500),
+                                     ("impact_analysis", 3000)):
                 if name not in self.tasks:
                     self.tasks[name] = LLMTaskConfig(models=[m.model_copy() for m in base.models],
                                                      temperature=0.2, max_tokens=max_tokens)
@@ -366,6 +367,16 @@ class DebateConfig(BaseModel):
     max_sources_to_model: int = Field(20, ge=2, le=40)
 
 
+class ImpactConfig(BaseModel):
+    """Phase 4: context, business/economic impact, event connections, forecast ledger (docs/IMPACT.md)."""
+
+    enabled: bool = True
+    model_analysis: bool = True                      # causal chains, actors, interpretations (checked)
+    explain_links: bool = True                       # one model call per run to word evidenced links
+    max_model_calls: int = Field(12, ge=0)           # one per event, plus one for links
+    context_lookback_days: int = Field(45, ge=1, le=365)
+
+
 class Settings(BaseModel):
     app: AppConfig = Field(default_factory=AppConfig)
     http: HttpConfig = Field(default_factory=HttpConfig)
@@ -375,6 +386,7 @@ class Settings(BaseModel):
     llm: LLMConfig = Field(default_factory=LLMConfig)
     research: ResearchConfig = Field(default_factory=ResearchConfig)
     debate: DebateConfig = Field(default_factory=DebateConfig)
+    impact: ImpactConfig = Field(default_factory=ImpactConfig)
     taxonomy_file: str = "config/taxonomy.yaml"
 
     def resolve(self, path: str) -> Path:

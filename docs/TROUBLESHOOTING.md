@@ -44,6 +44,11 @@ to `data/logs/intelpod.log` (set `app.log_json: true` for JSON lines).
 | Debate: many "rejected" model items | the model named people/numbers not in the cited sources | expected safety behaviour; the rest of the package is kept |
 | Debate: "Looked for … no relevant, accessible source was found" | the perspective is not covered by the archive, feeds, GDELT or Guardian (or GDELT's budget ran out) | add research feeds for that country/stakeholder, a Guardian key, or raise `debate.gdelt_requests_per_run` |
 | `intelpod debate` says "has not been researched yet" | Phase 2 has not run for that run | `intelpod research --run-id <id>` first |
+| Impact: "Causal chains … were not assessed" (status `partial`) | no model, `--no-llm`, or budget used | expected; evidence tables are complete. Configure a model and run `intelpod impact --refresh` |
+| Impact: an effect chain or group was "rejected" | it named a person, company or number not in the statements it cites | expected safety behaviour; see "Model output rejected" on the event page |
+| Impact: "No retrieved source discusses India" | no statement mentions India/RBI/rupee etc. | by design: India implications are not invented. Add Indian research feeds or a Guardian key for wider coverage |
+| Few or no "Connections between events" | no source of one event mentions another | by design: events are not linked on timing alone |
+| `intelpod impact` says "has no completed rank stage" | Phase 1 not finished for that run | `intelpod run --resume` first |
 | `database is locked` | two processes writing at once | let the running job finish; SQLite WAL mode and a 5 s busy timeout are already set |
 
 ## Resetting

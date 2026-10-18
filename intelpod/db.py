@@ -17,7 +17,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 from sqlalchemy.types import TypeDecorator
 
-SCHEMA_VERSION = 4  # v2: llm tables; v3: research tables (Phase 2); v4: claims, debate_packages (Phase 3)
+SCHEMA_VERSION = 5  # v2: llm; v3: research (Phase 2); v4: claims, debate_packages (Phase 3); v5: impact (Phase 4)
 
 
 def utcnow() -> datetime:
@@ -332,6 +332,52 @@ class DebatePackageRow(Base):
     payload: Mapped[dict] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, index=True)
     __table_args__ = (UniqueConstraint("run_id", "event_id", name="uq_debate_package"),)
+
+
+class ImpactAnalysisRow(Base):
+    """Phase 4 per run and event: context, dimensions, figures, causal chains, actors."""
+
+    __tablename__ = "impact_analyses"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    run_id: Mapped[str] = mapped_column(String(40), index=True)
+    event_id: Mapped[str] = mapped_column(String(40), index=True)
+    status: Mapped[str] = mapped_column(String(20))
+    payload: Mapped[dict] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, index=True)
+    __table_args__ = (UniqueConstraint("run_id", "event_id", name="uq_impact_analysis"),)
+
+
+class EventLinkRow(Base):
+    """A connection between two events of one run, with the evidence for it."""
+
+    __tablename__ = "event_links"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    run_id: Mapped[str] = mapped_column(String(40), index=True)
+    link_id: Mapped[str] = mapped_column(String(32))
+    event_a: Mapped[str] = mapped_column(String(40), index=True)
+    event_b: Mapped[str] = mapped_column(String(40), index=True)
+    kind: Mapped[str] = mapped_column(String(20))
+    payload: Mapped[dict] = mapped_column(JSON)
+    __table_args__ = (UniqueConstraint("run_id", "link_id", name="uq_event_link"),)
+
+
+class ForecastRow(Base):
+    """Forecast ledger: one row per distinct forecast statement, across runs."""
+
+    __tablename__ = "forecasts"
+    forecast_id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    event_id: Mapped[str] = mapped_column(String(40), index=True)
+    status: Mapped[str] = mapped_column(String(20), index=True)
+    payload: Mapped[dict] = mapped_column(JSON)
+    first_seen_at: Mapped[datetime] = mapped_column(UTCDateTime, index=True)
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+
+
+class IntelligenceBriefRow(Base):
+    __tablename__ = "intelligence_briefs"
+    run_id: Mapped[str] = mapped_column(String(40), primary_key=True)
+    payload: Mapped[dict] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
 
 
 class MetaRow(Base):

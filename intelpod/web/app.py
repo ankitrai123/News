@@ -26,6 +26,8 @@ from ..research.models import QUERY_TYPE_LABELS
 from ..research.store import ResearchStore
 from ..debate.models import CONFIDENCE_HELP
 from ..debate.store import DebateStore
+from ..impact.models import DIMENSIONS, SECTORS
+from ..impact.store import ImpactStore
 
 log = logging.getLogger(__name__)
 TEMPLATES = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
@@ -58,6 +60,7 @@ def create_app(settings: Settings | None = None, pipeline_factory=None,
     repo = Repository(db)
     rstore = ResearchStore(db)
     dstore = DebateStore(db)
+    istore = ImpactStore(db)
     app = FastAPI(title="IntelPod", version=__version__,
                   description="Local API for the geopolitical & business intelligence podcast agent (Phase 1).")
     hosts = list(allowed_hosts or []) + LOCAL_HOSTS
@@ -197,6 +200,32 @@ def create_app(settings: Settings | None = None, pipeline_factory=None,
             raise HTTPException(404, "no debate package for this event" + (f" in run {run}" if run else ""))
         return pkg.model_dump(mode="json")
 
+    @app.get("/api/runs/{run_id}/brief")
+    def api_run_brief(run_id: str):
+        run_or_404(run_id)
+        b = istore.brief(run_id)
+        if b is None:
+            raise HTTPException(404, "no intelligence brief for this run")
+        return {"brief": b.model_dump(mode="json"),
+                "events": {eid: {"status": a.status, "what_happened": a.context.what_happened,
+                                 "dimensions": [d.key for d in a.dimensions], "chains": len(a.chains),
+                                 "india": a.india is not None, "limitations": a.limitations}
+                           for eid, a in istore.analyses(run_id).items()}}
+
+    @app.get("/api/events/{event_id}/impact")
+    def api_event_impact(event_id: str, run: str | None = Query(None, max_length=80)):
+        if repo.event(event_id) is None:
+            raise HTTPException(404, "event not found")
+        a = istore.analysis(run, event_id) if run else istore.latest_analysis(event_id)
+        if a is None:
+            raise HTTPException(404, "no impact analysis for this event" + (f" in run {run}" if run else ""))
+        return a.model_dump(mode="json")
+
+    @app.get("/api/forecasts")
+    def api_forecasts(status: str | None = Query(None, pattern="^(open|resolved)$"),
+                      event_id: str | None = Query(None, max_length=40)):
+        return [f.model_dump(mode="json") for f in istore.forecasts(status=status, event_id=event_id)]
+
     @app.get("/api/events/latest")
     def api_latest_events(selected_only: bool = True):
         run = repo.latest_run()
@@ -267,6 +296,8 @@ def create_app(settings: Settings | None = None, pipeline_factory=None,
                     ingest=out("ingest"), review=out("review"), cluster=out("cluster"),
                     research=rstore.packages(run_row.run_id) if run_row else {},
                     debates=dstore.packages(run_row.run_id) if run_row else {},
+                    impacts=istore.analyses(run_row.run_id) if run_row else {},
+                    brief=istore.brief(run_row.run_id) if run_row else None,
                     min_events=settings.ranking.min_events)
 
     @app.get("/events/{event_id}", response_class=HTMLResponse)
@@ -288,12 +319,14 @@ def create_app(settings: Settings | None = None, pipeline_factory=None,
         order = {rid: i for i, rid in enumerate(pkg.result_ids)} if pkg else {}
         sources = sorted((r for r in results if r.selected), key=lambda r: order.get(r.result_id, 99))
         debate = dstore.package(pkg.run_id, event_id) if pkg else None
+        impact = (istore.analysis(run_row.run_id, event_id) if run_row else None) or istore.latest_analysis(event_id)
         by_id = {r.result_id: r for r in results}
         claims = {c.claim_id: c for c in debate.claims} if debate else {}
         return page(request, "event.html", ev=ev, score=score, run=run_row, articles=articles,
                     research=pkg, sources=sources, rejected=[r for r in results if not r.selected][:40],
                     queries=pkg.queries if pkg else [], debate=debate, src=by_id, claims=claims,
-                    confidence_help=CONFIDENCE_HELP,
+                    confidence_help=CONFIDENCE_HELP, impact=impact, sector_labels=SECTORS, dim_labels=DIMENSIONS,
+                    event_forecasts=istore.forecasts(event_id=event_id, limit=20),
                     articles_scope="run" if run_ids is not None else "all", total_linked=len(all_articles),
                     history=repo.event_score_history(event_id))
 
@@ -316,6 +349,18 @@ def create_app(settings: Settings | None = None, pipeline_factory=None,
         except HTTPException as e:
             key = next((k for k, v in MESSAGES.items() if v == e.detail), "nothing")
         return RedirectResponse(f"/runs?msg={quote(key)}", status_code=303)
+
+    @app.get("/forecasts", response_class=HTMLResponse)
+    def forecasts_page(request: Request, status: str | None = Query(None, pattern="^(open|resolved)$")):
+        return page(request, "forecasts.html", active="forecasts", forecasts=istore.forecasts(status=status),
+                    status=status)
+
+    @app.post("/forecasts/{forecast_id}/resolve")
+    def forecasts_resolve(forecast_id: str, verdict: str = Form(..., pattern="^(correct|incorrect|partly|unresolvable)$"),
+                          outcome: str = Form(..., min_length=3, max_length=1000)):
+        if istore.resolve_forecast(forecast_id[:32], verdict, outcome) is None:
+            raise HTTPException(404, "forecast not found")
+        return RedirectResponse("/forecasts", status_code=303)
 
     @app.get("/feeds", response_class=HTMLResponse)
     def feeds_page(request: Request):

@@ -59,6 +59,11 @@
         {{ plural(dp.consensus|length, 'agreed claim') }}, {{ dp.contested|length }} contested, {{ dp.unverified|length }} single-source
         · {{ plural(dp.questions|length, 'debated question') }}
         <span class="pill {{ 'warn' if dp.overall_confidence == 'low' else '' }}" title="{{ dp.confidence_reason }}">confidence {{ dp.overall_confidence }}</span></p>{% endif %}
+      {% set im = impacts.get(r.event_id) %}
+      {% if im and im.status not in ('skipped', 'failed') %}<p class="small"><a href="/events/{{ r.event_id }}?run={{ run.run_id }}#impact"><b>Impact:</b></a>
+        {% for d in im.dimensions[:4] %}<span class="pill">{{ d.label }}</span>{% endfor %}
+        {% if im.india %}<span class="pill">India</span>{% endif %}
+        {{ plural(im.chains|length, 'effect chain') }}</p>{% endif %}
       <table class="comp">{% for c in r.components %}<tr><td style="width:190px">{{ c.name|replace('_', ' ') }}</td>
         <td style="width:170px"><span class="bar" role="img" aria-label="{{ c.name|replace('_', ' ') }} {{ '%.2f'|format(c.value) }} of 1"><i style="width:{{ (c.value*100)|round }}%"></i></span><span class="barval small">{{ '%.2f'|format(c.value) }}</span></td>
         <td class="muted">{{ c.evidence|join('; ') }}</td></tr>{% endfor %}</table>
@@ -66,6 +71,16 @@
   </div>
 </div>
 {% endfor %}
+{% if brief and brief.links %}
+<div class="card" id="connections"><h3>Connections between events</h3>
+<p class="small muted"><b>Evidenced</b>: a retrieved source of one event refers to the other (quoted). <b>Shared driver</b>: both events' sources discuss the same channel and involve a common country or actor — context, not evidence that one affects the other.</p>
+<table class="stack">{% for l in brief.links %}<tr>
+  <td><a href="/events/{{ l.event_a }}?run={{ run.run_id }}">{{ l.title_a }}</a> ↔ <a href="/events/{{ l.event_b }}?run={{ run.run_id }}">{{ l.title_b }}</a>
+    {% if l.explanation %}<div class="small">{{ l.explanation }} <span class="muted">({{ l.explanation_by }}, checked against the quotes)</span></div>{% endif %}
+    {% for e in l.evidence[:2] %}<div class="small"><span class="muted">Quote:</span> “{{ e.text }}” — <a href="{{ e.url|safe_url }}" target="_blank" rel="noopener noreferrer">{{ e.publisher }}</a></div>{% endfor %}</td>
+  <td class="small"><span class="pill {{ '' if l.kind == 'evidenced' else 'warn' }}">{{ l.kind|replace('_', ' ') }}</span>{% if l.channels %}<div class="muted">{{ l.channels|join(', ') }}</div>{% endif %}</td></tr>{% endfor %}</table>
+</div>
+{% endif %}
 {% if others %}
 <div class="card"><h3>Next in line</h3><table>
 {% for r in others %}<tr><td style="width:60px"><b>{{ r.importance }}</b></td><td><a href="/events/{{ r.event_id }}?run={{ run.run_id }}">{{ r.title }}</a>

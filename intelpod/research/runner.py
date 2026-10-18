@@ -104,24 +104,27 @@ def build_toolkit(pipe, ctx, store: ResearchStore, refresh_feeds: bool, gdelt_ma
                                                                 cfg.guardian.page_size), store, cache_age)
         else:
             notes["guardian"] = f"{cfg.guardian.api_key_env} not set (optional)"
-    llm = None
-    review = ctx.outputs.get("review") or {}
-    if not want_model:
-        pass
-    elif review.get("status") == "failed_all" and any(e.get("fatal") for e in review.get("errors") or []):
-        notes["model"] = f"{model_reason} not used: the model provider failed during review ({review.get('reason', '')[:120]})"
-    elif settings.llm.enabled:
-        client = pipe._make_llm(ctx.run_id)
-        ok, why = client.availability() if isinstance(client, LLMClient) else (True, "ok")
-        if ok:
-            llm = client
-        else:
-            notes["model"] = f"{model_reason} not used: {why}"
-    else:
-        notes["model"] = f"{model_reason} not used: llm.enabled is false"
+    llm = model_client(pipe, ctx, notes, model_reason) if want_model else None
     pages = PageFetcher(web, cfg.pages, no_extract_domains=tuple(cfg.pages.no_extract_domains))
     return Toolkit(providers=providers, pages=pages, llm=llm, notes=notes, feed_stats=feed_stats,
                    clients=[web, gdelt_http, api_http])
+
+
+def model_client(pipe, ctx, notes: dict, reason: str):
+    """The run's model client if it can be used, else None with the reason in `notes["model"]`."""
+    review = ctx.outputs.get("review") or {}
+    if review.get("status") == "failed_all" and any(e.get("fatal") for e in review.get("errors") or []):
+        notes["model"] = f"{reason} not used: the model provider failed during review ({review.get('reason', '')[:120]})"
+        return None
+    if not pipe.settings.llm.enabled:
+        notes["model"] = f"{reason} not used: llm.enabled is false"
+        return None
+    client = pipe._make_llm(ctx.run_id)
+    ok, why = client.availability() if isinstance(client, LLMClient) else (True, "ok")
+    if not ok:
+        notes["model"] = f"{reason} not used: {why}"
+        return None
+    return client
 
 
 def load_registry(settings):

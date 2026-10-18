@@ -27,7 +27,8 @@
 | Researches recent online discussion | Phase 2 done (offline tests; live run pending): archive, research feeds, GDELT date-window search, optional Guardian; packages with explicit limitations |
 | Cites actual supporting sources | Phase 2 stores only retrieved, date-checked sources with URLs; model notes are rejected unless grounded in the source's own extracts |
 | Ideological and analytical diversity | Phase 3 done (offline tests): source registry with referenced facts, verbatim claim map with calibrated confidence, diversity gaps, viewpoint searches, model questions/positions checked against cited sources, honest "no disagreement" and limitations |
-| Business analysis, script, verification, audio, sample episode | Phases 4–6 |
+| Business impact and context | Phase 4 done (offline tests): intelligence brief with context and timeline, impact evidence by dimension/sector/India, quoted figures, checked effect chains (sourced vs inference), evidenced event connections, forecast ledger |
+| Script, verification, audio, sample episode | Phases 5–6 |
 
 ## Known limitations (Phase 1)
 
@@ -78,12 +79,18 @@
   perspective that none of them covers is reported as "looked for, not found".
 * **No live run yet**: the model analysis was tested with scripted model answers only.
 
+## Known limitations (Phase 4)
+
+* **Keyword tagging** shows which dimensions and sectors sources discuss, not effect sizes.
+* **Lexical connection evidence**: paraphrased cross-references are missed.
+* **Effect chains need a model** and were tested with scripted answers only; reasoning steps are
+  checked for invented names/numbers, not for economic soundness (they are labelled *inference*).
+
 ## Exact next step
 
-Phase 4, step 1: business and economic impact analysis per event (affected sectors, companies,
-markets, supply chains and India-specific channels), built on the Phase 3 claim map so every
-impact statement cites confirmed or clearly labelled claims.
+Phase 5, step 1: the podcast script generator — two distinct hosts working from the intelligence
+brief, with every factual line tied to claim ids so Module 10's fact verification can check the
+script against the sources before audio.
 
-Before that: run Phases 1–3 against live sources (`intelpod feeds check --research`,
-`intelpod run`), read a few debate packages, and add referenced registry entries for the
-publishers `intelpod sources --gaps` lists.
+Before that: run Phases 1–4 live (`intelpod run`), read `intelligence_brief.md` for a few days,
+and record outcomes for forecasts as they resolve (`intelpod forecasts`).

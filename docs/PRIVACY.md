@@ -15,8 +15,9 @@ IntelPod is a single-user local application. It has no telemetry, accounts or cl
 | Embedding cache | `embedding_cache` | vectors keyed by a hash of model + text; pruned after 14 days |
 | Research (Phase 2) | `research_items`, `research_queries`, `research_results`, `research_packages` | research-feed item metadata; the searches run; for each assessed source: title, URL, publisher, dates, scores, and at most 3 verbatim extracts of ≤ 300 characters plus up to 3 attributed sentences and IntelPod/model notes |
 | Debate (Phase 3) | `debate_packages`, `claims` | claims: the same short verbatim statements already stored with research results (headlines, extracts, attributed sentences), with source ids; model-written position summaries checked against the cited sources; no new page text is stored |
+| Impact (Phase 4) | `impact_analyses`, `event_links`, `forecasts`, `intelligence_briefs` | references to stored claims, short quotes already stored, checked model-written chains/summaries, forecast ledger entries (verbatim forecast, source, date, your recorded outcome) |
 | Research caches | `search_cache`, `page_cache` | search answers (metadata) for 12 h; page metadata and fetch outcome (never page text) for 7 days |
-| Reports | `data/runs/<run_id>/` | Markdown/JSON reports linking to the original articles; `research.json`, `debate.json` |
+| Reports | `data/runs/<run_id>/` | Markdown/JSON reports linking to the original articles; `research.json`, `debate.json`, `intelligence_brief.{md,json}` |
 | Logs | `data/logs/` | rotating, 3 × 5 MB; API keys and `token=`/`apikey=` parameters are redacted |
 
 Phase 1 never fetches article pages. Phase 2 fetches result pages only where robots.txt allows,
@@ -43,6 +44,9 @@ opt out (`noai`, `noarchive`, `nosnippet`, TDM reservation) or are paywalled con
 * **Debate (Phase 3):** viewpoint searches send event keywords (plus cue words or a country filter)
   to the same providers; with a model configured, the numbered sources (publisher, country, date,
   title and the stored short extracts) are sent to NVIDIA/Ollama for the debate analysis.
+* **Impact (Phase 4):** with a model configured, the event title and its numbered statements
+  (verbatim claims with publisher names) are sent to NVIDIA/Ollama; no new network requests to
+  publishers are made.
 * **Ollama** runs on your machine; nothing leaves it.
 
 API keys live only in your environment or `.env` (git-ignored). They are never written to the

@@ -61,7 +61,7 @@ help proposes search keywords and writes notes that are rejected if they name an
 from the source's own extracts. Details: [docs/RESEARCH.md](docs/RESEARCH.md).
 
 ```bash
-intelpod run                       # Phase 1 + Phase 2 + Phase 3 + report
+intelpod run                       # Phases 1-4 + reports
 intelpod run --stop-after review   # Phase 1 only
 intelpod research                  # Phase 2 on the latest run (or --run-id)
 ```
@@ -82,6 +82,22 @@ orientation comes only from documented, referenced entries in `config/sources.ya
 ```bash
 intelpod debate                    # Phase 3 on the latest researched run (or --run-id)
 intelpod sources --gaps            # feed publishers missing from the source registry
+```
+
+## What Phase 4 adds: the intelligence brief
+
+The `impact` stage adds context and business analysis per event: what happened, what is new
+since IntelPod last looked, a timeline with earlier related events, which economic dimensions,
+sectors and India channels the sources actually discuss (with quoted statements), figures quoted
+from sources (measured vs forecast — never estimated), and model-proposed first- and second-order
+effect chains in which every step is either sourced (checked against the statements it cites) or
+labelled as inference. Events are connected only with evidence (a source of one mentions the
+other) or as a labelled shared driver. Forecasts go to a ledger whose outcomes you record later.
+Output: `intelligence_brief.md` / `.json` per run. Details: [docs/IMPACT.md](docs/IMPACT.md).
+
+```bash
+intelpod impact                    # Phase 4 on the latest run (or --run-id)
+intelpod forecasts                 # the forecast ledger
 ```
 
 ## Quick start
@@ -172,6 +188,7 @@ separated from the real-network tests in `tests/test_live.py`. Clustering qualit
 * [docs/PROVIDERS.md](docs/PROVIDERS.md) — every external dependency, free-tier limits, licences,
   and the NVIDIA trial terms ("internal testing and evaluation, not production"; don't publish
   model-written text from it — use Ollama for ongoing or shared use)
+* [docs/IMPACT.md](docs/IMPACT.md) — Phase 4: context, impact evidence, effect chains, connections, forecast ledger
 * [docs/DEBATE.md](docs/DEBATE.md) — Phase 3: claim map, confidence labels, diversity, viewpoint searches, model checks
 * [docs/RESEARCH.md](docs/RESEARCH.md) — Phase 2: research questions, providers, page rules, dates, quality, selection
 * [docs/API.md](docs/API.md) — local HTTP API
