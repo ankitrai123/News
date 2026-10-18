@@ -373,7 +373,6 @@ def test_episode_rebuilt_when_mode_or_evidence_changes_and_stale_files_removed(s
     d = settings.data_path / "runs" / run_id
     assert (d / "script.md").exists()
     settings.script.max_stories = 1
-    from intelpod.debate.store import DebateStore
     from intelpod.db import DebatePackageRow
     with pipe.db.session() as s:
         s.query(DebatePackageRow).delete()
