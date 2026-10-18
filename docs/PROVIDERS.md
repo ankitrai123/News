@@ -150,6 +150,25 @@ services with free tiers (e.g. GNews, Currents, New York Times). NewsData.io fro
 integrated (above). Others can be added as one class implementing `intelpod/providers/base.py`;
 keys go in `.env` and anything named `*_KEY`/`*_TOKEN` is redacted from logs.
 
+## Research providers (Phase 2)
+
+See docs/RESEARCH.md for how they are used.
+
+| Provider | Category | Access | Limits (verified Oct 2026 from docs/search results; re-check) |
+|---|---|---|---|
+| GDELT DOC 2.0 (`startdatetime`/`enddatetime`) | free public service, no key | `api.gdeltproject.org/api/v2/doc/doc`, ArtList JSON | last ~3 months only; ≤ 250 records, no paging; ~1 request / 5 s asked, refusals without Retry-After; IntelPod: ≤ 4 queries per event, ≤ 32 per run, 10 s apart, 60 s timeout, cached 12 h. Cite "The GDELT Project" (shown on reports and the dashboard). |
+| The Guardian Content API | free developer key, **non-commercial** | `content.guardianapis.com/search` with `from-date`/`to-date`, `use-date=published` | reportedly 1 request/s and 500/day for developer keys (older sources say 5,000/day; read your key's response headers). IntelPod requests headline, trail text, byline and first publication date only — never `body`. Optional: skipped without `GUARDIAN_API_KEY`. |
+| Research feeds (`config/research_feeds.yaml`) | free public feeds | RSS/Atom | Federal Reserve speeches, Bank of England, PIB (India), Brookings, Atlantic Council; each URL's evidence level is noted in the file; all `verified: false` until `intelpod feeds check --research` |
+| Publisher pages | public web pages | HTTPS GET with your `user_agent` | robots.txt, paywalls, `noai`/`noarchive`/`nosnippet`, TDM reservation and `no_extract_domains` honoured; ≤ 2.5 MB; ≤ 18 per event, 140 per run |
+| trafilatura 2.3 | free/open-source library (Apache-2.0) | local | main-text and metadata extraction (with htmldate, Apache-2.0; lxml, BSD) |
+
+Considered and **not used**: Brave Search API (no free plan for new users since early 2026, card
+required, terms forbid storing results), SearXNG and the `ddgs`/DuckDuckGo HTML scrapers
+(undocumented interfaces; some engines solve CAPTCHAs or spoof user agents), Google Custom Search
+JSON API (closed to new customers), Bing Search APIs (retired Aug 2025), Mojeek (paid), NewsAPI.org
+(developer plan for development only), NYT Article Search (terms exclude AI use of content; NYT
+pages are metadata-only by default), GNews/Currents (possible later as optional keyed adapters).
+
 ## Local software
 
 | Software | Version (dev) | Licence | Role |

@@ -160,3 +160,51 @@ llm:
     max_events: 12               # one model call per event, highest-ranked first
     max_extra_reviews: 6         # follow-up reviews for events promoted into the briefing
     weight: 0.5                  # share of each blended score taken from the model
+
+research:
+  # Phase 2: for each selected event, find ~10-15 sources from the last window_days (reporting,
+  # analysis, opinion, official statements, research), check dates and quality, and keep only
+  # metadata + short verbatim extracts + notes. Every limitation is stated, never papered over.
+  enabled: true
+  window_days: 14                # spec: 10-21; GDELT only searches the last ~3 months
+  latest_days: 3                 # "latest facts" window
+  allow_background: true         # older, highly relevant sources may be kept, labelled background
+  background_days: 90
+  max_events: 8
+  min_results: 10                # fewer -> a stated limitation
+  max_results: 15
+  min_relevance: 0.12            # calibrated on the labelled corpus: keeps 89% of same-story items, precision 0.67
+  max_per_publisher: 3
+  max_from_event: 4              # at most this many of the event's own Phase 1 reports
+  max_seconds: 900               # stop starting new events after this
+  search_cache_hours: 12         # identical searches reuse the cached answer (resume, reruns)
+  model_queries: true            # one model call per event proposes extra keywords (NVIDIA/Ollama)
+  model_notes: true              # one model call per event writes notes, checked against the extracts
+  max_model_calls: 20
+  archive: {enabled: true}       # IntelPod's own stored articles (free, grows daily)
+  feeds:
+    enabled: true
+    feeds_file: config/research_feeds.yaml   # official bodies, international organisations, think tanks
+    keep_days: 45
+  gdelt:
+    enabled: true
+    max_queries_per_event: 4     # combined queries; results are labelled by research question locally
+    max_requests_per_run: 32     # GDELT throttles: ~10 s apart, so 32 requests take 5-10 minutes
+    max_records: 75
+    sort: HybridRel              # "latest facts" queries use DateDesc
+  guardian:
+    enabled: true                # used only when GUARDIAN_API_KEY is set
+    api_key_env: GUARDIAN_API_KEY
+    max_requests_per_run: 20     # free developer key: reportedly 1 request/s and 500/day
+    page_size: 20
+  pages:
+    enabled: true                # fetch result pages for dates, page type and short extracts
+    max_pages_per_event: 18
+    max_pages_per_run: 140
+    max_bytes: 2500000
+    workers: 4                   # different hosts in parallel; each host stays throttled
+    max_extracts_per_result: 3
+    max_extract_chars: 300
+    cache_days: 7                # page metadata only (never text)
+    no_extract_domains: [nytimes.com]   # terms exclude automated/AI text use: metadata only
+

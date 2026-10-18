@@ -9,7 +9,7 @@ or override with <code>INTELPOD_*</code> environment variables, then restart the
 topics and feeds are all configurable.</p>
 <p><b>Optional API keys</b> (read from the environment or <code>.env</code>; values are never displayed):
 {% for name, ok in keys.items() %}<span class="pill {{ 'ok' if ok else '' }}">{{ name }}: {{ 'set' if ok else 'not set' }}</span>{% endfor %}<br>
-<span class="muted">NEWSDATA_API_KEY adds NewsData.io articles (free plan, ~12 h delayed). NVIDIA_API_KEY enables embeddings for clustering and the model review of top events.
+<span class="muted">NEWSDATA_API_KEY adds NewsData.io articles (free plan, ~12 h delayed). NVIDIA_API_KEY enables embeddings for clustering, the model review of top events and research notes. GUARDIAN_API_KEY (optional) adds Guardian reporting and opinion to research.
 Without them IntelPod runs on RSS and GDELT with keyword analysis.</span></p></div>
 {% for section in ['ranking', 'clustering', 'ingestion', 'llm', 'http', 'app'] %}
 <div class="card"><h3>{{ section }}</h3><pre>{{ cfg[section] | tojson(indent=2) }}</pre></div>

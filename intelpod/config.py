@@ -317,6 +317,8 @@ class ResearchPagesConfig(BaseModel):
     max_extracts_per_result: int = Field(3, ge=0, le=6)
     max_extract_chars: int = Field(300, ge=80, le=400)
     cache_days: int = Field(7, ge=0)                 # page metadata (never text) cached this long
+    # Publishers whose terms exclude automated/AI use of their text: metadata only, no extracts.
+    no_extract_domains: list[str] = Field(default_factory=lambda: ["nytimes.com"])
 
 
 class ResearchConfig(BaseModel):

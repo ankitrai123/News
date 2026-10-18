@@ -111,6 +111,67 @@ class HttpClient:
         """POST to an API endpoint (robots.txt does not apply to documented APIs)."""
         return self.request("POST", url, json=json, headers=headers, check_robots=False, timeout=timeout)
 
+    def get_limited(self, url: str, max_bytes: int, headers: dict | None = None,
+                     url_check=None, max_redirects: int = 5) -> LimitedResponse:
+        """GET a web page, reading at most `max_bytes`. Redirects are followed one hop at a time so
+        each target is checked (robots.txt, and `url_check(url) -> reason | None`, e.g. no private
+        hosts). Same throttle and retry rules as `request()`; never logs query strings."""
+        hops: list[str] = []
+        current = url
+        for _ in range(max_redirects + 1):
+            if url_check is not None:
+                why = url_check(current)
+                if why:
+                    raise FetchError(f"blocked: {why}")
+            if not self.allowed_by_robots(current):
+                raise RobotsDisallowed(f"robots.txt disallows {current}")
+            host = urlsplit(current).netloc
+            attempts = self.cfg.max_retries + 1
+            last_exc: Exception | None = None
+            resp_meta = None
+            for attempt in range(1, attempts + 1):
+                self._throttle(host)
+                try:
+                    with self._client.stream("GET", current, headers=headers, follow_redirects=False) as r:
+                        if r.status_code in RETRY_STATUS and r.status_code != 429 and attempt < attempts:
+                            last_exc = FetchError(f"HTTP {r.status_code}", r.status_code)
+                            raise _Retry()
+                        body = bytearray()
+                        truncated = False
+                        if not r.is_redirect:
+                            for chunk in r.iter_bytes():
+                                body.extend(chunk)
+                                if len(body) > max_bytes:
+                                    truncated = True
+                                    del body[max_bytes:]
+                                    break
+                        resp_meta = (r.status_code, str(r.url), r.headers, bytes(body), truncated,
+                                     r.headers.get("location"), r.is_redirect)
+                    break
+                except _Retry:
+                    self._sleep(self.cfg.backoff_base_seconds * (2 ** (attempt - 1)))
+                    continue
+                except (httpx.ProxyError, httpx.UnsupportedProtocol) as e:
+                    raise FetchError(f"{type(e).__name__}: {e}") from e
+                except (httpx.TimeoutException, httpx.TransportError) as e:
+                    last_exc = e
+                    log.warning("GET %s failed (%s) attempt %d/%d", host, type(e).__name__, attempt, attempts)
+                    if attempt < attempts and (self.cfg.retry_timeouts or not isinstance(e, httpx.TimeoutException)):
+                        self._sleep(self.cfg.backoff_base_seconds * (2 ** (attempt - 1)))
+                        continue
+                    raise FetchError(f"{type(e).__name__}: request failed") from e
+            if resp_meta is None:
+                if isinstance(last_exc, FetchError):
+                    raise last_exc
+                raise FetchError(f"request failed: {last_exc}")
+            status, final, hdrs, body, truncated, location, is_redirect = resp_meta
+            if is_redirect and location:
+                hops.append(current)
+                current = str(httpx.URL(current).join(location))
+                continue
+            return LimitedResponse(status, final, hdrs, body, truncated, hops)
+        raise FetchError("too many redirects")
+
     def request(self, method: str, url: str, *, params: dict | None = None, headers: dict | None = None,
                 json: dict | None = None, check_robots: bool = True, timeout: float | None = None,
                 retry_statuses: set[int] | None = None) -> httpx.Response:
@@ -158,6 +219,34 @@ class HttpClient:
         if isinstance(last_exc, FetchError):
             raise last_exc
         raise FetchError(f"request failed after {attempts} attempts: {last_exc}")
+
+
+class LimitedResponse:
+    """Status, headers and at most `max_bytes` of a body (see `HttpClient.get_limited`)."""
+
+    def __init__(self, status_code: int, url: str, headers: httpx.Headers, body: bytes, truncated: bool,
+                 redirects: list[str]):
+        self.status_code = status_code
+        self.url = url
+        self.headers = headers
+        self.body = body
+        self.truncated = truncated
+        self.redirects = redirects
+
+    @property
+    def content_type(self) -> str:
+        return (self.headers.get("content-type") or "").split(";")[0].strip().lower()
+
+    def text(self) -> str:
+        enc = "utf-8"
+        m = (self.headers.get("content-type") or "").lower().split("charset=")
+        if len(m) > 1:
+            enc = m[1].split(";")[0].strip() or "utf-8"
+        return self.body.decode(enc, errors="replace")
+
+
+class _Retry(Exception):
+    pass
 
 
 def _retry_after_seconds(resp: httpx.Response) -> float | None:

@@ -5,7 +5,8 @@
 | Phase | Scope | Status |
 |---|---|---|
 | 1 | Ingestion (RSS, GDELT, NewsData.io), normalization, de-duplication, event clustering (+ embeddings), ranking, model review (NVIDIA/Ollama), SQLite, CLI/report/dashboard | **Done** — tested offline with mocked APIs; awaiting first live run with real keys |
-| 2 | Research: per-event query generation (10 query types), GDELT/RSS/official-source adapters, 10–21 day window, date validation, 10–15 results per event, source-quality assessment, cache. Uses the same `LLMClient` (new task entries in `llm.tasks`) | next |
+| 2 | Research: per-event query generation (10 query types), archive/feeds/GDELT/Guardian adapters, 10–21 day window, page fetching within robots/paywall/opt-out rules, date validation, 10–15 results per event, source-quality assessment, persistence and caches, dashboard/API/CLI (docs/RESEARCH.md) | **Done** — tested offline with mocked services; awaiting a live run |
+| 3 | (see below) | next |
 | 3 | Source registry with evidence-backed editorial metadata, viewpoint discovery, claim-level evidence map, agreement/disagreement, uncertainty | planned |
 | 4 | Historical context, event relationships, causal business/economic chains, India impact | planned |
 | 5 | Narrative plan, two-host script, citation-linked transcript, fact verification | planned |
@@ -23,7 +24,9 @@
 | Stores previous research / resumes interrupted work | Done for Phase 1 data |
 | Operates without mandatory paid services | Done |
 | Documents every external dependency | Done (docs/PROVIDERS.md) |
-| Research, viewpoints, claims, business analysis, script, verification, audio, sample episode | Phases 2–6 |
+| Researches recent online discussion | Phase 2 done (offline tests; live run pending): archive, research feeds, GDELT date-window search, optional Guardian; packages with explicit limitations |
+| Cites actual supporting sources | Phase 2 stores only retrieved, date-checked sources with URLs; model notes are rejected unless grounded in the source's own extracts |
+| Viewpoints, claims, business analysis, script, verification, audio, sample episode | Phases 3–6 |
 
 ## Known limitations (Phase 1)
 
@@ -51,15 +54,27 @@
 * **Settings page is read-only;** edit `config/config.yaml`.
 * **No scheduler yet** (Phase 7); run `intelpod run` manually or from cron/Task Scheduler.
 
+## Known limitations (Phase 2)
+
+* **No live run yet**: GDELT, the research feeds, the Guardian API and publisher pages could not be
+  reached from the build sandbox. Research feed URLs are `verified: false`; run
+  `intelpod feeds check --research`.
+* **No general web search**: no free, permitted web-search API exists in 2026 (Brave needs a card
+  and forbids storing results; Google CSE closed; Bing retired), so discovery is limited to the
+  archive, the configured feeds, GDELT and the Guardian.
+* **Source quality is partial**: track record and corrections policy are "unknown" until Phase 3's
+  evidence-backed source registry.
+* **Relevance is lexical** (calibrated: 89% recall / 0.67 precision on the labelled corpus);
+  embeddings are not yet used in research.
+
 ## Exact next step
 
-Phase 2, step 1: add a `research` stage after `rank` that, for each selected event, generates
-the ten query types (latest facts, recent history, political and economic interpretations,
-business consequences, India implications, expert analysis, primary sources, criticism,
-open questions) — deterministic templates first, with an optional Ollama rewrite — and runs
-them against GDELT with a configurable 10–21 day `startdatetime/enddatetime` window plus
-official-source feeds, persisting de-duplicated, date-validated results in a new
-`research_results` table keyed by `event_id`.
+Phase 3, step 1: a source registry (`config/sources.yaml` + table) with documented,
+human-reviewable editorial metadata (orientation per issue dimension, evidence links,
+confidence, last reviewed; "unknown" allowed), used by research to fill `editorial_metadata`
+and the track-record / corrections components; then viewpoint discovery per interpretive
+question with claim-level evidence maps.
 
-Before that: run Phase 1 against live sources, record which feeds work, and tune
-`similarity_threshold` and ranking weights on a few days of real output.
+Before that: run Phases 1–2 against live sources (`intelpod feeds check`, `intelpod feeds check
+--research`, `intelpod run`), confirm which research feeds and GDELT queries work, and review a
+few research packages for relevance.

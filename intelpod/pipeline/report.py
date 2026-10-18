@@ -16,8 +16,31 @@ def _fmt(dt) -> str:
     return dt.strftime("%Y-%m-%d %H:%M UTC") if dt else "unknown"
 
 
+def render_research(pkg, results) -> list[str]:
+    """Markdown for one event's research package (selected sources + limitations)."""
+    from ..research.models import QUERY_TYPE_LABELS
+    lines = [f"**Research ({len(results)} source{'s' if len(results) != 1 else ''}, "
+             f"{pkg.window_start:%Y-%m-%d} to {pkg.window_end:%Y-%m-%d}):**"]
+    for r in results:
+        when = r.published_at.strftime("%Y-%m-%d") if r.published_at else "undated"
+        if r.date_source == "gdelt_seendate":
+            when += " (first seen)"
+        q = r.credibility_assessment.score
+        lines.append(f"- [{r.title}]({r.url}) — {r.publisher}, {when} · {r.content_type}"
+                     + (f" · quality {q:.2f}" if q is not None else "")
+                     + f" · serves: {', '.join(QUERY_TYPE_LABELS[x].lower() for x in r.query_types[:3])}")
+        for n in r.evidence_notes[:2]:
+            prefix = "IntelPod note" if n.kind == "model_note" else "extract"
+            lines.append(f"  - _{prefix}:_ {'“' + n.text + '”' if n.kind == 'extract' else n.text}")
+    if pkg.limitations:
+        lines.append("")
+        lines.append("_Limitations:_ " + " ".join(pkg.limitations))
+    return lines + [""]
+
+
 def render_markdown(ctx: "RunContext", selected: list[RankedEvent], ranked: list[RankedEvent],
-                    candidates: dict[str, dict], articles: dict[str, Article]) -> str:
+                    candidates: dict[str, dict], articles: dict[str, Article], research: dict | None = None) -> str:
+    research = research or {}
     ingest = ctx.outputs.get("ingest", {})
     cluster = ctx.outputs.get("cluster", {})
     lines = [f"# Daily event selection — {ctx.now:%Y-%m-%d}", "",
@@ -79,21 +102,26 @@ def render_markdown(ctx: "RunContext", selected: list[RankedEvent], ranked: list
         if extra > 0:
             lines.append(f"- … and {extra} more")
         lines.append("")
+        if r.event_id in research:
+            lines += render_research(*research[r.event_id])
     runners = [r for r in ranked if not r.selected][:10]
     if runners:
         lines += ["## Next in line (not selected)", ""]
         for r in runners:
             lines.append(f"- **{r.importance}** — {r.title} _({r.not_selected_reason or r.rationale.split(':', 1)[-1].split('.')[0].strip()})_")
-    lines += ["", "---", "_Generated from public feed/API metadata only. Titles and short descriptions belong to their "
+    research_out = ctx.outputs.get("research") or {}
+    if research_out.get("attribution"):
+        lines += ["", f"_{research_out['attribution']}_"]
+    lines += ["", "---", "_Generated from public feed/API metadata and short extracts only. Titles and short descriptions belong to their "
               "publishers; follow the links for full reporting. Scores are heuristic and explained above._"]
     return "\n".join(lines) + "\n"
 
 
 def write_report(out_dir: Path, ctx: "RunContext", selected: list[RankedEvent], ranked: list[RankedEvent],
-                 candidates: dict[str, dict], articles: dict[str, Article]) -> dict[str, Path]:
+                 candidates: dict[str, dict], articles: dict[str, Article], research: dict | None = None) -> dict[str, Path]:
     out_dir.mkdir(parents=True, exist_ok=True)
     md = out_dir / "phase1_events.md"
-    md.write_text(render_markdown(ctx, selected, ranked, candidates, articles), encoding="utf-8")
+    md.write_text(render_markdown(ctx, selected, ranked, candidates, articles, research), encoding="utf-8")
     js = out_dir / "phase1_events.json"
     payload = {
         "run_id": ctx.run_id, "generated_for": ctx.now.isoformat(),
@@ -105,4 +133,12 @@ def write_report(out_dir: Path, ctx: "RunContext", selected: list[RankedEvent], 
                          for r in ranked if not r.selected],
     }
     js.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
-    return {"markdown": md, "json": js}
+    paths = {"markdown": md, "json": js}
+    if research:
+        rj = out_dir / "research.json"
+        rj.write_text(json.dumps({eid: {"package": pkg.model_dump(mode="json"),
+                                        "sources": [r.model_dump(mode="json") for r in results]}
+                                  for eid, (pkg, results) in research.items()}, indent=2, ensure_ascii=False),
+                      encoding="utf-8")
+        paths["research"] = rj
+    return paths

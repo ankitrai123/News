@@ -38,7 +38,8 @@ from .report import write_report
 
 log = logging.getLogger(__name__)
 
-PHASE1_STAGES = ("ingest", "cluster", "rank", "review", "report")
+STAGES = ("ingest", "cluster", "rank", "review", "research", "report")
+PHASE1_STAGES = STAGES  # name kept for callers written before Phase 2
 DEDUP_MEMORY = timedelta(days=4)
 API_USER_AGENT = f"IntelPod/{__version__}"  # keyed APIs get no contact details (privacy)
 _run_lock = threading.Lock()
@@ -100,7 +101,8 @@ class Phase1Pipeline:
         self._provider_notes: dict[str, str] = {}
         self.stage_fns: dict[str, Callable[[RunContext], dict]] = {
             "ingest": self.stage_ingest, "cluster": self.stage_cluster,
-            "rank": self.stage_rank, "review": self.stage_review, "report": self.stage_report,
+            "rank": self.stage_rank, "review": self.stage_review, "research": self.stage_research,
+            "report": self.stage_report,
         }
 
     # -- orchestration ------------------------------------------------------
@@ -467,6 +469,11 @@ class Phase1Pipeline:
                 "top": [{"rank": r.rank, "event_id": r.event_id, "title": r.title, "importance": r.importance}
                         for r in selected]}
 
+    def stage_research(self, ctx: RunContext) -> dict:
+        """Phase 2: a source-backed research package for each selected event (see intelpod.research)."""
+        from ..research.runner import run_research  # local import: Phase 1 works without it loaded
+        return run_research(self, ctx)
+
     def stage_report(self, ctx: RunContext) -> dict:
         ranked = self.repo.scores_for_run(ctx.run_id)
         selected = [r for r in ranked if r.selected]
@@ -474,7 +481,11 @@ class Phase1Pipeline:
         articles = self.repo.get_articles(sorted({a for c in cand_list for a in c["article_ids"]}))
         cands = {c["event_id"]: c for c in cand_list}
         out_dir = self.settings.data_path / "runs" / ctx.run_id
-        paths = write_report(out_dir, ctx, selected, ranked, cands, articles)
+        from ..research.store import ResearchStore
+        store = ResearchStore(self.db)
+        research = {r.event_id: (pkg, store.results(ctx.run_id, r.event_id, selected_only=True))
+                    for r in selected if (pkg := store.package(ctx.run_id, r.event_id)) is not None}
+        paths = write_report(out_dir, ctx, selected, ranked, cands, articles, research)
         return {"paths": {k: str(v) for k, v in paths.items()}}
 
 

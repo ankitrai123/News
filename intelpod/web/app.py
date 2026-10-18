@@ -22,6 +22,8 @@ from ..pipeline.runner import RESUMABLE, RUN_ID_RE, Phase1Pipeline, RunInProgres
 from ..providers import load_feeds
 from ..repository import Repository
 from .. import labels
+from ..research.models import QUERY_TYPE_LABELS
+from ..research.store import ResearchStore
 
 log = logging.getLogger(__name__)
 TEMPLATES = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
@@ -32,6 +34,8 @@ TEMPLATES.env.filters["flag_help"] = labels.flag_help
 TEMPLATES.env.filters["date_source"] = labels.date_source_label
 TEMPLATES.env.globals["plural"] = labels.plural
 TEMPLATES.env.globals["display_entities"] = labels.display_entities
+TEMPLATES.env.globals["qlabels"] = QUERY_TYPE_LABELS
+TEMPLATES.env.filters["safe_url"] = lambda u: u if isinstance(u, str) and u.startswith(("http://", "https://")) else "#"
 
 LOCAL_HOSTS = ["127.0.0.1", "localhost", "::1", "[::1]"]
 MESSAGES = {
@@ -50,6 +54,7 @@ def create_app(settings: Settings | None = None, pipeline_factory=None,
     settings = settings or get_settings()
     db = Database(settings.db_file)
     repo = Repository(db)
+    rstore = ResearchStore(db)
     app = FastAPI(title="IntelPod", version=__version__,
                   description="Local API for the geopolitical & business intelligence podcast agent (Phase 1).")
     hosts = list(allowed_hosts or []) + LOCAL_HOSTS
@@ -154,6 +159,23 @@ def create_app(settings: Settings | None = None, pipeline_factory=None,
         run_or_404(run_id)
         return [r.model_dump(mode="json") for r in repo.scores_for_run(run_id, selected_only)]
 
+    @app.get("/api/runs/{run_id}/research")
+    def api_run_research(run_id: str):
+        run_or_404(run_id)
+        return {eid: {"status": p.status, "sources": len(p.result_ids), "candidates": p.candidate_count,
+                      "coverage": p.coverage, "content_mix": p.content_mix, "limitations": p.limitations}
+                for eid, p in rstore.packages(run_id).items()}
+
+    @app.get("/api/events/{event_id}/research")
+    def api_event_research(event_id: str, run: str | None = Query(None, max_length=80), all_sources: bool = False):
+        if repo.event(event_id) is None:
+            raise HTTPException(404, "event not found")
+        pkg = rstore.package(run, event_id) if run else rstore.latest_package(event_id)
+        if pkg is None:
+            raise HTTPException(404, "no research for this event" + (f" in run {run}" if run else ""))
+        results = rstore.results(pkg.run_id, event_id, selected_only=not all_sources)
+        return {"package": pkg.model_dump(mode="json"), "sources": [r.model_dump(mode="json") for r in results]}
+
     @app.get("/api/events/latest")
     def api_latest_events(selected_only: bool = True):
         run = repo.latest_run()
@@ -222,6 +244,7 @@ def create_app(settings: Settings | None = None, pipeline_factory=None,
                     others=[r for r in ranked if not r.selected][:15], scored=bool(ranked),
                     run_stage=repo.current_stage(run_row.run_id) if run_row else None,
                     ingest=out("ingest"), review=out("review"), cluster=out("cluster"),
+                    research=rstore.packages(run_row.run_id) if run_row else {},
                     min_events=settings.ranking.min_events)
 
     @app.get("/events/{event_id}", response_class=HTMLResponse)
@@ -238,7 +261,13 @@ def create_app(settings: Settings | None = None, pipeline_factory=None,
             articles = [a for a in all_articles if a.article_id in keep]
         else:
             articles = all_articles
+        pkg = (rstore.package(run_row.run_id, event_id) if run_row else None) or rstore.latest_package(event_id)
+        results = rstore.results(pkg.run_id, event_id) if pkg else []
+        order = {rid: i for i, rid in enumerate(pkg.result_ids)} if pkg else {}
+        sources = sorted((r for r in results if r.selected), key=lambda r: order.get(r.result_id, 99))
         return page(request, "event.html", ev=ev, score=score, run=run_row, articles=articles,
+                    research=pkg, sources=sources, rejected=[r for r in results if not r.selected][:40],
+                    queries=pkg.queries if pkg else [],
                     articles_scope="run" if run_ids is not None else "all", total_linked=len(all_articles),
                     history=repo.event_score_history(event_id))
 
@@ -275,6 +304,8 @@ def create_app(settings: Settings | None = None, pipeline_factory=None,
         for prov in settings.llm.providers.values():
             if prov.api_key_env:
                 keys[prov.api_key_env] = bool(read_secret(prov.api_key_env))
+        if settings.research.guardian.api_key_env:
+            keys[settings.research.guardian.api_key_env] = bool(read_secret(settings.research.guardian.api_key_env))
         return page(request, "settings.html", active="settings", cfg=cfg, now=datetime.now(timezone.utc), keys=keys,
                     placeholder_contact=PLACEHOLDER_CONTACT in settings.app.user_agent)
 

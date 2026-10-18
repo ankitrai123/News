@@ -80,6 +80,7 @@ def mock_all(router):
 
 
 def test_full_run_with_newsdata_and_nvidia(full_settings):
+    full_settings.research.enabled = False  # counts review calls; research model calls are tested separately
     with respx.mock as router:
         nd, emb, chat = mock_all(router)
         pipe = Phase1Pipeline(full_settings, stage_retry_delay=0)

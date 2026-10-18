@@ -34,6 +34,11 @@ to `data/logs/intelpod.log` (set `app.log_json: true` for JSON lines).
 | Embeddings `unavailable` | key missing, model retired, or rate limit | clustering falls back to lexical similarity automatically; see the reason in `intelpod runs` / the run's cluster output |
 | Dashboard says "cross-origin request refused" / "Invalid host header" | request came from another site, or you browse via a name other than 127.0.0.1/localhost | open it at http://127.0.0.1:8000; when serving on another host add `--allow-host <name>` |
 | Model "outlier" verdict ignored (`rejected.outlier_ids`) | model tried to remove half or more of an event's reports | safety cap against manipulated headlines; the event is kept whole |
+| Research package says "Only N relevant sources found" | little coverage in the window, GDELT refused requests, or pages blocked/paywalled | expected on some stories; check the "Searches run" list on the event page; add a Guardian key; add research feeds; widen `research.window_days` (≤ 21 recommended) |
+| Research: `GDELT kept refusing requests` | GDELT rate limit (shared with ingestion) | research continues with the other providers; rerun later (`intelpod research --refresh`), or lower `research.gdelt.max_requests_per_run` |
+| Research: `query not sent (invalid for GDELT)` | a generated query broke GDELT's rules (too long, 2-letter word…) | the query is skipped, never sent; report it with the event title so the template can be improved |
+| Research: many sources "metadata only" | publishers opt out of text use, PDFs, or `no_extract_domains` | by design; the headline, date and link are still used |
+| `intelpod research` says "has no ranked events yet" | Phase 1 has not finished for that run | `intelpod run --resume` (or `--stop-after review`) first |
 | `database is locked` | two processes writing at once | let the running job finish; SQLite WAL mode and a 5 s busy timeout are already set |
 
 ## Resetting

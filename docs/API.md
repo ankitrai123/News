@@ -16,6 +16,8 @@ No endpoint returns secrets.
 | GET | `/api/runs/{run_id}/events?selected_only=true` | ranked events of a run (full scores and evidence) |
 | GET | `/api/events/latest?selected_only=true` | ranked events of the latest completed run |
 | GET | `/api/events/{event_id}` | event details, all linked articles, assessment history across runs |
+| GET | `/api/runs/{run_id}/research` | per selected event: package status, number of sources, coverage per research question, content mix, limitations |
+| GET | `/api/events/{event_id}/research?run=&all_sources=false` | the research package (latest, or for `run`) and its selected sources (`all_sources=true`: also those not used, with reasons); 404 if none |
 | GET | `/api/feeds` | feed registry merged with health (last status, items, failures) |
 | GET | `/api/usage` | requests per provider (24 h), model calls/tokens per model (24 h), NewsData requests today vs budget |
 

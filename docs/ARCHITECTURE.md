@@ -51,7 +51,7 @@ config/                config.example.yaml, feeds.yaml, taxonomy.yaml
 tests/                 offline tests + fixtures; test_live.py for real network
 ```
 
-## Stages (Phase 1)
+## Stages
 
 | Stage | Input | Output (persisted in `stage_runs.output`) | Failure behaviour |
 |---|---|---|---|
@@ -59,7 +59,8 @@ tests/                 offline tests + fixtures; test_live.py for real network
 | `cluster` | articles in `[now - lookback, now]` (English) | `EventCandidate` list; events and event–article links written to DB | no articles → `StageError` |
 | `rank` | candidates from `cluster` output | `RankedEvent` list in `event_scores` (with full explanation) | retried once |
 | `review` | top-ranked events (default 12) | per-event model reviews; outliers unlinked; scores re-ranked and overwritten in `event_scores`; reviewed candidates | **never fails the run**: no key / disabled → `skipped`; provider rejects key, rate limit persists, or every configured model is retired → remaining reviews stop and keyword ranking stands (`failed_all` if none succeeded); one bad answer only affects that event |
-| `report` | ranked events | `data/runs/<run_id>/phase1_events.{md,json}` | retried once |
+| `research` (Phase 2) | selected events (after review) | research packages and every assessed source in `research_*` tables; per-event status, provider notes, page outcomes | **never fails the run** for provider, page or model problems: each event's package records what went wrong; one event's crash marks only that package failed; resumable per event (finished events are skipped). See docs/RESEARCH.md |
+| `report` | ranked events + research packages | `data/runs/<run_id>/phase1_events.{md,json}` and `research.json` | retried once |
 
 Runs record their `now` timestamp, so a resumed run uses the identical time window.
 A run in progress blocks a second run (`--force` overrides a stale lock).

@@ -25,7 +25,8 @@ def test_end_to_end_run(settings):
     repo = pipe.repo
     assert repo.get_run(run_id).status == "completed"
     stages = repo.stages(run_id)
-    assert [s for s in stages] == ["ingest", "cluster", "rank", "review", "report"]
+    assert [s for s in stages] == ["ingest", "cluster", "rank", "review", "research", "report"]
+    assert stages["research"].output["status"] == "completed"
     assert stages["review"].output["status"] == "skipped" and "NVIDIA_API_KEY" in stages["review"].output["reason"]
     ingest = stages["ingest"].output
     assert ingest["dedup"]["duplicate_url"] >= 1 and ingest["dedup"]["duplicate_title_same_publisher"] >= 1
@@ -68,6 +69,7 @@ def test_all_sources_down_fails_clearly(settings):
 
 
 def test_resume_after_interrupted_stage_does_not_refetch(settings, monkeypatch):
+    settings.research.enabled = False  # counts Phase 1 requests only; research has its own resume test
     with respx.mock as router:
         mock_sources(router)
         pipe = Phase1Pipeline(settings, stage_retry_delay=0)

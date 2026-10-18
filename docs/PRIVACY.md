@@ -13,11 +13,15 @@ IntelPod is a single-user local application. It has no telemetry, accounts or cl
 | Model calls | `llm_calls` | provider, model, task, tokens, latency, errors (no prompt text) |
 | Model answer cache | `llm_cache` | model answers keyed by a hash of the request |
 | Embedding cache | `embedding_cache` | vectors keyed by a hash of model + text; pruned after 14 days |
-| Reports | `data/runs/<run_id>/` | Markdown/JSON reports linking to the original articles |
+| Research (Phase 2) | `research_items`, `research_queries`, `research_results`, `research_packages` | research-feed item metadata; the searches run; for each assessed source: title, URL, publisher, dates, scores, and at most 3 verbatim extracts of ≤ 300 characters plus up to 3 attributed sentences and IntelPod/model notes |
+| Research caches | `search_cache`, `page_cache` | search answers (metadata) for 12 h; page metadata and fetch outcome (never page text) for 7 days |
+| Reports | `data/runs/<run_id>/` | Markdown/JSON reports linking to the original articles; `research.json` |
 | Logs | `data/logs/` | rotating, 3 × 5 MB; API keys and `token=`/`apikey=` parameters are redacted |
 
-Full article text is **not** fetched or stored in Phase 1 (`content_access = "metadata"`).
-Later phases will store short factual extracts and IntelPod's own notes, not full articles.
+Phase 1 never fetches article pages. Phase 2 fetches result pages only where robots.txt allows,
+never behind paywalls or logins, and keeps the page text in memory only for the current run: it
+stores short verbatim extracts (see above) and IntelPod's notes, never full articles. Pages that
+opt out (`noai`, `noarchive`, `nosnippet`, TDM reservation) or are paywalled contribute metadata only.
 
 ## What it sends, and to whom
 
@@ -31,6 +35,10 @@ Later phases will store short factual extracts and IntelPod's own notes, not ful
   public news text, never personal data. `--no-llm` (or `llm.enabled: false`) stops all NVIDIA
   traffic: no model review and no NVIDIA embeddings. To keep model features but stay local, set
   both `llm.provider: ollama` and `clustering.embeddings.provider: ollama`.
+* **Research (Phase 2):** search terms derived from the event go to GDELT and, if
+  `GUARDIAN_API_KEY` is set, to the Guardian Content API (key in the query string, never logged);
+  result pages are requested with your `user_agent`. With a model configured, research also sends
+  event headlines and the short extracts (never full pages) to NVIDIA/Ollama for keywords and notes.
 * **Ollama** runs on your machine; nothing leaves it.
 
 API keys live only in your environment or `.env` (git-ignored). They are never written to the
@@ -38,7 +46,8 @@ database, reports or logs (log lines are redacted; NewsData keys travel in a hea
 
 ## Retention
 
-Only the embedding cache is pruned automatically (entries older than 14 days; it stays below
+Research-feed items are pruned after `research.feeds.keep_days` (45), the search cache after 2 days
+and page metadata after `research.pages.cache_days` (7). Besides those, only the embedding cache is pruned automatically (entries older than 14 days; it stays below
 ~100 MB at default settings). Everything else is kept; articles and events grow by a few MB per month. To remove everything, delete `data/`. To trim old raw articles while keeping events,
 run for example:
 

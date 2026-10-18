@@ -50,6 +50,10 @@
       {% if r.summary %}<p><b>Summary</b> <span class="small muted">({{ r.review.model }}, checked against the reports)</span>: {{ r.summary }}</p>{% endif %}
       {% if r.description %}<p>{{ r.description }}</p>{% endif %}
       <p class="small">{{ r.rationale }}</p>
+      {% set pkg = research.get(r.event_id) %}
+      {% if pkg %}<p class="small"><a href="/events/{{ r.event_id }}?run={{ run.run_id }}#research"><b>Research:</b> {{ plural(pkg.result_ids|length, 'source') }}</a>
+        {% for k, n in pkg.content_mix.items() %}<span class="pill">{{ k }} {{ n }}</span>{% endfor %}
+        {% if pkg.limitations %}<span class="pill warn" title="{{ pkg.limitations|join(' ') }}">{{ plural(pkg.limitations|length, 'limitation') }}</span>{% endif %}</p>{% endif %}
       <table class="comp">{% for c in r.components %}<tr><td style="width:190px">{{ c.name|replace('_', ' ') }}</td>
         <td style="width:170px"><span class="bar" role="img" aria-label="{{ c.name|replace('_', ' ') }} {{ '%.2f'|format(c.value) }} of 1"><i style="width:{{ (c.value*100)|round }}%"></i></span><span class="barval small">{{ '%.2f'|format(c.value) }}</span></td>
         <td class="muted">{{ c.evidence|join('; ') }}</td></tr>{% endfor %}</table>

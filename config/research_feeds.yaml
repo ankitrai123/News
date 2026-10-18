@@ -1,0 +1,46 @@
+# Research feeds (Phase 2): official bodies, international organisations and think tanks.
+#
+# Fetched at most once per run, stored in `research_items` (never mixed into news clustering)
+# and matched to each selected event locally. Same rules as news feeds: robots.txt, per-host
+# spacing, conditional GET, automatic pause after repeated failures.
+#
+# Evidence for each URL (October 2026; the build sandbox could not fetch these hosts, so
+# every entry starts `verified: false` -- run `intelpod feeds check --research` on your machine):
+#   high   = URL seen as a live feed in search results / the publisher's own feeds page
+#   medium = follows the publisher's documented feed pattern but not seen directly
+# Feeds whose URL could not be confirmed (IMF, WTO, OECD, CSIS, Carnegie, Chatham House, ORF,
+# Lowy Institute, PIIE, CFR) are deliberately NOT listed: add them from the publisher's own
+# RSS page if you want them.
+#
+# source_type: official | international_org | think_tank | academic
+
+feeds:
+  # high: listed on federalreserve.gov/feeds ("All Speeches")
+  - {name: Federal Reserve Speeches, publisher: US Federal Reserve, domain: federalreserve.gov,
+     url: "https://www.federalreserve.gov/feeds/speeches.xml", country: US, region: North America,
+     source_type: official, categories: [markets_monetary], enabled: true, verified: false}
+  # high: live feed seen in search results (weekly report items)
+  - {name: Bank of England Publications, publisher: Bank of England, domain: bankofengland.co.uk,
+     url: "https://www.bankofengland.co.uk/rss/publications", country: GB, region: Europe,
+     source_type: official, categories: [markets_monetary], enabled: true, verified: false}
+  # medium: same /rss/ pattern, listed by a feed directory
+  - {name: Bank of England News, publisher: Bank of England, domain: bankofengland.co.uk,
+     url: "https://www.bankofengland.co.uk/rss/news", country: GB, region: Europe,
+     source_type: official, categories: [markets_monetary], enabled: true, verified: false}
+  # medium: PIB's RSS page lists ModId=6 (press releases); Lang=1 is assumed to be English
+  # (Lang=2 is the Hindi listing). Check pib.gov.in/ViewRss.aspx if this returns Hindi.
+  - {name: PIB Press Releases, publisher: Press Information Bureau (Government of India), domain: pib.gov.in,
+     url: "https://www.pib.gov.in/RssMain.aspx?ModId=6&Lang=1&Regid=3", country: IN, region: South Asia,
+     timezone: Asia/Kolkata, source_type: official, categories: [geopolitics, macroeconomy], enabled: true,
+     verified: false}
+  # medium: WordPress site feed (regional feeds under /region/<name>/feed/ are listed by aggregators)
+  - {name: Brookings, publisher: Brookings Institution, domain: brookings.edu,
+     url: "https://www.brookings.edu/feed/", country: US, region: North America,
+     source_type: think_tank, categories: [geopolitics, macroeconomy], enabled: true, verified: false}
+  - {name: Atlantic Council, publisher: Atlantic Council, domain: atlanticcouncil.org,
+     url: "https://www.atlanticcouncil.org/feed/", country: US, region: North America,
+     source_type: think_tank, categories: [geopolitics], enabled: true, verified: false}
+  # low: Bruegel announced bruegel.org/rss?type=all in 2013; the site has since been rebuilt.
+  - {name: Bruegel, publisher: Bruegel, domain: bruegel.org,
+     url: "https://www.bruegel.org/rss?type=all", country: BE, region: Europe,
+     source_type: think_tank, categories: [macroeconomy, trade_policy], enabled: false, verified: false}

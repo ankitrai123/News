@@ -47,6 +47,25 @@ NewsData.io ────┘   (canonical URL, (URL, same-publisher  (TF-IDF + en
 * **Resumable runs:** every stage persists its output; `intelpod run --resume` continues an
   interrupted run without re-fetching.
 
+## What Phase 2 adds: research packages
+
+For each selected event, the `research` stage searches the previous 14 days (configurable
+10–21) for ~10–15 sources — reporting, analysis, opinion, official statements and think-tank
+research — through IntelPod's own article archive, official/think-tank feeds
+(`config/research_feeds.yaml`), GDELT's date-window search and, with a free key, the Guardian.
+It reads result pages only where robots.txt, paywalls and publisher opt-outs allow, keeps
+short verbatim extracts (never full articles), validates publication dates against the event
+date, scores relevance and source quality with the evidence shown, picks a diverse set, and
+states every limitation ("no primary source found", "3 pages paywalled"). Optional NVIDIA/Ollama
+help proposes search keywords and writes notes that are rejected if they name anything absent
+from the source's own extracts. Details: [docs/RESEARCH.md](docs/RESEARCH.md).
+
+```bash
+intelpod run                       # Phase 1 + Phase 2 + report
+intelpod run --stop-after review   # Phase 1 only
+intelpod research                  # Phase 2 on the latest run (or --run-id)
+```
+
 ## Quick start
 
 Requirements: Python 3.11+ (developed on 3.13), internet access. Works on Linux, macOS and
@@ -109,8 +128,8 @@ intelpod runs                                  # run history, stage status, requ
 
 ```bash
 pip install -e ".[dev]"
-pytest                 # 172 offline tests (HTTP mocked with respx, synthetic fixtures; real keys ignored)
-pytest -m live -v      # 5 real-network tests: GDELT, a feed, NewsData (1 credit), NVIDIA chat + embeddings
+pytest                 # 214 offline tests (HTTP mocked with respx, synthetic fixtures; real keys ignored)
+pytest -m live -v      # 7 real-network tests: GDELT (news + research window), a feed, a public page, NewsData (1 credit), NVIDIA chat + embeddings
 ```
 
 Offline tests use **synthetic** fixtures (fictional publishers on `.test` domains), clearly
@@ -124,8 +143,9 @@ separated from the real-network tests in `tests/test_live.py`. Clustering qualit
 |---|---|
 | `config/config.yaml` | everything: lookback window, providers, GDELT queries, clustering thresholds, ranking weights, selection limits |
 | `config/feeds.yaml` | RSS feed registry (publisher, country, region, source type, enabled) |
+| `config/research_feeds.yaml` | research feeds: official bodies, international organisations, think tanks (Phase 2) |
 | `config/taxonomy.yaml` | topic keywords, India terms, significance terms, soft-news terms, synonyms |
-| `.env` | `NEWSDATA_API_KEY`, `NVIDIA_API_KEY` (both optional) and `INTELPOD_*` overrides (see `.env.example`) |
+| `.env` | `NEWSDATA_API_KEY`, `NVIDIA_API_KEY`, `GUARDIAN_API_KEY` (all optional) and `INTELPOD_*` overrides (see `.env.example`) |
 
 ## Documentation
 
@@ -133,6 +153,7 @@ separated from the real-network tests in `tests/test_live.py`. Clustering qualit
 * [docs/PROVIDERS.md](docs/PROVIDERS.md) — every external dependency, free-tier limits, licences,
   and the NVIDIA trial terms ("internal testing and evaluation, not production"; don't publish
   model-written text from it — use Ollama for ongoing or shared use)
+* [docs/RESEARCH.md](docs/RESEARCH.md) — Phase 2: research questions, providers, page rules, dates, quality, selection
 * [docs/API.md](docs/API.md) — local HTTP API
 * [docs/OLLAMA.md](docs/OLLAMA.md) — installing Ollama and choosing models for your hardware
 * [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)

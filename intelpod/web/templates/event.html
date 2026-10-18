@@ -29,6 +29,36 @@
 {% if score.penalties %}<p class="small warn">Penalties: {{ score.penalties|join('; ') }}</p>{% endif %}
 </div>
 {% endif %}
+{% if research %}
+<div class="card scroll" id="research"><h3>Research ({{ plural(research.result_ids|length, 'source') }})
+  <span class="small muted">{{ research.window_start|dt }} to {{ research.window_end|dt }} · run {{ research.run_id }}</span></h3>
+  <p class="small muted">Sources found by searching for this event over the research window, checked for relevance,
+  publication date and source quality. Extracts are short quotations from each page; follow the links for the full text.</p>
+  {% if research.limitations %}<div class="banner"><b>Limitations</b><ul class="small">{% for l in research.limitations %}<li>{{ l }}</li>{% endfor %}</ul></div>{% endif %}
+  <p class="small">{% for qt, n in research.coverage.items() %}<span class="pill {{ '' if n else 'warn' }}" title="{{ n }} selected source(s)">{{ qlabels[qt] }}: {{ n }}</span>{% endfor %}</p>
+  <table class="stack"><tr><th>Published</th><th>Source</th><th>Kind / quality</th></tr>
+  {% for r in sources %}<tr>
+    <td class="small">{{ r.published_at|dt if r.published_at else 'undated' }}{% if r.date_source == 'gdelt_seendate' %}<br><span class="muted">first seen by GDELT</span>{% endif %}
+      {% if r.event_timing == 'before_event' %}<br><span class="muted">before the event: background</span>{% endif %}</td>
+    <td><a href="{{ r.url|safe_url }}" target="_blank" rel="noopener noreferrer">{{ r.title }}</a> <span class="small muted">— {{ r.publisher }}</span>
+      {% for n in r.evidence_notes %}<div class="small">{% if n.kind == 'model_note' %}<span class="muted">Note (model, checked against the extracts):</span> {{ n.text }}{% else %}<span class="muted">Extract:</span> “{{ n.text }}”{% endif %}</div>{% endfor %}
+      {% for c in r.key_claims %}<div class="small"><span class="muted">Attributed:</span> {{ c }}</div>{% endfor %}
+      <div class="small muted">serves: {% for q in r.query_types %}{{ qlabels[q]|lower }}{% if not loop.last %}, {% endif %}{% endfor %} · found via {{ r.providers|join(', ') }}{% if r.syndicated_with %} · also carried by {{ r.syndicated_with[:4]|join(', ') }}{% endif %}</div>
+      {% for d in r.date_notes %}<div class="small muted">{{ d }}</div>{% endfor %}</td>
+    <td class="small"><span class="pill">{{ r.content_type }}</span>{% if r.credibility_assessment.score is not none %} quality {{ '%.2f'|format(r.credibility_assessment.score) }}{% endif %}
+      <div class="muted">relevance {{ '%.2f'|format(r.relevance_score) }}</div>
+      {% for f in r.credibility_assessment.flags %}<span class="pill warn">{{ f|replace('_', ' ') }}</span>{% endfor %}
+      <details><summary>why</summary>{% for c in r.credibility_assessment.components %}<div>{{ c.name|replace('_', ' ') }}: {{ '%.2f'|format(c.value) if c.value is not none else 'unknown' }} <span class="muted">{{ c.evidence }}</span></div>{% endfor %}
+      <div class="muted">{{ r.content_type_evidence }}; page: {{ r.page_status|replace('_', ' ') }}</div></details></td>
+  </tr>{% endfor %}
+  </table>
+  {% if rejected %}<details><summary class="small">{{ plural(rejected|length, 'other source') }} considered but not used</summary>
+    <table class="stack">{% for r in rejected %}<tr><td class="small"><a href="{{ r.url|safe_url }}" target="_blank" rel="noopener noreferrer">{{ r.title }}</a> — {{ r.publisher }}</td><td class="small muted">{{ r.selection_reason }}</td></tr>{% endfor %}</table></details>{% endif %}
+  {% if queries %}<details><summary class="small">Searches run ({{ queries|length }})</summary>
+    <table class="stack">{% for q in queries %}<tr><td class="small">{{ q.provider }}</td><td class="small">{{ qlabels[q.query_type] }}</td><td class="small"><code>{{ q.text }}</code></td><td class="small {{ 'bad' if q.status in ('error', 'rate_limited') else 'muted' }}">{{ q.status }} · {{ q.hits }}{% if q.error %} · {{ q.error }}{% endif %}</td></tr>{% endfor %}</table></details>{% endif %}
+  {% if 'gdelt' in research.queries|map(attribute='provider')|list %}<p class="small muted">Discovery via <a href="https://www.gdeltproject.org/" target="_blank" rel="noopener noreferrer">The GDELT Project</a>.</p>{% endif %}
+</div>
+{% endif %}
 <div class="card scroll"><h3>Reports ({{ articles|length }})</h3>
 {% if articles_scope == 'run' and total_linked != articles|length %}<p class="small muted">Showing the {{ plural(articles|length, 'report') }} this event had in run {{ run.run_id }}; {{ total_linked }} are linked to it across all runs.</p>{% endif %}
 <table class="stack">

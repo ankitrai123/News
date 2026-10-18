@@ -73,3 +73,31 @@ def test_nvidia_embeddings(live_key):
     assert out, e.last_error
     dot = lambda a, b: sum(x * y for x, y in zip(a, b))  # noqa: E731
     assert dot(out[0], out[1]) > dot(out[0], out[2])  # paraphrases closer than an unrelated story
+
+
+def test_gdelt_research_window_search():
+    """One real GDELT research query over the last 14 days (keyless)."""
+    from datetime import datetime, timedelta, timezone
+    from intelpod.config import GdeltProviderConfig, HttpConfig, ResearchGdeltConfig
+    from intelpod.http import HttpClient
+    from intelpod.research.models import ResearchQuery
+    from intelpod.research.providers import GdeltSearch
+    now = datetime.now(timezone.utc)
+    g = GdeltSearch(HttpClient(HttpConfig(timeout_seconds=60), "IntelPod live test"), ResearchGdeltConfig(),
+                    GdeltProviderConfig())
+    r = g.search(ResearchQuery(query_id="live", event_id="live", query_type="recent_history", provider="gdelt",
+                               text='("interest rate" OR inflation) "central bank" sourcelang:english',
+                               start=now - timedelta(days=14), end=now))
+    assert r.status in ("ok", "rate_limited"), r.error
+    if r.status == "ok":
+        assert all(h.published_at is None or h.published_at >= now - timedelta(days=15) for h in r.hits)
+
+
+def test_page_fetch_public_official_page():
+    """Fetch one public central-bank page with robots.txt respected."""
+    from intelpod.config import HttpConfig, ResearchPagesConfig
+    from intelpod.http import HttpClient
+    from intelpod.research.pages import PageFetcher
+    p = PageFetcher(HttpClient(HttpConfig(), "IntelPod live test"), ResearchPagesConfig()).fetch(
+        "https://www.federalreserve.gov/newsevents/pressreleases.htm")
+    assert p.status in ("fetched", "metadata_only", "robots_disallowed"), p.error

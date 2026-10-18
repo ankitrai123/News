@@ -3,8 +3,11 @@
   intelpod doctor                 inspect hardware, tools, Ollama and source reachability
   intelpod init                   create config/config.yaml and the database
   intelpod feeds check            fetch every feed once and record its health
-  intelpod run                    full Phase 1 pipeline (ingest -> cluster -> rank -> report)
-  intelpod run --stop-after ingest
+  intelpod run                    full pipeline (ingest -> cluster -> rank -> review -> research -> report)
+  intelpod run --stop-after review   Phase 1 only (then `intelpod run --resume` or `intelpod research`)
+  intelpod run --no-research      Phase 1 and the report, without Phase 2
+  intelpod research [--run-id ID] [--refresh]   Phase 2 on an existing run's selected events
+  intelpod feeds check --research   check the research feeds (config/research_feeds.yaml)
   intelpod run --resume [--run-id ID]  continue an interrupted/paused run
   intelpod events [--run ID] [--all]
   intelpod runs
@@ -16,6 +19,7 @@
 from __future__ import annotations
 
 import argparse
+from datetime import datetime
 import json
 import os
 import platform
@@ -40,6 +44,8 @@ def _settings(args) -> Settings:
         overrides["ingestion.providers.newsdata.enabled"] = False
     if getattr(args, "no_llm", False):
         overrides["llm.enabled"] = False
+    if getattr(args, "no_research", False):
+        overrides["research.enabled"] = False
     if getattr(args, "lookback_hours", None):
         overrides["ingestion.lookback_hours"] = args.lookback_hours
     s = load_settings(args.config, overrides)
@@ -140,10 +146,13 @@ def cmd_feeds_check(args) -> int:
 
     s = _settings(args)
     repo = Repository(Database(s.db_file))
-    feeds = load_feeds(s.resolve(s.ingestion.feeds_file), include_disabled=args.include_disabled)
+    feeds_file = s.research.feeds.feeds_file if getattr(args, "research", False) else s.ingestion.feeds_file
+    feeds = load_feeds(s.resolve(feeds_file), include_disabled=args.include_disabled)
     ok_count = 0
     with HttpClient(s.http, s.app.user_agent) as http:
         provider = RssProvider(http, feeds, use_conditional_get=False)
+        if getattr(args, "research", False):
+            provider.name = "research_feeds"
         print(f"{'STATUS':8} {'ITEMS':>5}  {'NEWEST ITEM':17} FEED")
         for feed in feeds:
             items, rec = provider.fetch_feed(feed)
@@ -154,7 +163,7 @@ def cmd_feeds_check(args) -> int:
             extra = "" if rec.ok else f"  <- {rec.error}"
             print(f"{status:8} {rec.item_count:>5}  {newest:17} {feed.name}{'' if feed.enabled else ' (disabled)'}{extra}")
     print(f"\n{ok_count}/{len(feeds)} feeds returned items. Set `verified: true` (or disable) in "
-          f"{s.ingestion.feeds_file} accordingly.")
+          f"{feeds_file} accordingly.")
     return 0 if ok_count else 1
 
 
@@ -181,6 +190,65 @@ def cmd_run(args) -> int:
     _print_events(pipe.repo, run_id, show_all=False)
     out = pipe.repo.stages(run_id)["report"].output or {}
     for kind, path in (out.get("paths") or {}).items():
+        print(f"{kind} report: {path}")
+    return 0
+
+
+def cmd_research(args) -> int:
+    """Phase 2 on its own: research the selected events of an existing run (default: latest
+    completed run), then rewrite its report."""
+    import time
+
+    from .pipeline.runner import Phase1Pipeline, RunContext, RUN_ID_RE
+    from .research.runner import run_research
+    from .research.store import ResearchStore
+
+    s = _settings(args)
+    pipe = Phase1Pipeline(s)
+    if args.run_id and not RUN_ID_RE.fullmatch(args.run_id):
+        print("invalid run id", file=sys.stderr)
+        return 1
+    row = pipe.repo.get_run(args.run_id) if args.run_id else pipe.repo.latest_run(status=None)
+    if row is None:
+        print("no run found; run `intelpod run --stop-after review` first", file=sys.stderr)
+        return 1
+    stages = pipe.repo.stages(row.run_id)
+    if not (stages.get("rank") and stages["rank"].status == "completed"):
+        print(f"run {row.run_id} has no ranked events yet; finish Phase 1 first", file=sys.stderr)
+        return 1
+    if pipe.repo.active_run() is not None:
+        print("a run is in progress; wait for it to finish", file=sys.stderr)
+        return 2
+    s.research.enabled = True
+    ctx = RunContext(run_id=row.run_id, now=datetime.fromisoformat(row.params["now"]), params=row.params,
+                     outputs={k: v.output or {} for k, v in stages.items() if v.status == "completed"})
+    pipe.repo.stage_start(row.run_id, "research")
+    t0 = time.monotonic()
+    try:
+        out = run_research(pipe, ctx, refresh=args.refresh)
+    except Exception as e:  # noqa: BLE001
+        pipe.repo.stage_finish(row.run_id, "research", "failed", error=f"{type(e).__name__}: {e}")
+        print(f"research failed: {e}", file=sys.stderr)
+        return 2
+    out["duration_s"] = round(time.monotonic() - t0, 2)
+    pipe.repo.stage_finish(row.run_id, "research", "completed", output=out)
+    ctx.outputs["research"] = out
+    pipe.repo.stage_start(row.run_id, "report")
+    rep = pipe.stage_report(ctx)
+    pipe.repo.stage_finish(row.run_id, "report", "completed", output=rep)
+    store = ResearchStore(pipe.db)
+    print(f"run: {row.run_id}")
+    for r in pipe.repo.scores_for_run(row.run_id, selected_only=True):
+        pkg = store.package(row.run_id, r.event_id)
+        if pkg is None:
+            continue
+        print(f"\n#{r.rank} {r.title}\n   {len(pkg.result_ids)} sources ({pkg.status}); "
+              + ", ".join(f"{k}: {v}" for k, v in sorted(pkg.content_mix.items())))
+        for lim in pkg.limitations[:4]:
+            print(f"   - {lim}")
+    for name, note in (out.get("provider_notes") or {}).items():
+        print(f"note ({name}): {note}")
+    for kind, path in (rep.get("paths") or {}).items():
         print(f"{kind} report: {path}")
     return 0
 
@@ -341,19 +409,27 @@ def build_parser() -> argparse.ArgumentParser:
     fsub = feeds.add_subparsers(dest="feeds_cmd", required=True)
     chk = fsub.add_parser("check", help="fetch each feed once and report health")
     chk.add_argument("--include-disabled", action="store_true")
+    chk.add_argument("--research", action="store_true", help="check config/research_feeds.yaml instead")
     chk.set_defaults(fn=cmd_feeds_check)
 
-    run = sub.add_parser("run", help="run the Phase 1 pipeline")
+    run = sub.add_parser("run", help="run the pipeline (Phase 1 news selection + Phase 2 research)")
     run.add_argument("--resume", action="store_true", help="resume the given (or latest) run")
     run.add_argument("--run-id", help="run id to resume")
-    run.add_argument("--stop-after", choices=["ingest", "cluster", "rank", "report"])
+    run.add_argument("--stop-after", choices=["ingest", "cluster", "rank", "review", "research", "report"])
     run.add_argument("--force", action="store_true", help="start even if another run looks active")
     run.add_argument("--no-gdelt", action="store_true")
     run.add_argument("--no-rss", action="store_true")
     run.add_argument("--no-newsdata", action="store_true")
     run.add_argument("--no-llm", action="store_true", help="skip the model review (keyword ranking only)")
     run.add_argument("--lookback-hours", type=int)
+    run.add_argument("--no-research", action="store_true", help="skip Phase 2 research")
     run.set_defaults(fn=cmd_run)
+
+    rs = sub.add_parser("research", help="Phase 2: research the selected events of an existing run")
+    rs.add_argument("--run-id", help="run id (default: latest run)")
+    rs.add_argument("--refresh", action="store_true", help="research again events already researched in that run")
+    rs.add_argument("--no-llm", action="store_true", help="no model keywords or notes")
+    rs.set_defaults(fn=cmd_research)
 
     ev = sub.add_parser("events", help="show ranked events of a run")
     ev.add_argument("--run", help="run id (default: latest completed)")

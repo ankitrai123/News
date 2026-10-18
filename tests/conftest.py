@@ -8,7 +8,7 @@ import pytest
 
 # Offline tests must never see real credentials (from the shell or from .env). The real
 # values are kept aside only for the opt-in live tests (`pytest -m live`).
-_KEY_NAMES = ("NEWSDATA_API_KEY", "NVIDIA_API_KEY")
+_KEY_NAMES = ("NEWSDATA_API_KEY", "NVIDIA_API_KEY", "GUARDIAN_API_KEY")
 
 
 def _dotenv_values() -> dict:
@@ -53,6 +53,8 @@ def settings(tmp_path):
         "http.respect_robots_txt": False,
         "ingestion.providers.gdelt.min_interval_seconds": 0,
         "ingestion.providers.gdelt.queries": [{"topic": "trade_policy", "query": "(tariff OR \"export controls\")"}],
+        "research.feeds.feeds_file": str(tmp_path / "research_feeds.yaml"),  # none unless a test writes one
+        "research.search_cache_hours": 0,
     })
 
 
