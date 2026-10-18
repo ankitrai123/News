@@ -271,6 +271,7 @@ class Ranker:
             r.rank = i
         for r in scored:
             r.rationale = self.explain(r, reasons.get(r.event_id))
+            r.not_selected_reason = None if r.selected else (reasons.get(r.event_id) or "outside the top events")
         return selected + [r for r in scored if not r.selected]
 
     def explain(self, r: RankedEvent, reason: str | None) -> str:

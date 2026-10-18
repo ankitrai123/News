@@ -10,8 +10,8 @@ No endpoint returns secrets.
 | Method | Path | Description |
 |---|---|---|
 | GET | `/api/health` | status, version, schema version, article count, whether a run is in progress, last background error |
-| GET | `/api/runs?limit=30` | recent runs with status and error |
-| POST | `/api/runs?resume=false&run_id=` | start a run in the background (202); 409 if one is already running |
+| GET | `/api/runs?limit=30` | recent runs with status and error (`limit` 1–500, else 422) |
+| POST | `/api/runs?resume=false&run_id=` | start a run in the background (202). 409 if a run is in progress (in the dashboard or any other process). `resume=true` continues the latest unfinished run, or `run_id`; 409 "Nothing to resume" if the latest run completed, 404 for an unknown `run_id`, 422 for `run_id` without `resume` or a malformed id |
 | GET | `/api/runs/{run_id}` | run params and per-stage status, attempts, errors and output summaries |
 | GET | `/api/runs/{run_id}/events?selected_only=true` | ranked events of a run (full scores and evidence) |
 | GET | `/api/events/latest?selected_only=true` | ranked events of the latest completed run |

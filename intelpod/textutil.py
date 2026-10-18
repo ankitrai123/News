@@ -204,7 +204,9 @@ class Taxonomy:
         return self._match("soft", text)
 
 
-_NO_SINGULAR = ("ss", "us", "is", "ics", "talks", "news", "gas", "arms", "series", "species", "earnings", "proceeds", "savings", "goods", "outskirts")
+_NO_SINGULAR = ("ss", "us", "is", "ics", "talks", "news", "gas", "arms", "series", "species", "earnings", "proceeds",
+                "savings", "goods", "outskirts", "nations", "sanctions", "treasuries", "shares", "results", "industries",
+                "infosys", "affairs", "relations", "forces", "markets", "securities", "commodities")
 
 
 def canonical_term(term: str, aliases: dict[str, str] | None = None) -> str:
@@ -342,7 +344,8 @@ def _country_patterns() -> tuple[re.Pattern, re.Pattern, dict[str, str]]:
 @lru_cache(maxsize=1)
 def country_alias_tokens() -> frozenset[str]:
     """Words that only name a country (e.g. 'chinese', 'washington', 'united', 'states').
-    Clustering drops them from lexical vectors because countries are compared as entities."""
+    Used by the older `country_tokens: drop` clustering mode, which removes them from lexical
+    vectors and compares countries only as entities (the default mode folds them into tokens)."""
     generic = {"white", "house", "bank", "west", "south", "north", "new", "street", "commission", "administration",
                "union", "european", "the", "city", "party", "states", "united"}
     words = set()
@@ -371,10 +374,17 @@ def fold_countries(text: str) -> str:
 
 
 def is_country_alias(phrase: str) -> bool:
-    """True for a name that only refers to a country ("Kremlin", "U.S.", "Russian", "New Delhi")."""
-    words = [w for w in re.split(r"[\s.\-]+", phrase.lower()) if w]  # "India-Canada" too
-    aliases = country_alias_tokens()
-    return bool(words) and all(w in aliases for w in words)
+    """True for a name that only refers to a country or a pair of them ("Kremlin", "U.S.",
+    "Russian", "South Korea", "European Union", "India-Canada"). Matched against whole aliases,
+    so a person called "Jordan Smith" or "Washington Post" is not mistaken for a country."""
+    _, _, lookup = _country_patterns()
+    p = " ".join(phrase.lower().split())
+    if not p:
+        return False
+    if p in lookup:
+        return True
+    parts = [x.strip() for x in re.split(r"\s*[-/–]\s*", p) if x.strip()]
+    return len(parts) > 1 and all(x in lookup for x in parts)
 
 
 def find_countries(text: str) -> list[str]:

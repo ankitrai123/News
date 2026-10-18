@@ -257,6 +257,18 @@ class LLMConfig(BaseModel):
         "event_review": LLMTaskConfig(temperature=0.2, max_tokens=900, models=DEFAULT_REVIEW_MODELS)})
     event_review: EventReviewConfig = Field(default_factory=EventReviewConfig)
 
+    @model_validator(mode="after")
+    def _research_tasks(self):
+        """Research tasks default to the review task's models, so configs written before Phase 2
+        (which list only `event_review`) still get model help for research."""
+        base = self.tasks.get("event_review")
+        if base is not None:
+            for name, max_tokens in (("research_queries", 600), ("research_notes", 1800)):
+                if name not in self.tasks:
+                    self.tasks[name] = LLMTaskConfig(models=[m.model_copy() for m in base.models],
+                                                     temperature=0.2, max_tokens=max_tokens)
+        return self
+
 
 class ResearchGdeltConfig(BaseModel):
     """GDELT DOC 2.0 searches over the research window (shares GDELT's throttling with ingestion)."""

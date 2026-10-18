@@ -1,6 +1,8 @@
 """All database reads/writes used by pipeline stages, CLI and web UI."""
 from __future__ import annotations
 
+import os
+import socket
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import Integer, cast, delete, func, select
@@ -26,6 +28,51 @@ def _row_to_article(r: ArticleRow) -> Article:
         content_access=r.content_access, provider=r.provider, normalized_title=r.normalized_title,
         syndication_group=r.syndication_group, source_type=r.source_type,
     )
+
+
+def process_owner() -> str:
+    return f"{socket.gethostname()}:{os.getpid()}"
+
+
+def run_owner_alive(owner: str | None, last_seen: datetime | None, stale_after: timedelta) -> bool:
+    """True if the process that owns a 'running' run still exists. On this machine that is
+    checked directly; for another host (shared database) or unknown owner, a recent heartbeat
+    counts as alive."""
+    if owner and ":" in owner:
+        host, _, pid = owner.rpartition(":")
+        if host == socket.gethostname() and pid.isdigit():
+            return _pid_alive(int(pid))
+    return last_seen is not None and last_seen >= utcnow() - stale_after
+
+
+def _pid_alive(pid: int) -> bool:
+    if pid == os.getpid():
+        return True
+    if os.name == "nt":  # os.kill(pid, 0) would TERMINATE the process on Windows
+        return _pid_alive_windows(pid)
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True  # exists, owned by someone else
+    except OSError:
+        return False
+    return True
+
+
+def _pid_alive_windows(pid: int) -> bool:
+    import ctypes
+    kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
+    handle = kernel32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+    if not handle:
+        return False
+    try:
+        code = ctypes.c_ulong()
+        ok = kernel32.GetExitCodeProcess(handle, ctypes.byref(code))
+        return bool(ok) and code.value == 259  # STILL_ACTIVE
+    finally:
+        kernel32.CloseHandle(handle)
 
 
 class Repository:
@@ -144,7 +191,15 @@ class Repository:
     # -- runs / stages --------------------------------------------------------
     def create_run(self, run_id: str, kind: str, params: dict) -> None:
         with self.db.session() as s:
-            s.add(PipelineRunRow(run_id=run_id, kind=kind, status="running", params=params, started_at=utcnow()))
+            now = utcnow()
+            s.add(PipelineRunRow(run_id=run_id, kind=kind, status="running", params=params, started_at=now,
+                                 owner=process_owner(), heartbeat_at=now))
+
+    def heartbeat(self, run_id: str) -> None:
+        with self.db.session() as s:
+            row = s.get(PipelineRunRow, run_id)
+            if row is not None:
+                row.heartbeat_at = utcnow()
 
     def get_run(self, run_id: str) -> PipelineRunRow | None:
         with self.db.session() as s:
@@ -155,11 +210,30 @@ class Repository:
             row = s.get(PipelineRunRow, run_id)
             row.status, row.error = status, error
             row.finished_at = utcnow() if status in {"completed", "failed"} else None
+            if status == "running":  # started or resumed by this process
+                row.owner, row.heartbeat_at = process_owner(), utcnow()
 
-    def active_run(self, max_age: timedelta = timedelta(hours=2)) -> PipelineRunRow | None:
+    def active_run(self, stale_after: timedelta = timedelta(hours=6)) -> PipelineRunRow | None:
+        """The run really in progress. A row left 'running' by a process that has ended (killed,
+        crashed, machine restarted) is marked failed ("interrupted") so it can be resumed."""
+        self.reap_interrupted_runs(stale_after)
         with self.db.session() as s:
-            return s.scalars(select(PipelineRunRow).where(PipelineRunRow.status == "running",
-                                                          PipelineRunRow.started_at >= utcnow() - max_age)).first()
+            return s.scalars(select(PipelineRunRow).where(PipelineRunRow.status == "running")
+                             .order_by(PipelineRunRow.started_at.desc())).first()
+
+    def reap_interrupted_runs(self, stale_after: timedelta = timedelta(hours=6)) -> list[str]:
+        reaped = []
+        with self.db.session() as s:
+            for row in s.scalars(select(PipelineRunRow).where(PipelineRunRow.status == "running")):
+                if run_owner_alive(row.owner, row.heartbeat_at or row.started_at, stale_after):
+                    continue
+                row.status, row.finished_at = "failed", utcnow()
+                row.error = "interrupted: the process running it stopped; resume to continue"
+                for st in s.scalars(select(StageRunRow).where(StageRunRow.run_id == row.run_id,
+                                                              StageRunRow.status == "running")):
+                    st.status, st.error, st.finished_at = "failed", "interrupted", utcnow()
+                reaped.append(row.run_id)
+        return reaped
 
     def latest_run(self, status: str | None = "completed") -> PipelineRunRow | None:
         with self.db.session() as s:
@@ -184,6 +258,9 @@ class Repository:
                 s.add(row)
             row.status, row.error, row.started_at, row.finished_at = "running", None, utcnow(), None
             row.attempts += 1
+            run = s.get(PipelineRunRow, run_id)
+            if run is not None:
+                run.heartbeat_at = utcnow()
             s.flush()
             return row.attempts
 
@@ -191,6 +268,9 @@ class Repository:
         with self.db.session() as s:
             row = s.scalars(select(StageRunRow).where(StageRunRow.run_id == run_id, StageRunRow.stage == stage)).one()
             row.status, row.output, row.error, row.finished_at = status, output, error, utcnow()
+            run = s.get(PipelineRunRow, run_id)
+            if run is not None:
+                run.heartbeat_at = utcnow()
 
     # -- provider fetches / feed health ---------------------------------------
     def log_fetches(self, run_id: str | None, fetches: list[FetchRecord], feed_health: bool = True) -> None:
@@ -200,7 +280,7 @@ class Repository:
                 s.add(FetchLogRow(run_id=run_id, provider=f.provider, target=f.target, started_at=f.started_at,
                                   duration_ms=f.duration_ms, status_code=f.status_code, ok=f.ok,
                                   item_count=f.item_count, error=(f.error or None) and f.error[:1000]))
-                if f.provider != "rss" or not feed_health:
+                if f.provider not in ("rss", "research_feeds") or not feed_health:
                     continue
                 st = s.get(FeedStateRow, f.target) or FeedStateRow(url=f.target, consecutive_failures=0)
                 st.last_status, st.last_checked_at = f.status_code, now

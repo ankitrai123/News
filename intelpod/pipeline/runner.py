@@ -8,6 +8,7 @@ transient errors; `StageError` is a deliberate, non-retryable failure.
 from __future__ import annotations
 
 import logging
+import re
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -55,6 +56,7 @@ class NothingToResume(ValueError):
     """The run asked to resume is already complete (or there is no run)."""
 
 
+RUN_ID_RE = re.compile(r"[A-Za-z0-9_-]{1,80}")
 RESUMABLE = ("failed", "paused")
 
 
@@ -64,6 +66,20 @@ class RunContext:
     now: datetime
     params: dict
     outputs: dict[str, dict] = field(default_factory=dict)
+
+
+def feed_pause_state(st, cfg, now: datetime | None = None) -> str | None:
+    """Why a feed is skipped this run ("robots.txt" / "failing"), or None if it is fetched.
+    A paused feed is retried once every `feed_retry_paused_after_hours`."""
+    if st is None:
+        return None
+    now = now or datetime.now(timezone.utc)
+    robots = "robots.txt" in (st.last_error or "")
+    failing = (st.consecutive_failures or 0) >= cfg.feed_pause_after_failures
+    due = st.last_checked_at is None or now - st.last_checked_at >= timedelta(hours=cfg.feed_retry_paused_after_hours)
+    if due or not (robots or failing):
+        return None
+    return "robots.txt" if robots else "failing"
 
 
 class Phase1Pipeline:
@@ -98,21 +114,23 @@ class Phase1Pipeline:
             _run_lock.release()
 
     def _run(self, run_id, resume, now, stop_after, force) -> str:
+        if run_id is not None and not RUN_ID_RE.fullmatch(run_id):
+            raise ValueError(f"invalid run id {run_id!r}")
+        active = self.repo.active_run()  # also marks runs whose process has ended as interrupted
         if resume:
             row = self.repo.get_run(run_id) if run_id else self.repo.latest_run(status=None)
             if row is None:
                 raise NothingToResume(f"no run to resume ({run_id or 'no runs yet'})")
             if row.status == "completed":
                 raise NothingToResume(f"nothing to resume: run {row.run_id} already completed; start a new run instead")
-            if row.status == "running" and not force:
-                raise RunInProgress(f"run {row.run_id} is still marked running; if it was interrupted, "
-                                    f"resume it with --resume --force")
+            if active is not None and not force:
+                raise RunInProgress(f"run {active.run_id} is in progress in another process; wait for it, or use "
+                                    f"--force if you are sure it is not running")
             run_id = row.run_id
             ctx = RunContext(run_id=run_id, now=datetime.fromisoformat(row.params["now"]), params=row.params)
             self.repo.set_run_status(run_id, "running")
             log.info("resuming run %s (window ending %s)", run_id, ctx.now.isoformat())
         else:
-            active = self.repo.active_run()
             if active and not force:
                 raise RunInProgress(f"run {active.run_id} is still marked running; use --force to override")
             now = now or datetime.now(timezone.utc)
@@ -123,6 +141,15 @@ class Phase1Pipeline:
             ctx = RunContext(run_id=run_id, now=now, params=params)
             log.info("started run %s", run_id)
 
+        try:
+            return self._run_stages(ctx, stop_after)
+        except BaseException as e:  # Ctrl-C / shutdown: leave the run resumable, not "running"
+            if not isinstance(e, Exception):
+                self.repo.set_run_status(ctx.run_id, "failed", "interrupted; resume to continue")
+            raise
+
+    def _run_stages(self, ctx: RunContext, stop_after: str | None) -> str:
+        run_id = ctx.run_id
         done = self.repo.stages(run_id)
         for stage in PHASE1_STAGES:
             prev = done.get(stage)
@@ -177,15 +204,13 @@ class Phase1Pipeline:
         now = datetime.now(timezone.utc)
         active, paused = [], []
         for f in feeds:
-            st = states.get(f.url)
-            failing = st is not None and (st.consecutive_failures or 0) >= cfg.feed_pause_after_failures
-            robots = st is not None and "robots.txt" in (st.last_error or "")
-            due = st is None or st.last_checked_at is None or \
-                now - st.last_checked_at >= timedelta(hours=cfg.feed_retry_paused_after_hours)
-            if (failing or robots) and not due:
+            if feed_pause_state(states.get(f.url), cfg, now):
                 paused.append(f.name)
             else:
                 active.append(f)
+        if feeds and not active:
+            # Every feed paused at once is far more likely a local outage than 20 broken feeds.
+            return list(feeds), []
         return active, paused
 
     def build_providers(self, http: HttpClient) -> list[NewsProvider]:
@@ -248,7 +273,10 @@ class Phase1Pipeline:
                     self.repo.log_fetches(ctx.run_id, res_fetches)
                     stats[p.name] = {"requests": 1, "ok": 0, "items": 0, "errors": [str(e)[:200]]}
                     continue
-                self.repo.log_fetches(ctx.run_id, res.fetches)
+                # If every feed failed, the problem is almost certainly our network, not 20 feeds:
+                # log the requests but do not count them toward pausing feeds.
+                all_failed = p.name == "rss" and len(res.fetches) > 1 and not any(f.ok for f in res.fetches)
+                self.repo.log_fetches(ctx.run_id, res.fetches, feed_health=not all_failed)
                 skipped = getattr(p, "skipped_reason", None)
                 normalized = [a for it in res.items
                               if (a := normalize_item(it, now=datetime.now(timezone.utc),

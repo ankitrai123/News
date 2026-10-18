@@ -11,7 +11,7 @@ def test_dashboard_and_api(settings):
     with respx.mock as router:
         mock_sources(router)
         run_id = Phase1Pipeline(settings, stage_retry_delay=0).run(now=sn.NOW)
-    client = TestClient(create_app(settings))
+    client = TestClient(create_app(settings), base_url="http://127.0.0.1")
     assert client.get("/api/health").json()["status"] == "ok"
     latest = client.get("/api/events/latest").json()
     assert latest["run_id"] == run_id and latest["events"]
@@ -34,7 +34,7 @@ def test_trigger_run_endpoint_uses_background_thread(settings):
     class FakePipe:
         def run(self, **kw):
             calls.append(kw)
-    client = TestClient(create_app(settings, pipeline_factory=FakePipe))
+    client = TestClient(create_app(settings, pipeline_factory=FakePipe), base_url="http://127.0.0.1")
     assert client.post("/api/runs").status_code == 202
     import time
     for _ in range(50):
@@ -51,7 +51,7 @@ def test_cross_site_and_rebinding_requests_refused(settings):
         def run(self, **kw):
             calls.append(kw)
 
-    client = TestClient(create_app(settings, pipeline_factory=FakePipe))
+    client = TestClient(create_app(settings, pipeline_factory=FakePipe), base_url="http://127.0.0.1")
     assert client.post("/api/runs", headers={"Origin": "https://evil.example"}).status_code == 403
     assert client.post("/runs/start", headers={"Sec-Fetch-Site": "cross-site"}, follow_redirects=False).status_code == 403
     assert client.get("/api/health", headers={"Host": "rebind.evil.example"}).status_code == 400

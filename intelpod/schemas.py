@@ -132,3 +132,4 @@ class RankedEvent(BaseModel):
     headline: str | None = None        # representative publisher headline when `title` is model-written
     summary: str | None = None
     review: EventReview | None = None
+    not_selected_reason: str | None = None  # why it is not in the briefing (None when selected)

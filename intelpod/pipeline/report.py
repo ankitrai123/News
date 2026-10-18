@@ -83,7 +83,7 @@ def render_markdown(ctx: "RunContext", selected: list[RankedEvent], ranked: list
     if runners:
         lines += ["## Next in line (not selected)", ""]
         for r in runners:
-            lines.append(f"- **{r.importance}** — {r.title} _({r.rationale.split(':', 1)[-1].split('.')[0].strip()})_")
+            lines.append(f"- **{r.importance}** — {r.title} _({r.not_selected_reason or r.rationale.split(':', 1)[-1].split('.')[0].strip()})_")
     lines += ["", "---", "_Generated from public feed/API metadata only. Titles and short descriptions belong to their "
               "publishers; follow the links for full reporting. Scores are heuristic and explained above._"]
     return "\n".join(lines) + "\n"

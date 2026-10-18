@@ -21,6 +21,8 @@ dependencies = [
   "rapidfuzz>=3.6",
   "python-dateutil>=2.8",
   "python-multipart>=0.0.9",
+  "tzdata; sys_platform == 'win32'",  # time zones for feed dates (Windows has no system tz database)
+  "trafilatura>=2.0",                 # Phase 2: page text/metadata extraction (Apache-2.0)
 ]
 
 [project.optional-dependencies]

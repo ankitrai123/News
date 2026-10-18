@@ -16,7 +16,7 @@
 
 | Criterion | Status |
 |---|---|
-| Ingests current news from at least one functioning source | Implemented for 22 RSS feeds + GDELT. **Not yet observed live**: the build sandbox's network policy blocked every news host (`ProxyError 403`). Run `intelpod feeds check && intelpod run` on your machine. |
+| Ingests current news from at least one functioning source | Implemented for 21 RSS feeds + GDELT + NewsData.io. **Not yet observed live**: the build sandbox's network policy blocked every news host (`ProxyError 403`). Run `intelpod feeds check && intelpod run` on your machine. |
 | Normalizes and de-duplicates articles | Done (tested) |
 | Groups articles into meaningful events | Done (tested on synthetic data; tune on real data) |
 | Ranks events transparently | Done (8 explained components, penalties, written rationale) |

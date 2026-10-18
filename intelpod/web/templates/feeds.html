@@ -3,13 +3,13 @@
 {% block content %}
 <h1>News sources</h1>
 <p class="muted small">Edit <code>config/feeds.yaml</code> to add, remove or disable feeds. Run <code>intelpod feeds check</code> to test every feed
-(it also clears automatic pauses). A feed that fails {{ pause_after }} runs in a row is paused automatically; a feed whose robots.txt
+(a feed that passes the check is no longer paused). A feed that fails {{ pause_after }} runs in a row is paused automatically; a feed whose robots.txt
 forbids access is skipped. Editorial-orientation metadata arrives with the Phase 3 source registry.</p>
 <div class="card scroll"><table class="stack"><tr><th>Feed</th><th>Type</th><th>State</th><th>Last status</th><th>Items</th><th>Newest item</th><th>Failures in a row</th></tr>
 {% for f in feeds %}<tr><td><a href="{{ f.url }}" target="_blank" rel="noopener noreferrer">{{ f.name }}</a><div class="small muted">{{ f.publisher }} · {{ f.country or 'international' }}</div>
 {% if f.last_error %}<div class="small bad">{{ f.last_error }}</div>{% endif %}</td>
 <td class="small">{{ f.source_type|replace('_', ' ') }}</td>
-<td class="small">{% if not f.enabled %}<span class="muted">disabled</span>{% elif f.auto_paused %}<span class="bad">paused (failing)</span>{% elif f.verified %}<span class="ok">verified</span>{% else %}<span class="warn">enabled, not yet verified</span>{% endif %}</td>
+<td class="small">{% if not f.enabled %}<span class="muted">disabled</span>{% elif f.pause_reason == "robots.txt" %}<span class="bad">skipped (robots.txt)</span>{% elif f.auto_paused %}<span class="bad">paused (failing)</span>{% elif f.verified %}<span class="ok">verified</span>{% else %}<span class="warn">enabled, not yet verified</span>{% endif %}</td>
 <td>{{ f.last_status or '—' }}</td><td>{{ f.last_item_count if f.last_item_count is not none else '—' }}</td>
 <td class="small">{{ f.newest_item_at|dt }}</td><td>{{ f.consecutive_failures if f.consecutive_failures is not none else '—' }}</td></tr>{% endfor %}
 </table></div>

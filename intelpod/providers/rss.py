@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import calendar
 import logging
+import re
 import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
@@ -53,6 +54,10 @@ _TZINFOS = {"IST": 19800, "JST": 32400, "HKT": 28800, "SGT": 28800, "BST": 3600,
             "GMT": 0, "UTC": 0, "Z": 0}
 
 
+# A numeric offset or a zone feedparser reads correctly.
+_HAS_ZONE = re.compile(r"[+-]\d{2}:?\d{2}\s*$|\b(?:GMT|UTC|UT|Z|EST|EDT|CST|CDT|MST|MDT|PST|PDT)\s*$", re.I)
+
+
 def feed_timezone(feed: "FeedSpec") -> str | None:
     return feed.timezone or _TZ_BY_COUNTRY.get((feed.country or "").upper())
 
@@ -61,16 +66,26 @@ def parse_loose_date(value, tz_name: str | None = None) -> datetime | None:
     """Parse a free-form date string; naive results are read in `tz_name` (else UTC)."""
     if not value or not isinstance(value, str):
         return None
+    text = value.strip()
     try:
-        dt = dateparser.parse(value.strip(), tzinfos=_TZINFOS, fuzzy=True)
+        # Parse twice with different defaults: if the results differ, the string lacked a day,
+        # month or year ("10:30", "Sept", "Q3 2026") and we must not invent one.
+        a = dateparser.parse(text, tzinfos=_TZINFOS, default=datetime(2001, 1, 1, 0, 0))
+        b = dateparser.parse(text, tzinfos=_TZINFOS, default=datetime(2002, 2, 2, 0, 0))
     except (ValueError, OverflowError, TypeError):
         return None
-    if dt.tzinfo is None:
-        try:
-            dt = dt.replace(tzinfo=ZoneInfo(tz_name)) if tz_name else dt.replace(tzinfo=timezone.utc)
-        except (ZoneInfoNotFoundError, ValueError):
-            dt = dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(timezone.utc)
+    if a.date() != b.date() or a.year < 1900:
+        return None
+    try:
+        if a.tzinfo is None:
+            try:
+                a = a.replace(tzinfo=ZoneInfo(tz_name)) if tz_name else a.replace(tzinfo=timezone.utc)
+            except (ZoneInfoNotFoundError, ValueError):
+                log.warning("time zone %s unavailable (install tzdata); reading %r as UTC", tz_name, text)
+                a = a.replace(tzinfo=timezone.utc)
+        return a.astimezone(timezone.utc)
+    except (OverflowError, ValueError):
+        return None
 
 
 def load_feeds(path: Path, include_disabled: bool = False) -> list[FeedSpec]:
@@ -119,6 +134,14 @@ class RssProvider(NewsProvider):
         return result
 
     def fetch_feed(self, feed: FeedSpec) -> tuple[list[RawItem], FetchRecord]:
+        try:
+            return self._fetch_feed(feed)
+        except Exception as e:  # noqa: BLE001 - one malformed feed must not stop the others
+            log.exception("feed %s crashed", feed.name)
+            return [], FetchRecord(provider=self.name, target=feed.url, started_at=datetime.now(timezone.utc),
+                                   duration_ms=0, ok=False, error=f"{type(e).__name__}: {e}"[:500])
+
+    def _fetch_feed(self, feed: FeedSpec) -> tuple[list[RawItem], FetchRecord]:
         started = datetime.now(timezone.utc)
         t0 = time.monotonic()
         headers = {"Accept": "application/rss+xml, application/atom+xml, application/xml;q=0.9, */*;q=0.5"}
@@ -171,6 +194,12 @@ class RssProvider(NewsProvider):
                     break
                 except (OverflowError, ValueError, TypeError):
                     continue
+        raw_date = next((entry.get(k) for k in ("published", "updated") if k in present and entry.get(k)), None)
+        if published is not None and isinstance(raw_date, str) and not _HAS_ZONE.search(raw_date):
+            # feedparser reads unknown zones ("IST") and zone-less strings as UTC; use the feed's zone.
+            local = parse_loose_date(raw_date, feed_timezone(feed))
+            if local is not None:
+                published = local
         if published is None:
             # Non-standard date strings (e.g. "17 Oct 2026 18:30 IST", "October 17, 2026") that
             # feedparser cannot read: parse them flexibly, in the feed's local time if no zone.

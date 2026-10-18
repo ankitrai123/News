@@ -24,8 +24,8 @@ NewsData.io ────┘   (canonical URL, (URL, same-publisher  (TF-IDF + en
                      short extracts) groups)               embeddings)         penalties)     significance; checked)
 ```
 
-* **Sources:** 22 public RSS feeds (international, Indian and official/central-bank
-  sources) plus GDELT's free DOC 2.0 API with 9 topic queries. All configurable.
+* **Sources:** 21 public RSS feeds (international, Indian and official/central-bank
+  sources; 2 more listed but disabled) plus GDELT's free DOC 2.0 API with 5 topic queries. All configurable.
 * **De-duplication:** canonical URLs (tracking parameters, `www`, `amp`, fragments removed),
   same-headline-same-publisher detection, and *syndication groups* so wire copies carried by
   several outlets count as one source.
@@ -86,7 +86,11 @@ but values your file *does* set win. Compare with `config/config.example.yaml`, 
   cool-down; copy that section.
 * New, defaulted when absent: `clustering.country_tokens` / `country_token_weight` /
   `country_pair_weight`, `ranking.duplicate_similarity`, `ingestion.feed_pause_after_failures`,
-  `ingestion.providers.rss.max_workers`.
+  `ingestion.feed_retry_paused_after_hours`, `ingestion.providers.rss.max_workers`, GDELT
+  `cooldown_seconds` / `max_cooldown_seconds` / `stop_after_refusals`, taxonomy `label_aliases`,
+  per-feed `timezone`, and the whole `research` section (Phase 2).
+* The first run after this upgrade may link a few continuing stories to earlier events less
+  reliably (stored event profiles were built with the older country handling); it settles after one run.
 
 ### Running each stage on its own
 

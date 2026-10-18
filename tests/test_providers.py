@@ -140,7 +140,8 @@ def test_gdelt_stops_after_repeated_refusals():
     route = respx.get(GDELT_DOC_URL).respond(429)
     p = gdelt_multi(sleeps, n=5, stop_after_refusals=2)
     res = p.fetch()
-    assert route.call_count == 4 and len(sleeps) == 2   # two queries x (try + retry), then stop
+    # two queries x (try + retry), a cool-down before the second query, then stop
+    assert route.call_count == 4 and len(sleeps) == 3
     assert "skipped 3 remaining queries" in p.skipped_reason and res.items == []
 
 
@@ -178,3 +179,33 @@ def test_proxy_denial_is_not_retried():
     route = respx.get(FEED.url).mock(side_effect=httpx.ProxyError("403 Forbidden"))
     items, rec = RssProvider(client(retries=3), [FEED]).fetch_feed(FEED)
     assert route.call_count == 1 and not rec.ok and "ProxyError" in rec.error
+
+
+def test_gdelt_publisher_suffix_removed_before_repair():
+    from intelpod.providers.gdelt import gdelt_title
+    assert gdelt_title("Oil prices rise as OPEC cuts output - Reuters", "reuters.com", "reuters.com") == \
+        "Oil prices rise as OPEC cuts output"
+    assert gdelt_title("U . S . - led coalition", "x.com", "x.com") == "U.S.-led coalition"
+
+
+def test_loose_dates_never_invent_missing_parts():
+    from intelpod.providers.rss import parse_loose_date
+    for s in ("10:30", "Sept", "Q3 2026", "Issue 3", "Updated 2 hours ago", "0001-01-01"):
+        assert parse_loose_date(s, "Asia/Kolkata") is None, s
+    assert parse_loose_date("Fri, 17 Oct 2026 18:30:00 IST", "Asia/Kolkata").hour == 13
+
+
+@respx.mock
+def test_rss_item_with_ist_zone_uses_feed_timezone():
+    from intelpod.providers.rss import FeedSpec, RssProvider
+    from intelpod.config import HttpConfig
+    from intelpod.http import HttpClient
+    xml = ("<?xml version='1.0'?><rss version='2.0'><channel><title>t</title>"
+           "<item><title>Budget session begins in parliament today</title><link>https://in.test/a</link>"
+           "<pubDate>Fri, 17 Oct 2026 18:30:00 IST</pubDate></item></channel></rss>")
+    respx.get("https://in.test/robots.txt").respond(404)
+    respx.get("https://in.test/feed").respond(200, text=xml)
+    feed = FeedSpec(name="IN", publisher="IN Pub", domain="in.test", url="https://in.test/feed", country="IN")
+    http = HttpClient(HttpConfig(per_host_min_interval_seconds=0), "test")
+    items, rec = RssProvider(http, [feed]).fetch_feed(feed)
+    assert rec.ok and items[0].published_at.hour == 13  # 18:30 IST = 13:00 UTC

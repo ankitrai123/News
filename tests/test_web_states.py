@@ -26,7 +26,7 @@ def completed_run(settings):
 
 def app_with(settings, calls=None):
     calls = calls if calls is not None else []
-    return TestClient(create_app(settings, pipeline_factory=lambda: FakePipe(calls))), calls
+    return TestClient(create_app(settings, pipeline_factory=lambda: FakePipe(calls)), base_url="http://127.0.0.1"), calls
 
 
 def test_resume_when_latest_completed_says_nothing_to_resume(settings):
@@ -90,7 +90,9 @@ def test_in_progress_run_is_not_shown_as_quiet_day(settings):
     assert "Quiet day" not in page and "quiet day" not in page and "? articles" not in page
     assert 'http-equiv="refresh"' in page  # auto-refresh while running
     runs = client.get("/runs").text
-    assert "disabled" in runs and "is in progress" in runs
+    import re
+    assert re.search(r"<button[^>]*\bdisabled\b[^>]*>Start new run", runs)
+    assert re.search(r"<button[^>]*\bdisabled\b[^>]*>Resume latest", runs) and "is in progress" in runs
 
 
 def test_event_page_reports_match_the_run(settings):
@@ -126,3 +128,66 @@ def test_settings_page_shows_key_status_and_placeholder_warning(settings):
     client, _ = app_with(settings)
     html = client.get("/settings").text
     assert "NVIDIA_API_KEY: not set" in html and "placeholder contact" in html and "Phase 1 needs none" not in html
+
+
+def _orphan(repo, run_id):
+    """A run left 'running' by a process that no longer exists."""
+    from intelpod.db import PipelineRunRow
+    repo.create_run(run_id, "phase1", {"now": sn.NOW.isoformat()})
+    repo.stage_start(run_id, "ingest")
+    with repo.db.session() as s:
+        s.get(PipelineRunRow, run_id).owner = f"{__import__('socket').gethostname()}:999999999"
+
+
+def test_interrupted_run_is_detected_and_resumable(settings):
+    repo = Repository(Database(settings.db_file))
+    _orphan(repo, "run_killed_1")
+    client, calls = app_with(settings)
+    assert client.get("/api/health").json()["run_in_progress"] is False
+    row = repo.get_run("run_killed_1")
+    assert row.status == "failed" and "interrupted" in row.error
+    assert repo.stages("run_killed_1")["ingest"].status == "failed"
+    html = client.get("/").text  # only runs are unfinished: show that run, not "No runs yet"
+    assert "No runs yet" not in html and "run_killed_1" in html and "Resume it" in html
+    r = client.post("/runs/start", data={"resume": "1", "run_id": "run_killed_1"}, follow_redirects=False)
+    assert r.headers["location"].endswith("msg=resumed")
+    import time
+    for _ in range(50):
+        if calls:
+            break
+        time.sleep(0.01)
+    assert calls == [{"resume": True, "run_id": "run_killed_1"}]
+
+
+def test_resume_button_resumes_the_run_on_screen(settings):
+    repo = Repository(Database(settings.db_file))
+    for rid in ("run_a_1", "run_b_1"):
+        repo.create_run(rid, "phase1", {"now": sn.NOW.isoformat()})
+        repo.set_run_status(rid, "failed", "boom")
+    client, calls = app_with(settings)
+    assert 'name="run_id" value="run_a_1"' in client.get("/?run=run_a_1").text
+    client.post("/runs/start", data={"resume": "1", "run_id": "run_a_1"}, follow_redirects=False)
+    import time
+    for _ in range(50):
+        if calls:
+            break
+        time.sleep(0.01)
+    assert calls == [{"resume": True, "run_id": "run_a_1"}]
+
+
+def test_api_run_id_validation(settings):
+    completed = completed_run(settings)
+    client, calls = app_with(settings)
+    assert client.post(f"/api/runs?run_id={completed}").status_code == 422      # run_id needs resume
+    assert client.post("/api/runs?resume=true&run_id=nope").status_code == 404
+    assert client.post(f"/api/runs?resume=true&run_id={completed}").status_code == 409
+    assert client.post("/api/runs?resume=true&run_id=../../x").status_code == 422
+    assert calls == []
+
+
+def test_refresh_drops_one_off_message(settings):
+    repo = Repository(Database(settings.db_file))
+    repo.create_run("run_live_2", "phase1", {"now": sn.NOW.isoformat()})
+    client, _ = app_with(settings)
+    html = client.get("/runs?msg=started").text
+    assert 'content="10;url=/runs"' in html

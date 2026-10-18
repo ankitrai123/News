@@ -27,7 +27,7 @@ FLAG_LABELS = {
 }
 
 FLAG_HELP = {
-    "dates_approximate": "Most reports only have the time GDELT first saw them, not a publication time.",
+    "dates_approximate": "None of these reports has a publisher timestamp; times are when GDELT first saw them.",
     "some_dates_approximate": "Some reports only have the time GDELT first saw them, not a publication time.",
     "single_source": "Only one independent publisher has reported this so far.",
     "quiet_day_fill": "Included because fewer events than usual met the normal threshold.",

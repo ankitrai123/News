@@ -13,7 +13,7 @@ to `data/logs/intelpod.log` (set `app.log_json: true` for JSON lines).
 | `robots.txt disallows …` | the publisher forbids automated access to that path | disable that feed; do not turn off `respect_robots_txt` to get around it |
 | GDELT `non-JSON response: 'Please limit requests…'` | requests too frequent | raise `ingestion.providers.gdelt.min_interval_seconds`; reduce the number of queries |
 | GDELT returns 0 articles | query too narrow, or no matching coverage in `timespan` | widen the query or timespan (e.g. `3d`) |
-| `run … is still marked running` | an earlier run was killed | `intelpod run --resume`, or `intelpod run --force` to start fresh |
+| `run … is in progress in another process` | another `intelpod run` or the dashboard is running one | wait for it. A run whose process was killed or crashed is detected automatically (marked failed, "interrupted") and can be resumed with `intelpod run --resume` or the dashboard's Resume button; `--force` overrides the check if you are sure nothing is running |
 | `no articles in the lookback window` | ingestion has never succeeded, or `lookback_hours` too small | run ingestion; increase `--lookback-hours` |
 | Too many tiny one-article events / one story split into many events | headlines word the story differently; no embeddings | set `NVIDIA_API_KEY` (or use Ollama) so embeddings run — the briefing shows `Embeddings: used (…)`; check `clustering.country_tokens: canonical` (older `config.yaml` files lack it but get it by default); then lower `clustering.similarity_threshold` (e.g. 0.27) |
 | Unrelated stories merged | thresholds too loose | raise `similarity_threshold` / `merge_threshold`, or lower `entity_weight` / `country_token_weight` |

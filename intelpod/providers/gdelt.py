@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 
 from ..config import GdeltProviderConfig
 from ..http import FetchError, HttpClient, _retry_after_seconds as _retry_after
-from ..textutil import repair_gdelt_title
+from ..textutil import repair_gdelt_title, strip_publisher_suffix
 from ..schemas import RawItem
 from .base import FetchRecord, NewsProvider, ProviderResult
 
@@ -33,6 +33,12 @@ _LANG = {"english": "en", "hindi": "hi", "french": "fr", "german": "de", "spanis
 
 class GdeltError(Exception):
     pass
+
+
+def gdelt_title(raw: str, publisher: str | None, domain: str | None) -> str:
+    """Drop a trailing " - Publisher" BEFORE undoing GDELT's spaced punctuation; otherwise the
+    repair would glue it on ("output-Reuters") and it could no longer be recognised."""
+    return repair_gdelt_title(strip_publisher_suffix(" ".join((raw or "").split()), publisher, domain))
 
 
 def parse_seendate(value: str | None) -> datetime | None:
@@ -101,13 +107,18 @@ class GdeltProvider(NewsProvider):
             items, record, wait = self._fetch(q.query, q.topic)
             if wait is not None:
                 result.fetches.append(record)
-                pause = min(max(wait, cooldown), self.cfg.max_cooldown_seconds)
+                if wait > self.cfg.max_cooldown_seconds:
+                    refused = self.cfg.stop_after_refusals  # asked to stay away longer than we will wait
+                    continue
+                pause = max(wait, cooldown)
                 log.info("GDELT refused a request; cooling down %.0f s before retrying", pause)
                 self._sleep(pause)
                 cooldown = min(cooldown * 2, self.cfg.max_cooldown_seconds)
                 items, record, wait = self._fetch(q.query, q.topic)
                 if wait is not None:
                     refused += 1
+                    if refused < self.cfg.stop_after_refusals:
+                        self._sleep(min(max(wait, cooldown), self.cfg.max_cooldown_seconds))
             result.items.extend(items)
             result.fetches.append(record)
         return result
@@ -149,10 +160,11 @@ class GdeltProvider(NewsProvider):
         return items, record(ok=True, status_code=resp.status_code, item_count=len(items), newest_item_at=newest), None
 
     def _to_item(self, row: dict, topic: str | None) -> RawItem | None:
-        url, title = (row.get("url") or "").strip(), repair_gdelt_title(row.get("title") or "")
+        url = (row.get("url") or "").strip()
+        domain = (row.get("domain") or "").lower().removeprefix("www.") or None
+        title = gdelt_title(row.get("title") or "", self._publisher_for(domain), domain)
         if not url.startswith(("http://", "https://")) or not title:
             return None
-        domain = (row.get("domain") or "").lower().removeprefix("www.") or None
         seen = parse_seendate(row.get("seendate"))
         lang = (row.get("language") or "").strip().lower()
         return RawItem(

@@ -10,6 +10,7 @@
 # descriptions, never full articles.
 #
 # source_type: news | official | international_org | think_tank
+# timezone: optional IANA zone (e.g. Asia/Kolkata) for feed dates without an offset; default by country.
 # Editorial-orientation metadata belongs to the Phase 3 source registry, not here.
 
 feeds:

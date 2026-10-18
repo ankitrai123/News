@@ -139,6 +139,7 @@ def test_country_pair_tokens():
 def test_country_names_are_not_counted_twice_as_entities(taxonomy):
     from intelpod.textutil import is_country_alias
     assert is_country_alias("Kremlin") and is_country_alias("U.S.") and is_country_alias("Russian")
-    assert not is_country_alias("Bessent") and not is_country_alias("White House")
+    assert not is_country_alias("Bessent") and not is_country_alias("Washington Post")
+    assert is_country_alias("South Korea") and is_country_alias("India-Canada")
     doc = build_docs([_art("Kremlin welcomes US waiver, says Bessent")], taxonomy)[0]
     assert {e for e in doc.entities if e.startswith("ent:")} == {"ent:bessent"}

@@ -17,7 +17,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 from sqlalchemy.types import TypeDecorator
 
-SCHEMA_VERSION = 2  # v2: llm_calls, llm_cache, embedding_cache
+SCHEMA_VERSION = 3  # v2: llm_calls, llm_cache, embedding_cache; v3: research tables (Phase 2)
 
 
 def utcnow() -> datetime:
@@ -120,6 +120,8 @@ class PipelineRunRow(Base):
     started_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, index=True)
     finished_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
     error: Mapped[str | None] = mapped_column(Text)
+    owner: Mapped[str | None] = mapped_column(String(120))            # "host:pid" of the process running it
+    heartbeat_at: Mapped[datetime | None] = mapped_column(UTCDateTime)  # last sign of life (start/stage events)
 
 
 class StageRunRow(Base):
@@ -210,6 +212,100 @@ class EmbeddingCacheRow(Base):
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, index=True)
 
 
+class ResearchItemRow(Base):
+    """Items from research feeds (official bodies, international organisations, think tanks).
+    Kept apart from `articles` so they never enter news clustering; searchable for weeks."""
+
+    __tablename__ = "research_items"
+    item_id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    canonical_url: Mapped[str] = mapped_column(Text, unique=True)
+    url: Mapped[str] = mapped_column(Text)
+    title: Mapped[str] = mapped_column(Text)
+    description: Mapped[str | None] = mapped_column(Text)
+    publisher: Mapped[str] = mapped_column(String(200), index=True)
+    domain: Mapped[str | None] = mapped_column(String(200))
+    source_type: Mapped[str | None] = mapped_column(String(40))
+    country: Mapped[str | None] = mapped_column(String(80))
+    feed_name: Mapped[str | None] = mapped_column(String(200))
+    published_at: Mapped[datetime | None] = mapped_column(UTCDateTime, index=True)
+    date_source: Mapped[str] = mapped_column(String(20))
+    discovered_at: Mapped[datetime] = mapped_column(UTCDateTime, index=True)
+
+
+class ResearchQueryRow(Base):
+    """Every research query sent (or answered from cache) per run and event."""
+
+    __tablename__ = "research_queries"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    run_id: Mapped[str] = mapped_column(String(40), index=True)
+    event_id: Mapped[str] = mapped_column(String(40), index=True)
+    query_id: Mapped[str] = mapped_column(String(32))
+    query_type: Mapped[str] = mapped_column(String(40))
+    provider: Mapped[str] = mapped_column(String(40))
+    text: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(20))
+    hits: Mapped[int] = mapped_column(Integer, default=0)
+    error: Mapped[str | None] = mapped_column(Text)
+    payload: Mapped[dict] = mapped_column(JSON, default=dict)  # full QueryStatus
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+    __table_args__ = (UniqueConstraint("run_id", "event_id", "query_id", name="uq_research_query"),)
+
+
+class ResearchResultRow(Base):
+    """One assessed source for one event in one run (selected or not, with the reason)."""
+
+    __tablename__ = "research_results"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    run_id: Mapped[str] = mapped_column(String(40), index=True)
+    event_id: Mapped[str] = mapped_column(String(40), index=True)
+    result_id: Mapped[str] = mapped_column(String(32))
+    canonical_url: Mapped[str] = mapped_column(Text)
+    publisher: Mapped[str] = mapped_column(String(200))
+    published_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    content_type: Mapped[str] = mapped_column(String(20))
+    relevance: Mapped[float] = mapped_column(Float)
+    credibility: Mapped[float | None] = mapped_column(Float)
+    selected: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    payload: Mapped[dict] = mapped_column(JSON)  # full ResearchResult
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+    __table_args__ = (UniqueConstraint("run_id", "event_id", "result_id", name="uq_research_result"),
+                      Index("ix_research_results_url", "canonical_url"))
+
+
+class ResearchPackageRow(Base):
+    """The research package for one event in one run (selected results, coverage, limitations)."""
+
+    __tablename__ = "research_packages"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    run_id: Mapped[str] = mapped_column(String(40), index=True)
+    event_id: Mapped[str] = mapped_column(String(40), index=True)
+    status: Mapped[str] = mapped_column(String(20))
+    payload: Mapped[dict] = mapped_column(JSON)  # full ResearchPackage
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, index=True)
+    __table_args__ = (UniqueConstraint("run_id", "event_id", name="uq_research_package"),)
+
+
+class SearchCacheRow(Base):
+    """Search responses keyed by (provider, query, window): resumed or repeated runs reuse them."""
+
+    __tablename__ = "search_cache"
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    provider: Mapped[str] = mapped_column(String(40))
+    hits: Mapped[list] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, index=True)
+
+
+class PageCacheRow(Base):
+    """Page metadata and fetch outcome (never page text), so blocked or paywalled pages are not
+    requested again every run."""
+
+    __tablename__ = "page_cache"
+    canonical_url: Mapped[str] = mapped_column(Text, primary_key=True)
+    status: Mapped[str] = mapped_column(String(20))
+    payload: Mapped[dict] = mapped_column(JSON)  # PageInfo without text
+    fetched_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, index=True)
+
+
 class MetaRow(Base):
     __tablename__ = "meta"
     key: Mapped[str] = mapped_column(String(60), primary_key=True)
@@ -232,8 +328,11 @@ class Database:
         with self.session() as s:
             row = s.get(MetaRow, "schema_version")
             current = int(row.value) if row else 0
-            # v2 only adds tables, which create_all() above already created.
-            # Future column changes go here: `if current < 3: s.execute(text("ALTER TABLE ..."))`
+            # v2 and v3 add tables, which create_all() above already created; v3 also adds columns.
+            cols = {r[1] for r in s.execute(text("PRAGMA table_info(pipeline_runs)"))}
+            for name, ddl in (("owner", "VARCHAR(120)"), ("heartbeat_at", "DATETIME")):
+                if name not in cols:
+                    s.execute(text(f"ALTER TABLE pipeline_runs ADD COLUMN {name} {ddl}"))
             if current < SCHEMA_VERSION:
                 s.merge(MetaRow(key="schema_version", value=str(SCHEMA_VERSION)))
 

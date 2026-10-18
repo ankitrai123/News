@@ -98,9 +98,10 @@ def test_high_floor_embeddings_do_not_collapse_clusters(monkeypatch):
     for mode in ("boost", "blend"):
         cfg = ClusteringConfig(embeddings=EmbeddingsConfig(enabled=True, weight=0.5, mode=mode))
         purity, completeness, biggest = run(seed=1, n_events=40, singletons=250, cfg=cfg, quiet=True)
-        # No collapse in either mode. "blend" may also split events a little (that is why
-        # "boost" is the default), so its completeness bar is lower.
-        min_completeness = 0.95 if mode == "boost" else 0.90
+        # No collapse in either mode. With the default canonical country tokens, "blend" splits
+        # events a little more (measured completeness 0.934 vs 0.977 with country_tokens=drop),
+        # because the fake embedder inherits the country weighting; "boost" is the default.
+        min_completeness = 0.95 if mode == "boost" else 0.92
         assert purity >= 0.85 and completeness >= min_completeness and biggest <= 30, (mode, purity, completeness, biggest)
 
 

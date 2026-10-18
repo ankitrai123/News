@@ -170,7 +170,8 @@ def cmd_run(args) -> int:
         return 1
     except (StageError, RunInProgress, ValueError) as e:
         print(f"\nRun failed: {e}", file=sys.stderr)
-        print("Inspect with `intelpod runs`; fix the cause, then `intelpod run --resume`.", file=sys.stderr)
+        if not isinstance(e, RunInProgress):
+            print("Inspect with `intelpod runs`; fix the cause, then `intelpod run --resume`.", file=sys.stderr)
         return 2
     print(f"\nrun: {run_id}")
     if args.stop_after and args.stop_after != "report":

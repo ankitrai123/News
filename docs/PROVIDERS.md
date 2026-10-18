@@ -29,11 +29,19 @@ stage is skipped, so ranking is keyword-based. Every run records which of these 
 * `seendate` is when GDELT first saw the URL, not the publisher's timestamp; IntelPod stores it
   with `date_source = "gdelt_seendate"` and flags an event "approximate dates" when none of its reports has a publisher timestamp.
 * Search window: GDELT's blog states that non-timeline modes cover the most recent ~3 months.
-* `maxrecords` up to 250 per request (IntelPod default 75).
-* Rate limiting: GDELT asks clients to throttle and replies with a plain-text notice instead of
-  JSON when requests come too fast; IntelPod spaces requests 6 s apart (configurable) and
-  treats that notice as an error for that query only. The exact current threshold is
-  *unverified*; GDELT has historically asked for about one request every 5 seconds.
+* `maxrecords` up to 250 per request (IntelPod default 150 for ingestion, 75 for research).
+* Rate limiting: GDELT's refusal text asks for at most one request every 5 seconds; it answers
+  HTTP 429 or a plain-text notice, without Retry-After, and users report refusals even at slower
+  rates and penalty windows of minutes. IntelPod spaces requests `min_interval_seconds` (10 s)
+  apart; after a refusal it waits `cooldown_seconds` (30 s, doubling up to `max_cooldown_seconds`,
+  120 s) and retries that query once; after `stop_after_refusals` (2) refused queries it skips
+  GDELT for the rest of the run and says so in the run summary ("GDELT kept refusing requests").
+* Query rules (observed, unit-tested, never sent if broken): at most ~200 characters; OR lists in
+  parentheses and never nested; parentheses only around OR lists; quotes only around phrases of
+  two or more words; no word of 2 characters or fewer (write "united states", not US);
+  `sourcecountry:` takes uppercase FIPS codes (IN, US, UK, CH, RS, JA, GM, FR).
+* Attribution: GDELT data is free for any use with a citation and link to
+  https://www.gdeltproject.org/ — the dashboard and reports credit "Discovery via The GDELT Project".
 * Coverage is broad but not complete; it does not index every outlet, paywalled text or social
   media.
 * Terms: GDELT describes its data as open for unrestricted use with citation; *verify on
@@ -41,10 +49,10 @@ stage is skipped, so ranking is keyword-based. Every run records which of these 
 
 ### RSS/Atom feeds — free, no registration
 
-`config/feeds.yaml` lists 22 enabled feeds (+1 disabled): BBC (world, business), The Guardian
+`config/feeds.yaml` lists 21 enabled feeds (+2 disabled: The Japan Times; UN News, whose feed URL returned 404 and whose robots.txt disallows it): BBC (world, business), The Guardian
 (world, business), Al Jazeera, NPR, CNBC, Fox News, France 24, DW, SCMP, Nikkei Asia, The Hindu
 (international, business), The Indian Express, The Economic Times, Mint, The Times of India,
-US Federal Reserve, ECB, Reserve Bank of India and UN News.
+US Federal Reserve, ECB and Reserve Bank of India.
 
 * All URLs are the publishers' publicly listed feeds as known at development time and are marked
   `verified: false` until `intelpod feeds check` confirms them. Publishers move feeds without

@@ -18,7 +18,7 @@ from .. import __version__
 from ..config import Settings, get_settings
 from ..db import Database
 from ..logging_setup import read_secret
-from ..pipeline.runner import RESUMABLE, Phase1Pipeline, RunInProgress, StageError
+from ..pipeline.runner import RESUMABLE, RUN_ID_RE, Phase1Pipeline, RunInProgress, StageError, feed_pause_state
 from ..providers import load_feeds
 from ..repository import Repository
 from .. import labels
@@ -33,12 +33,14 @@ TEMPLATES.env.filters["date_source"] = labels.date_source_label
 TEMPLATES.env.globals["plural"] = labels.plural
 TEMPLATES.env.globals["display_entities"] = labels.display_entities
 
-LOCAL_HOSTS = ["127.0.0.1", "localhost", "::1", "[::1]", "testserver"]
+LOCAL_HOSTS = ["127.0.0.1", "localhost", "::1", "[::1]"]
 MESSAGES = {
     "started": "Run started. This page refreshes while it runs.",
     "resumed": "Resuming the latest unfinished run.",
     "busy": "A run is already in progress; wait for it to finish.",
     "nothing": "Nothing to resume: the latest run already completed. Use Start new run.",
+    "norun": "That run does not exist.",
+    "notresumable": "That run cannot be resumed (it completed or is still running).",
 }
 PLACEHOLDER_CONTACT = "set-your-email@example.com"
 
@@ -86,10 +88,16 @@ def create_app(settings: Settings | None = None, pipeline_factory=None,
         """Start (or resume) a run in a background thread. Returns a message key."""
         if running():
             raise HTTPException(409, MESSAGES["busy"])
+        if run_id is not None and not RUN_ID_RE.fullmatch(run_id):
+            raise HTTPException(422, "invalid run id")
+        if not resume and run_id is not None:
+            raise HTTPException(422, "run_id is only accepted together with resume=true")
         if resume:
             row = repo.get_run(run_id) if run_id else repo.latest_run(status=None)
+            if row is None and run_id:
+                raise HTTPException(404, MESSAGES["norun"])
             if row is None or row.status not in RESUMABLE:
-                raise HTTPException(409, MESSAGES["nothing"])
+                raise HTTPException(409, MESSAGES["notresumable"] if run_id else MESSAGES["nothing"])
             run_id = row.run_id
 
         def target():
@@ -177,7 +185,8 @@ def create_app(settings: Settings | None = None, pipeline_factory=None,
                         "last_item_count": st.last_item_count if st else None,
                         "newest_item_at": st.newest_item_at if st else None,
                         "consecutive_failures": st.consecutive_failures if st else None,
-                        "auto_paused": bool(st and (st.consecutive_failures or 0) >= settings.ingestion.feed_pause_after_failures),
+                        "auto_paused": feed_pause_state(st, settings.ingestion) is not None,
+                        "pause_reason": feed_pause_state(st, settings.ingestion),
                         "last_error": st.last_error if st else None})
         return out
 
@@ -204,14 +213,16 @@ def create_app(settings: Settings | None = None, pipeline_factory=None,
 
     @app.get("/", response_class=HTMLResponse)
     def index(request: Request, run: str | None = Query(None, max_length=80)):
-        run_row = run_or_404(run) if run else repo.latest_run()
+        # Latest completed run; if there is none yet, the latest run in any state (in progress / failed).
+        run_row = run_or_404(run) if run else (repo.latest_run() or repo.latest_run(status=None))
         ranked = repo.scores_for_run(run_row.run_id) if run_row else []
         stages = repo.stages(run_row.run_id) if run_row else {}
         out = lambda k: (stages.get(k).output or {}) if stages.get(k) else {}  # noqa: E731
         return page(request, "index.html", active="briefing", run=run_row, selected=[r for r in ranked if r.selected],
                     others=[r for r in ranked if not r.selected][:15], scored=bool(ranked),
                     run_stage=repo.current_stage(run_row.run_id) if run_row else None,
-                    ingest=out("ingest"), review=out("review"), cluster=out("cluster"))
+                    ingest=out("ingest"), review=out("review"), cluster=out("cluster"),
+                    min_events=settings.ranking.min_events)
 
     @app.get("/events/{event_id}", response_class=HTMLResponse)
     def event_page(request: Request, event_id: str, run: str | None = Query(None, max_length=80)):
@@ -244,11 +255,11 @@ def create_app(settings: Settings | None = None, pipeline_factory=None,
                     llm_errors=[c for c in repo.llm_calls(limit=200) if not c.ok][:20])
 
     @app.post("/runs/start")
-    def runs_start(resume: str | None = Form(None)):
+    def runs_start(resume: str | None = Form(None), run_id: str | None = Form(None, max_length=80)):
         try:
-            key = start_run(resume=bool(resume))
+            key = start_run(resume=bool(resume), run_id=run_id or None)
         except HTTPException as e:
-            key = "busy" if e.detail == MESSAGES["busy"] else "nothing"
+            key = next((k for k, v in MESSAGES.items() if v == e.detail), "nothing")
         return RedirectResponse(f"/runs?msg={quote(key)}", status_code=303)
 
     @app.get("/feeds", response_class=HTMLResponse)
@@ -259,8 +270,11 @@ def create_app(settings: Settings | None = None, pipeline_factory=None,
     @app.get("/settings", response_class=HTMLResponse)
     def settings_page(request: Request):
         cfg = settings.model_dump()
-        keys = {"NEWSDATA_API_KEY": bool(read_secret(settings.ingestion.providers.newsdata.api_key_env)),
-                "NVIDIA_API_KEY": bool(read_secret("NVIDIA_API_KEY"))}
+        nd = settings.ingestion.providers.newsdata
+        keys = {nd.api_key_env: bool(read_secret(nd.api_key_env))} if nd.api_key_env else {}
+        for prov in settings.llm.providers.values():
+            if prov.api_key_env:
+                keys[prov.api_key_env] = bool(read_secret(prov.api_key_env))
         return page(request, "settings.html", active="settings", cfg=cfg, now=datetime.now(timezone.utc), keys=keys,
                     placeholder_contact=PLACEHOLDER_CONTACT in settings.app.user_agent)
 
