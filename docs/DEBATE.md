@@ -45,7 +45,9 @@ intelpod sources [--gaps]            # the source registry; --gaps lists feed pu
 1. **Claim map** (`intelpod/debate/claims.py`, deterministic). Statements are typed:
    `factual`, `attributed` (someone said), `interpretation` (explains why / what it means),
    `forecast` (future or intentions) and `value_judgement` (should / wrong / welcome).
-   Headlines that label a piece ("Analysis: …") or ask a question are not claims. Statements
+   Headlines that label a piece ("Analysis: …") or ask a question, link teasers ("Also Read: …")
+   and other page furniture are not claims. "May" (the month) and a bare "would" do not make a
+   statement a forecast. Statements
    from different sources that state the same thing are grouped (word overlap, or the same
    specific figure about the same subject; different figures for the same unit never merge;
    "X happened" and "officials denied X" never merge). Contradictions are linked
@@ -93,6 +95,24 @@ intelpod sources [--gaps]            # the source registry; --gaps lists feed pu
 Without a model (none configured, `--no-llm`, provider failure, budget used) the claim map,
 diversity and viewpoint searches for coverage gaps still run; the package status is `partial`
 and says that interpretive questions were not assessed.
+
+## Disagreement between quoted actors (no model needed)
+
+If the sources quote named people or bodies explicitly backing the event's subject (defended,
+welcomed, praised, "necessary") and others explicitly criticising it (criticised, wrong,
+illegal, "breaks the law"), IntelPod adds a question marked **from quoted statements**: each side
+lists who said it and quotes their statements verbatim. Both sides need statements from
+different speakers about this event; nothing is summarised or invented. This runs with or
+without a model, so a disagreement visible in the sources is never reported as "no meaningful
+disagreement".
+
+## Checking model text for invented names
+
+A capitalised word not found in the cited sources is treated as a possible invented name. A
+word capitalised only because it starts a sentence ("Exact", "Scope") is accepted when it is a
+common word: on a built-in list, or seen in lower case in the sources or in IntelPod's own
+stored news text of the last 14 days. Names such as "Pfizer" or "Goyal" practically never
+appear in lower case, so they are still checked.
 
 ## Source registry (`config/sources.yaml`)
 

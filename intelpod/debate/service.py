@@ -34,6 +34,7 @@ from ..schemas import Article
 from ..textutil import Taxonomy, stable_hash
 from . import analysis
 from .claims import STAKEHOLDERS, build_claims
+from .stances import stated_positions
 from .diversity import ECON_TOPICS, diversity_report, source_country
 from .models import Claim, DebatePackage, DiversityReport, ViewpointSearch
 from .registry import Registry, country_code
@@ -137,6 +138,11 @@ class DebateService:
             uncertainties = analysis.grounded_list(out.uncertainties, all_text, "uncertainty", rejected)
             would_change = analysis.grounded_list(out.would_change, all_text, "'would change' item", rejected)
 
+        # Actors quoted on opposite sides (deterministic, verbatim) are a disagreement even when the
+        # model found none or is unavailable.
+        quoted = stated_positions(brief, claims, sources)
+        if quoted is not None and len(questions) < 3:
+            questions.append(quoted)
         by_kind = sort_claims(claims)
         uncertainties = claim_uncertainties(claims) + uncertainties
         note = no_disagreement_note(out is not None, questions, by_kind["contested"], len(sources),

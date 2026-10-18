@@ -7,12 +7,12 @@ open-source software, keyless public data sources, and two optional free tiers:
 and embeddings (or local models through Ollama). No paid service is required; without any
 keys IntelPod still runs end to end on RSS + GDELT with keyword-based analysis.
 
-> **Status: Phase 1 of 7 is complete.** IntelPod currently ingests news, normalizes and
-> de-duplicates articles, groups them into events, ranks the events transparently, stores
-> everything in SQLite, and shows the result in a CLI, a Markdown/JSON report and a local
-> dashboard. Research, viewpoint analysis, business impact, script writing and audio come
-> in Phases 2–7 (see [docs/ROADMAP.md](docs/ROADMAP.md)). No module in this repository is
-> an empty placeholder.
+> **Status: Phases 1–4 of 7 are complete.** IntelPod ingests news, groups it into events and
+> ranks them (Phase 1), researches each selected event (Phase 2), maps claims, viewpoints and
+> disagreement (Phase 3), and writes an intelligence brief with context, business impact and
+> connections between events (Phase 4), shown in a CLI, Markdown/JSON reports and a local
+> dashboard. Script writing, audio and automation come in Phases 5–7 (see
+> [docs/ROADMAP.md](docs/ROADMAP.md)). No module in this repository is an empty placeholder.
 
 ## What Phase 1 does
 
@@ -120,7 +120,7 @@ intelpod feeds check               # fetch every feed once; disable any that fai
 intelpod newsdata test             # optional: 1 request with your NewsData key (1 credit)
 intelpod llm models                # optional: models your NVIDIA key can use
 intelpod llm test                  # optional: one small call to check key + model
-intelpod run                       # full Phase 1 pipeline (~1–3 minutes)
+intelpod run                       # full pipeline, Phases 1–4 (~5–25 minutes with a model)
 intelpod serve                     # dashboard at http://127.0.0.1:8000
 ```
 

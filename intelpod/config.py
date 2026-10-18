@@ -231,9 +231,10 @@ def _default_llm_providers() -> dict[str, LLMProviderConfig]:
 _NO_THINK = {"chat_template_kwargs": {"enable_thinking": False}}
 # Free NVIDIA endpoints reported live in Oct 2026 (third-party evidence; NVIDIA retires models often).
 # Verify with `intelpod llm models` / `intelpod llm test` and reorder or replace as needed.
+# gpt-oss-20b first: in the first live runs (Oct 2026) nemotron-3.5-lightning timed out on every call.
 DEFAULT_REVIEW_MODELS = [
-    LLMModelChoice(id="nvidia/nemotron-3.5-lightning-30b-a3b", extra_body=_NO_THINK),
     LLMModelChoice(id="openai/gpt-oss-20b", extra_body={"reasoning_effort": "low"}, max_tokens=2000),
+    LLMModelChoice(id="nvidia/nemotron-3.5-lightning-30b-a3b", extra_body=_NO_THINK),
     LLMModelChoice(id="google/gemma-4-31b-it", extra_body=_NO_THINK),
     LLMModelChoice(id="nvidia/nemotron-3-ultra-550b-a55b", extra_body=_NO_THINK),
 ]

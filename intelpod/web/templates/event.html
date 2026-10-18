@@ -72,7 +72,7 @@
   evidence strength is computed by IntelPod.</p>
   {% if debate.status in ('skipped', 'failed') %}<div class="banner">{{ debate.limitations|join(' ') }}</div>{% else %}
   {% if debate.questions %}<h4>Where sources disagree</h4>
-  {% for q in debate.questions %}<div class="card"><b>{{ q.question }}</b> <span class="pill">{{ q.disagreement_type }} disagreement</span>
+  {% for q in debate.questions %}<div class="card"><b>{{ q.question }}</b> <span class="pill">{{ q.disagreement_type }} disagreement</span>{% if q.basis == 'quoted statements' %}<span class="pill" title="Found by IntelPod from verbatim statements with explicit support/criticism wording; no model involved">from quoted statements</span>{% endif %}
     <table class="stack"><tr><th>Position</th><th>Argued by</th><th>Evidence</th></tr>
     {% for p in q.positions %}<tr><td><b>{{ p.label }}</b>{% if p.summary %}<div class="small">{{ p.summary }}</div>{% endif %}
       {% if p.strongest_argument %}<div class="small muted">Strongest argument: {{ p.strongest_argument }}</div>{% endif %}

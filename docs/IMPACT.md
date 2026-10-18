@@ -39,11 +39,16 @@ intelpod forecasts resolve ID --verdict correct|incorrect|partly|unresolvable --
 * **Connections need evidence.** Events are linked only when a source of one refers to the
   other (*evidenced*, quoted), or when both discuss the same economic channel and share a
   country or actor (*shared driver*, labelled as context, not causation). Coincidence in time
-  is never a link. Evidence must name something specific to the *other* event (an entity or two
-  title words the first event does not share); an event's own reports, and any source used by
-  both events, never count (a shared source is flagged as "may be one story").
+  is never a link. Evidence must name something specific to the *other* event: a name found in no
+  other event of the run, or two independent signals (two names, a name and a distinctive title
+  word, or three distinctive words). Months, weekdays, generic news words ("trade", "deal") and
+  names common to three or more of the day's events ("Trump") never count. An event's own
+  reports, and any source used by both events, never count either (a shared source is flagged as
+  "may be one story").
 * **Forecasts are not facts.** They go to a ledger with source, date and stated timeframe, and
-  stay *open* until someone records the outcome. A recorded outcome is never overwritten: changing
+  stay *open* until someone records the outcome. Only forecasts someone can be held to are
+  ledgered: attributed to a speaker or an official source, or with a stated timeframe. The same
+  sentence seen under several events is one entry listing all of them. A recorded outcome is never overwritten: changing
   it needs `--amend` (CLI) and the earlier verdict is kept in the entry's history.
 
 ## What the brief contains, per event

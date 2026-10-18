@@ -4,7 +4,7 @@
 <h1>News sources</h1>
 <p class="muted small">Edit <code>config/feeds.yaml</code> to add, remove or disable feeds. Run <code>intelpod feeds check</code> to test every feed
 (a feed that passes the check is no longer paused). A feed that fails {{ pause_after }} runs in a row is paused automatically; a feed whose robots.txt
-forbids access is skipped. Editorial-orientation metadata arrives with the Phase 3 source registry.</p>
+forbids access is skipped. Publisher facts (country, ownership, type) come from the source registry, <code>config/sources.yaml</code>; editorial orientation is shown only where documented with references.</p>
 <div class="card scroll"><table class="stack"><tr><th>Feed</th><th>Type</th><th>State</th><th>Last status</th><th>Items</th><th>Newest item</th><th>Failures in a row</th></tr>
 {% for f in feeds %}<tr><td><a href="{{ f.url }}" target="_blank" rel="noopener noreferrer">{{ f.name }}</a><div class="small muted">{{ f.publisher }} · {{ f.country or 'international' }}</div>
 {% if f.last_error %}<div class="small bad">{{ f.last_error }}</div>{% endif %}</td>

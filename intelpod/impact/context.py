@@ -71,7 +71,9 @@ def timeline(brief: EventBrief, sources: list[ResearchResult], prior: list[Prior
         if r.event_timing == "before_event" and r.published_at:
             items.append(TimelineEntry(when=r.published_at, text=r.title, kind="background_source", ref=r.result_id,
                                        url=r.url, publisher=r.publisher))
-    items.append(TimelineEntry(when=brief.first_article_at, text=lead.text if lead else brief.title,
+    # The event's own row pairs its first report's time with the event title, never with a
+    # statement from a different (later) article.
+    items.append(TimelineEntry(when=brief.first_article_at, text=f"First report: {brief.headline or brief.title}",
                                kind="this_event", ref=brief.event_id))
     items.sort(key=lambda t: (t.when is None, t.when or datetime.min))
     return items[-12:]

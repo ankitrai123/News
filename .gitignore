@@ -6,3 +6,7 @@ data/
 .env
 config/config.yaml
 *.egg-info/
+
+# build output
+build/
+*.egg-info/

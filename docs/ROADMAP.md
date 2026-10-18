@@ -4,16 +4,15 @@
 
 | Phase | Scope | Status |
 |---|---|---|
-| 1 | Ingestion (RSS, GDELT, NewsData.io), normalization, de-duplication, event clustering (+ embeddings), ranking, model review (NVIDIA/Ollama), SQLite, CLI/report/dashboard | **Done** — tested offline with mocked APIs; awaiting first live run with real keys |
-| 2 | Research: per-event query generation (10 query types), archive/feeds/GDELT/Guardian adapters, 10–21 day window, page fetching within robots/paywall/opt-out rules, date validation, 10–15 results per event, source-quality assessment, persistence and caches, dashboard/API/CLI (docs/RESEARCH.md) | **Done** — tested offline with mocked services; awaiting a live run |
-| 3 | (see below) | next |
-| 3 | Source registry with evidence-backed editorial metadata, viewpoint discovery, claim-level evidence map, agreement/disagreement, uncertainty | planned |
-| 4 | Historical context, event relationships, causal business/economic chains, India impact | planned |
-| 5 | Narrative plan, two-host script, citation-linked transcript, fact verification | planned |
+| 1 | Ingestion (RSS, GDELT, NewsData.io), normalization, de-duplication, event clustering (+ embeddings), ranking, model review (NVIDIA/Ollama), SQLite, CLI/report/dashboard | **Done** — running live (Oct 2026): all 21 feeds return items |
+| 2 | Research: per-event query generation (10 query types), archive/feeds/GDELT/Guardian adapters, 10–21 day window, page fetching within robots/paywall/opt-out rules, date validation, 10–15 results per event, source-quality assessment, persistence and caches, dashboard/API/CLI (docs/RESEARCH.md) | **Done** — running live; GDELT often rate-limited |
+| 3 | Source registry with evidence-backed editorial metadata, viewpoint discovery, claim-level evidence map, agreement/disagreement, uncertainty (docs/DEBATE.md) | **Done** — running live; first-run quality fixes applied |
+| 4 | Historical context, event relationships, causal business/economic chains, India impact, forecast ledger (docs/IMPACT.md) | **Done** — running live; first-run quality fixes applied |
+| 5 | Narrative plan, two-host script, citation-linked transcript, fact verification | next |
 | 6 | Local TTS (Piper/Kokoro evaluated), two voices, FFmpeg assembly, audio checks | planned |
 | 7 | Scheduling (APScheduler; optional n8n export), notifications, retry policies, quota tracking, end-to-end tests | planned |
 
-## Final acceptance criteria — where Phase 1 stands
+## Final acceptance criteria — where the project stands
 
 | Criterion | Status |
 |---|---|
@@ -64,8 +63,8 @@
 * **No general web search**: no free, permitted web-search API exists in 2026 (Brave needs a card
   and forbids storing results; Google CSE closed; Bing retired), so discovery is limited to the
   archive, the configured feeds, GDELT and the Guardian.
-* **Source quality is partial**: track record and corrections policy are "unknown" until Phase 3's
-  evidence-backed source registry.
+* **Source quality is partial**: track record is "unknown"; corrections policy comes from the
+  Phase 3 source registry where an entry documents it.
 * **Relevance is lexical** (calibrated: 89% recall / 0.67 precision on the labelled corpus);
   embeddings are not yet used in research.
 

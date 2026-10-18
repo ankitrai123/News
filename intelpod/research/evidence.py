@@ -17,7 +17,9 @@ _ABBREV = ("mr", "mrs", "ms", "dr", "prof", "sen", "rep", "gov", "gen", "col", "
 _SENT_END = re.compile(r"(?<=[.!?])[\"'”’)]*\s+(?=[\"'“‘(]?[A-Z0-9])")
 _BOILER = re.compile(r"\b(cookie|subscribe|subscription|newsletter|sign up|sign in|log in|read more|click here|"
                      r"all rights reserved|follow us|advertisement|share this|related articles?|"
-                     r"download the app|terms of use|privacy policy)\b", re.I)
+                     r"download the app|terms of use|privacy policy)\b|"
+                     r"^\s*(also read|read also|must read|don'?t miss|see also|recommended|related|watch|listen|"
+                     r"photo|image|file photo|trending|top stories|latest news)\b\s*[:|\-–]", re.I)
 _ATTRIB = re.compile(r"\b(said|says|told|according to|announced|stated|added|warned|argued|noted|wrote|"
                      r"confirmed|denied|estimated|forecast|predicted)\b", re.I)
 _NUMBER = re.compile(r"\d")

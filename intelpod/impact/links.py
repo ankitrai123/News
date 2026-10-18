@@ -38,14 +38,48 @@ def _texts(r: ResearchResult) -> list[str]:
     return [r.title] + [n.text for n in r.evidence_notes if n.kind == "extract"] + list(r.key_claims)
 
 
-def anchors(brief: EventBrief, exclude: set[str] = frozenset()) -> list[re.Pattern]:
-    """What identifies an event in other text: its named entities (not countries, and not ones
-    the other event shares). A mention needs one such entity, or two distinctive words."""
-    pats = []
+# Words and names that identify nothing in particular: calendar words, and generic news words.
+CALENDAR = {"january", "february", "march", "april", "may", "june", "july", "august", "september", "october",
+            "november", "december", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
+            "today", "yesterday", "week", "month", "year", "quarter"}
+GENERIC = CALENDAR | {
+    "trade", "deal", "deals", "talks", "price", "prices", "market", "markets", "says", "said", "government",
+    "president", "minister", "official", "officials", "plan", "plans", "new", "news", "report", "reports",
+    "global", "world", "first", "after", "amid", "over", "rise", "rises", "rising", "fall", "falls", "falling",
+    "high", "higher", "record", "cuts", "cut", "hike", "hikes", "war", "crisis", "deal", "talk", "economy",
+    "economic", "business", "companies", "company", "state", "states", "united", "national", "international",
+    "policy", "policies", "move", "moves", "issue", "issues", "country", "countries", "people", "year", "years",
+    "week", "weeks", "data", "growth", "rate", "rates", "billion", "million", "percent", "announces",
+    "announced", "agrees", "agreed", "warns", "warned", "set", "sets", "back", "backs", "hits", "hit", "jump",
+    "jumps", "surge", "surges", "slump", "slumps", "boost", "boosts", "seeks", "faces", "face", "makes", "make",
+    "takes", "take", "gets", "get", "could", "would", "will", "news", "latest", "live", "update", "updates"}
+
+
+def term_counts(events: list[EventBrief]):
+    """In how many of the run's events each name / title word occurs."""
+    from collections import Counter
+    counts: Counter = Counter()
+    for b in events:
+        counts.update({e.lower() for e in b.entities} | _title_words(b))
+    return counts
+
+
+def run_common(events: list[EventBrief], threshold: int = 3) -> set[str]:
+    """Names and title words found in `threshold` or more of the run's events: shared vocabulary
+    of the day ("Trump", "tariffs"), not something that identifies one event."""
+    return {t for t, n in term_counts(events).items() if n >= threshold}
+
+
+def anchors(brief: EventBrief, exclude: set[str] = frozenset()) -> list[tuple[str, re.Pattern]]:
+    """Named entities that identify an event in other text: not countries, not calendar words, not
+    names the other event shares, not names common across the run."""
+    out = []
     for e in brief.entities:
-        if not is_country_alias(e) and len(e) >= 3 and e.lower() not in exclude:
-            pats.append(re.compile(r"\b" + re.escape(e) + r"\b", re.I))
-    return pats
+        low = e.lower()
+        if is_country_alias(e) or len(e) < 3 or low in exclude or low in GENERIC or low.split()[0] in CALENDAR:
+            continue
+        out.append((low, re.compile(r"\b" + re.escape(e) + r"\b", re.I)))
+    return out
 
 
 def _title_words(brief: EventBrief) -> set[str]:
@@ -53,19 +87,29 @@ def _title_words(brief: EventBrief) -> set[str]:
     return {w for w in re.findall(r"[a-z][a-z\-]{3,}", title) if w not in STOPWORDS}
 
 
-def distinctive_words(brief: EventBrief, n: int = 4) -> list[str]:
+def distinctive_words(brief: EventBrief, n: int = 5, exclude: set[str] = frozenset()) -> list[str]:
     title = (brief.headline or brief.title).lower()
-    words = [w for w in re.findall(r"[a-z][a-z\-]{3,}", title) if w not in STOPWORDS and not is_country_alias(w)]
+    words = [w for w in re.findall(r"[a-z][a-z\-]{3,}", title)
+             if w not in STOPWORDS and w not in GENERIC and w not in exclude and not is_country_alias(w)]
     weights = brief.centroid or {}
     words.sort(key=lambda w: -max((v for k, v in weights.items() if k and w.startswith(k[:5])), default=0))
     return list(dict.fromkeys(words))[:n]
 
 
-def mentions(text: str, pats: list[re.Pattern], words: list[str]) -> bool:
-    if any(p.search(text) for p in pats):
+def mentions(text: str, pats: list[tuple[str, re.Pattern]], words: list[str],
+             unique: set[str] = frozenset()) -> bool:
+    """A text refers to the other event if it names something found in no other event of the
+    run (`unique`, e.g. "OPEC" on a day only one event involves OPEC), or has two independent
+    signals: two names, a name and a distinctive word, or three distinctive words. A month
+    ("September") or a name shared across the day's news ("Trump") is never enough alone."""
+    names = {name for name, p in pats if p.search(text)}
+    if names & unique:
         return True
     low = text.lower()
-    return sum(1 for w in words if re.search(r"\b" + re.escape(w), low)) >= 2
+    hits = {w for w in words if re.search(r"\b" + re.escape(w), low) and not any(w in nm for nm in names)}
+    if names:
+        return len(names) + len(hits) >= 2
+    return len(hits) >= 3
 
 
 def channel_counts(brief: EventBrief, sources: list[ResearchResult]) -> dict[str, int]:
@@ -76,6 +120,8 @@ def channel_counts(brief: EventBrief, sources: list[ResearchResult]) -> dict[str
 def find_links(run_id: str, events: list[tuple[EventBrief, list[ResearchResult]]]) -> list[EventLink]:
     links: list[EventLink] = []
     chans = {b.event_id: channel_counts(b, srcs) for b, srcs in events}
+    counts = term_counts([b for b, _ in events])
+    common_terms = {t for t, n in counts.items() if n >= 3}
     for (a, sa), (b, sb) in combinations(events, 2):
         evidence: list[LinkEvidence] = []
         # A source used by both events is not one event pointing at the other: it may be the same
@@ -85,14 +131,15 @@ def find_links(run_id: str, events: list[tuple[EventBrief, list[ResearchResult]]
         for (x, sx), y in (((a, sa), b), ((b, sb), a)):
             # Only what is specific to the OTHER event counts: shared entities and words that are
             # also in this event's own title prove nothing.
-            x_entities = {e.lower() for e in x.entities}
-            pats = anchors(y, exclude=x_entities)
-            words = [w for w in distinctive_words(y) if w not in _title_words(x)]
+            x_terms = {e.lower() for e in x.entities} | _title_words(x) | common_terms
+            pats = anchors(y, exclude=x_terms)
+            words = distinctive_words(y, exclude=x_terms)
+            unique = {name for name, _ in pats if counts.get(name, 0) == 1 and len(name) >= 4}
             for r in sx:
                 if r.canonical_url in shared_urls or r.from_event:
                     continue  # this event's own reports, or a source both events use
                 for t in _texts(r):
-                    if mentions(t, pats, words) and len(evidence) < 4 and t not in {e.text for e in evidence}:
+                    if mentions(t, pats, words, unique) and len(evidence) < 4 and t not in {e.text for e in evidence}:
                         evidence.append(LinkEvidence(event_id=x.event_id, result_id=r.result_id,
                                                      publisher=r.publisher, url=r.url, text=t))
                         break

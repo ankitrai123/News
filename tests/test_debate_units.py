@@ -321,3 +321,46 @@ def test_position_with_nothing_grounded_is_dropped():
         {"label": "No, says Nomura", "summary": "Nomura expects 7% inflation.", "source_ids": ["s2"]}]}]})
     qs, rejected = analysis.to_questions(out, ids, {})
     assert qs == [] and any("dropped" in r for r in rejected)
+
+
+def test_quoted_actors_on_opposite_sides_are_a_debate():
+    from intelpod.debate.stances import stated_positions
+    b = brief(title="Trump grants sanctions waiver for Russian oil buyers", entities=["Trump", "Rubio"],
+              countries=["United States", "Russia"], topic="energy_commodities")
+    srcs = [res("a", "Reuters", "Waiver row", claims=["Rubio said the waiver was necessary to keep markets stable."]),
+            res("b", "Kyiv Independent", "Zelenskyy criticises waiver",
+                claims=["Zelenskyy said the waiver was wrong and rewards Russia."]),
+            res("c", "Politico", "Senators object", claims=["Senator Thom Tillis said the waiver likely breaks a 2022 law."])]
+    q = stated_positions(b, build_claims(srcs), srcs)
+    assert q is not None and q.basis == "quoted statements" and len(q.positions) == 2
+    sup, opp = q.positions
+    assert "Rubio" in sup.label and "Zelenskyy" in opp.label and "Tillis" in opp.label
+    assert "waiver was wrong" in opp.summary                   # verbatim quotes, nothing summarised
+    one_side = [srcs[1], srcs[2]]
+    assert stated_positions(b, build_claims(one_side), one_side) is None   # no false balance
+    off_topic = [res("d", "X", "t", claims=["Modi said the cricket win was historic."]), srcs[1]]
+    assert stated_positions(b, build_claims(off_topic), off_topic) is None
+
+
+def test_learned_vocabulary_accepts_ordinary_words_not_names():
+    from intelpod.debate import analysis as an
+    from intelpod.debate.analysis import register_vocabulary, unsupported_terms
+    an._VOCAB.clear()
+    src = "the waiver applies to oil buyers"
+    assert unsupported_terms("Scope of the waiver is narrow.", src) == ["Scope"]
+    register_vocabulary(["The exact scope of the rules is unclear, a direct result of haste", "Pfizer shares rose"])
+    assert unsupported_terms("Scope of the waiver is narrow. Exact terms differ.", src) == []
+    assert unsupported_terms("Pfizer gains.", src) == ["Pfizer"]
+    an._VOCAB.clear()
+
+
+def test_boilerplate_questions_months_and_speakers():
+    from intelpod.debate.claims import classify_claim, speaker_of, statements
+    r = res("a", "X", "Also Read: Oil hits six month high on supply cuts",
+            extracts=["Also Read: India wins series against Australia in final match.",
+                      "Oil prices rose to a six month high on Friday after supply cuts."])
+    texts = [t for t, _ in statements(r)]
+    assert texts == ["Oil prices rose to a six month high on Friday after supply cuts."]
+    assert classify_claim("Average hourly wages rose 0.3% in May, the Labor Department said.", "reporting")[0] == "attributed"
+    assert classify_claim("The rupee may weaken further.", "reporting")[0] == "forecast"
+    assert speaker_of("Rubio also said the waiver was legal.") == "Rubio"

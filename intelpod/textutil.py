@@ -402,7 +402,11 @@ _ENTITY_STOP = {"The", "A", "An", "In", "On", "At", "As", "Why", "How", "What", 
                 "Are", "Will", "Could", "After", "Before", "Amid", "New", "Live", "Breaking", "Watch", "Analysis",
                 "Opinion", "Explainer", "Exclusive", "Update", "This", "That", "It", "Its", "From", "For", "With",
                 "By", "To", "Of", "And", "Or", "But", "Not", "Over", "Says", "Said", "Mr", "Ms", "Dr", "Here",
-                "Inside", "Today", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"}
+                "Inside", "Today", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday",
+                # Months are dates, not actors ("May" the month; the rare person named May is lost).
+                "January", "February", "March", "April", "May", "June", "July", "August", "September", "October",
+                "November", "December", "Jan", "Feb", "Mar", "Apr", "Jun", "Jul", "Aug", "Sep", "Sept", "Oct", "Nov",
+                "Dec", "Also", "Read", "More", "Yesterday", "Tomorrow", "Tonight"}
 
 
 def find_named_entities(text: str) -> list[str]:

@@ -191,6 +191,9 @@ class Phase1Pipeline:
                     raise
                 time.sleep(self.stage_retry_delay)
                 continue
+            except BaseException:  # Ctrl-C / shutdown: the stage must not stay "running"
+                self.repo.stage_finish(ctx.run_id, stage, "failed", error="interrupted; resume to continue")
+                raise
             out["duration_s"] = round(time.monotonic() - t0, 2)
             self.repo.stage_finish(ctx.run_id, stage, "completed", output=out)
             log.info("[%s] %s completed in %.1fs", ctx.run_id, stage, out["duration_s"])

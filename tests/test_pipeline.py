@@ -145,3 +145,18 @@ def test_providers_fetch_concurrently(settings):
     out = pipe.repo.stages(run_id)["ingest"].output
     assert out["providers"]["slow_a"]["ok"] == 1 and out["providers"]["slow_b"]["ok"] == 1
     assert took < 0.75, took  # 2 x 0.4 s would take >= 0.8 s sequentially
+
+
+def test_ctrl_c_marks_run_and_stage_failed(settings):
+    import pytest
+    from intelpod.pipeline.runner import Phase1Pipeline
+    with respx.mock(assert_all_called=False) as router:
+        mock_sources(router)
+        pipe = Phase1Pipeline(settings, stage_retry_delay=0)
+        pipe.stage_fns["cluster"] = lambda ctx: (_ for _ in ()).throw(KeyboardInterrupt())
+        with pytest.raises(KeyboardInterrupt):
+            pipe.run(now=sn.NOW)
+    run = pipe.repo.latest_run(status=None)
+    stages = pipe.repo.stages(run.run_id)
+    assert run.status == "failed" and stages["cluster"].status == "failed"
+    assert "interrupted" in stages["cluster"].error

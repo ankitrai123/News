@@ -59,7 +59,7 @@ def render_debate(pkg, sources: dict) -> list[str]:
         if ids:
             lines += [f"_{title}:_"] + [claim_line(i) for i in ids]
     for q in pkg.questions:
-        lines.append(f"_Question ({q.disagreement_type}):_ {q.question}")
+        lines.append(f"_Question ({q.disagreement_type}{', from quoted statements' if q.basis == 'quoted statements' else ''}):_ {q.question}")
         for p in q.positions:
             if p.found:
                 lines.append(f"- **{p.label}** ({p.evidence_strength}: {p.strength_reason}) — {p.summary} "

@@ -78,6 +78,17 @@ class RateLimiter:
             self._sleep(wait)
 
 
+_RUN_DEAD: dict[str, set[str]] = {}
+
+
+def _dead_for_run(run_id: str | None) -> set[str]:
+    if not run_id:
+        return set()
+    if run_id not in _RUN_DEAD and len(_RUN_DEAD) >= 8:
+        _RUN_DEAD.pop(next(iter(_RUN_DEAD)))
+    return _RUN_DEAD.setdefault(run_id, set())
+
+
 class LLMClient:
     def __init__(self, cfg: LLMConfig, http: HttpClient | None = None, repo=None, run_id: str | None = None,
                  user_agent: str = "IntelPod", sleep=time.sleep):
@@ -96,7 +107,10 @@ class LLMClient:
         self.limiter = RateLimiter(self.pcfg.requests_per_minute, sleep=sleep)
         self._no_structured: set[str] = set() if self.pcfg.structured_output != "none" else _ALL
         self._forbidden_fields: dict[str, set[str]] = {}
-        self._dead_models: set[str] = set()
+        # Models that failed (gone, timed out, 5xx) are skipped for the rest of the RUN, not just
+        # this client: every stage makes its own client, and a model timing out at 120 s would
+        # otherwise cost two minutes again in every stage.
+        self._dead_models: set[str] = _dead_for_run(run_id)
         self._dead_404: set[str] = set()
         self._sleep = sleep
 

@@ -2,7 +2,7 @@
 model analysis for every researched event. Also used by `intelpod debate`."""
 from __future__ import annotations
 
-from ..research.runner import build_toolkit, load_registry, selected_events
+from ..research.runner import build_toolkit, learn_vocabulary, load_registry, selected_events
 from ..research.service import ResearchService
 from ..research.store import ResearchStore
 from .service import DebateService
@@ -20,6 +20,7 @@ def run_debate(pipe, ctx, refresh: bool = False, use_model: bool = True) -> dict
     if not events:
         return {"status": "skipped", "reason": "no researched events (the research stage produced no packages)"}
     registry = load_registry(settings)
+    learn_vocabulary(pipe, ctx)
     want_model = use_model and cfg.model_analysis and cfg.max_model_calls > 0
     searching = cfg.viewpoint_searches_per_event > 0 and settings.research.enabled
     tk = build_toolkit(pipe, ctx, rstore, refresh_feeds=False,

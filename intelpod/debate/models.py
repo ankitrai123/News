@@ -97,6 +97,7 @@ class Question(BaseModel):
     disagreement_type: DisagreementType = "none"
     positions: list[Position] = Field(default_factory=list)
     asymmetry: str = ""                         # e.g. "most evidence supports A; B rests on one opinion piece"
+    basis: str = "model"                        # "model" (checked) or "quoted statements" (verbatim, no model)
 
 
 class DiversityReport(BaseModel):

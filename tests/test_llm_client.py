@@ -2,6 +2,8 @@
 import json
 
 import httpx
+import uuid
+
 import pytest
 import respx
 from pydantic import BaseModel
@@ -38,7 +40,15 @@ def repo(tmp_path):
 @pytest.fixture
 def client(repo, monkeypatch):
     monkeypatch.setenv("NVIDIA_API_KEY", "nvapi-test-secret-123456")
-    return LLMClient(LLMConfig(max_retries=1), repo=repo, run_id="run1", sleep=lambda s: None)
+    return LLMClient(_cfg(max_retries=1), repo=repo, run_id=f"run-{uuid.uuid4().hex}", sleep=lambda s: None)
+
+
+def _cfg(**kw) -> LLMConfig:
+    """These tests were written for nemotron-first ordering; keep it explicit here."""
+    from intelpod.config import DEFAULT_REVIEW_MODELS, LLMTaskConfig
+    models = sorted(DEFAULT_REVIEW_MODELS, key=lambda m: m.id != FIRST)
+    return LLMConfig(tasks={"event_review": LLMTaskConfig(temperature=0.2, max_tokens=900,
+                                                          models=[m.model_copy() for m in models])}, **kw)
 
 
 MSGS = [{"role": "user", "content": "Rate this."}]
@@ -276,3 +286,10 @@ def test_all_404_points_at_entitlement(client):
     respx.post(CHAT).respond(404, json={"detail": "Function 'x': Not found for account 'y'"})
     with pytest.raises(LLMUnavailable, match="Public API Endpoints"):
         client.chat("event_review", MSGS)
+
+
+def test_failed_model_is_skipped_for_the_rest_of_the_run():
+    from intelpod.llm.client import _dead_for_run
+    a, b = _dead_for_run("run-x"), _dead_for_run("run-x")
+    a.add("slow/model")
+    assert "slow/model" in b and "slow/model" not in _dead_for_run("run-y") and _dead_for_run(None) == set()

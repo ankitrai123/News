@@ -177,7 +177,8 @@ class Forecast(BaseModel):
 
     forecast_id: str
     text: str                                    # verbatim
-    event_id: str
+    event_id: str                                # first event it was seen under
+    event_ids: list[str] = Field(default_factory=list)  # every event it was seen under (one entry, no copies)
     event_title: str = ""
     first_run_id: str
     last_run_id: str

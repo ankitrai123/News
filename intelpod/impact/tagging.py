@@ -15,8 +15,11 @@ def _rx(words: str) -> re.Pattern:
 
 
 DIMENSION_RX: dict[str, re.Pattern] = {
-    "growth": _rx(r"gdp|economic growth|growth forecast|recession|slowdown|economic output|economy grew|"
-                  r"economy shrank|contraction"),
+    # Every growth cue names the economy: "network slowdown" or "sales growth" are not GDP.
+    "growth": _rx(r"gdp|economic growth|growth forecasts?|growth outlook|recession|economic slowdown|"
+                  r"slowdown in (?:the )?(?:global |world |\w+n )?economy|economic output|economic activity|"
+                  r"econom(?:y|ies) (?:grew|shrank|contracted|expanded|slowed|slowing|grow|growing)|"
+                  r"(?:global|world) economy|economic contraction"),
     "inflation_rates": _rx(r"inflation|interest rates?|repo rate|policy rate|rate cuts?|rate hikes?|central bank|"
                            r"monetary policy|bond yields?|yields|cpi|consumer prices"),
     "energy_commodities": _rx(r"oil|crude|brent|natural gas|lng|opec\+?|fuel|petrol|diesel|coal|copper|gold|"
@@ -25,8 +28,16 @@ DIMENSION_RX: dict[str, re.Pattern] = {
                             r"foreign investors?|fdi|portfolio flows?|outflows?|inflows?|forex|reserves"),
     "trade_tariffs": _rx(r"tariffs?|duties|duty|trade deal|trade war|exports?|imports?|export controls?|"
                          r"trade deficit|trade surplus|quotas?|sanctions?|wto"),
-    "corporate": _rx(r"revenues?|profits?|earnings|margins?|costs?|shares|stock|valuations?|guidance|"
-                     r"sales|orders"),
+    # Company finances only: "energy revenues" or "tax revenues" of a state are fiscal, not corporate.
+    "corporate": re.compile(r"\b((?:company|companies|firm|firms|corporate|group|maker|makers|retailer|retailers|"
+                            r"bank|banks|lender|lenders|insurer|insurers|automaker|automakers|carmaker|carmakers|"
+                            r"airline|airlines|refiner|refiners|exporters?|manufacturers?|business(?:es)?|"
+                            r"inc\.?|ltd\.?|plc)(?:'s|’s)?\W+(?:\w+\W+){0,3}(?:revenues?|profits?|earnings|"
+                            r"margins?|costs?|sales|orders|losses|guidance)|quarterly (?:results|earnings|profit|"
+                            r"revenue)|net profit|operating profit|profit warning|earnings per share|"
+                            r"(?:shares|stock) (?:rose|fell|jumped|slumped|surged|tumbled|dropped|climbed|gained|"
+                            r"plunged|rallied)|market (?:value|capitali[sz]ation)|input costs|operating costs)\b",
+                            re.I),
     "competition": _rx(r"competition|competitors?|market share|antitrust|monopoly|consolidation|mergers?|"
                        r"acquisitions?|rivals?"),
     "supply_chain": _rx(r"supply chains?|suppliers?|shortages?|logistics|shipping|freight|bottlenecks?|"
@@ -35,7 +46,8 @@ DIMENSION_RX: dict[str, re.Pattern] = {
                            r"artificial intelligence|\bai\b|chipmaking|fabs?|r&d|research and development"),
     "jobs_demand": _rx(r"jobs?|employment|unemployment|layoffs?|hiring|workers|wages|consumer demand|"
                        r"consumer spending|households|retail sales"),
-    "fiscal_regulation": _rx(r"budget|deficit|fiscal|subsid(?:y|ies)|tax(?:es)?|regulat\w*|rules|law|"
+    "fiscal_regulation": _rx(r"budget|deficit|fiscal|subsid(?:y|ies)|tax(?:es)?|tax revenues?|"
+                             r"(?:oil|energy|gas|state|government|export) revenues?|regulat\w*|rules|law|"
                              r"legislation|ban|licen[cs]e|compliance"),
 }
 SECTOR_RX: dict[str, re.Pattern] = {

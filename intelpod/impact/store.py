@@ -94,6 +94,7 @@ class ImpactStore:
                 old = Forecast.model_validate(row.payload)
                 old.last_run_id = f.last_run_id
                 old.source_ids = list(dict.fromkeys(old.source_ids + f.source_ids))
+                old.event_ids = list(dict.fromkeys((old.event_ids or [old.event_id]) + (f.event_ids or [f.event_id])))
                 row.payload = old.model_dump(mode="json")
                 row.updated_at = datetime.now(timezone.utc)
         return new
@@ -104,11 +105,13 @@ class ImpactStore:
             q = select(ForecastRow)
             if status:
                 q = q.where(ForecastRow.status == status)
-            if event_id:
-                q = q.where(ForecastRow.event_id == event_id)
-            rows = s.scalars(q.order_by(ForecastRow.first_seen_at.desc()).limit(limit if not first_run_id else 100000)).all()
+            rows = s.scalars(q.order_by(ForecastRow.first_seen_at.desc())).all()
             out = [Forecast.model_validate(r.payload) for r in rows]
-            return [f for f in out if f.first_run_id == first_run_id] if first_run_id else out
+        if event_id:
+            out = [f for f in out if event_id in (f.event_ids or [f.event_id])]
+        if first_run_id:
+            out = [f for f in out if f.first_run_id == first_run_id]
+        return out[:limit]
 
     def resolve_forecast(self, forecast_id: str, verdict: str, outcome: str, amend: bool = False) -> Forecast | None:
         """Record an outcome. An already-recorded outcome is only changed with `amend=True`, and the

@@ -24,8 +24,12 @@ from ..research.models import ResearchResult
 from ..textutil import normalize_title, stable_hash, tokenize
 from .models import Claim
 
-FORECAST = re.compile(r"\b(will|would|is expected to|are expected to|expects?|expected|forecasts?|projected|projects|"
-                      r"likely to|unlikely to|set to|poised to|could|may|might|outlook|next year|next month)\b", re.I)
+_FORECAST_CI = (r"will|is expected to|are expected to|expects?|expected to|forecasts?|forecast to|projected|projects|"
+                r"likely to|unlikely to|set to|poised to|could|might|outlook for|next year|next month|next quarter|"
+                r"would (?:likely |probably |also )?(?:rise|fall|increase|decrease|grow|slow|boost|hurt|help|support|"
+                r"lead|cause|reach|remain|weigh|lift|cut|raise|lower|push|drive|widen|narrow|cost|add|reduce|hit)")
+# "may" counts only in lower case: "May" is usually the month.
+FORECAST = re.compile(r"\b(" + _FORECAST_CI + r"|(?-i:may))\b", re.I)
 VALUE = re.compile(r"\b(should|must|ought to|wrong|mistake|misguided|reckless|shameful|disastrous|unacceptable|"
                    r"welcomes?|welcomed|right to|deserves?|wise|unwise|foolish|betrayal|courageous)\b", re.I)
 ATTRIB = re.compile(r"\b(said|says|told|according to|announced|stated|added|warned|argued|noted|wrote|"
@@ -95,12 +99,16 @@ def classify_claim(text: str, content_type: str) -> tuple[str, str]:
     return "factual", "plain statement"
 
 
+SPEAKER_TAIL = re.compile(r"(?:\s+(?:also|previously|later|again|earlier|further|then|now|had|has|have|"
+                          r"has also|separately|recently|reportedly|once|still|on \w+day))+$", re.I)
+
+
 def speaker_of(text: str) -> str | None:
     for rx in SPEAKER:
         m = rx.search(text)
         if m:
-            s = m.group("s").strip(" ,.;")
-            if 2 < len(s) <= 60 and len(s.split()) <= 8:
+            s = SPEAKER_TAIL.sub("", m.group("s").strip(" ,.;")).strip(" ,.;")
+            if 2 < len(s) <= 60 and len(s.split()) <= 8 and s[:1].isupper():
                 return s
     return None
 
@@ -167,17 +175,23 @@ def _contradicts(a: str, b: str, ta: set[str], tb: set[str]) -> bool:
 NOT_A_CLAIM = re.compile(r"^(analysis|opinion|comment|commentary|explainer|explained|editorial|live|watch|video|"
                          r"podcast|q&a|factbox|timeline)\b\s*[:|\-–]|\?\s*$|^(what|why|how|who|will|can|should|is|are|"
                          r"does|do)\b", re.I)
+# Page furniture that extraction sometimes keeps: link teasers, captions, sign-up prompts.
+BOILERPLATE = re.compile(r"^\s*(also read|read more|read also|read|related|recommended|must read|don'?t miss|see also|"
+                         r"watch|click here|subscribe|sign up|follow us|photo|image|file photo|advertisement|"
+                         r"copyright|©|listen|download|share this|trending|top stories|latest news)\b\s*[:|\-–]?|"
+                         r"\b(click here|subscribe to|sign up for|follow us on|read the full|all rights reserved)\b|"
+                         r"\?\s*[\"”’']?\s*$", re.I)
 
 
 def statements(r: ResearchResult) -> list[tuple[str, str]]:
     """(text, origin) units a source contributes: headline, extracts, attributed sentences.
     Headlines that label a piece ("Analysis: ...") or ask a question are not claims."""
     title = r.title.strip()
-    out = [] if NOT_A_CLAIM.search(title) else [(title, "headline")]
+    out = [] if (NOT_A_CLAIM.search(title) or BOILERPLATE.search(title)) else [(title, "headline")]
     for n in r.evidence_notes:
         if n.kind == "extract":
-            out.extend((s, "extract") for s in split_sentences(n.text))
-    out.extend((c, "attributed") for c in r.key_claims)
+            out.extend((s, "extract") for s in split_sentences(n.text) if not BOILERPLATE.search(s))
+    out.extend((c, "attributed") for c in r.key_claims if not BOILERPLATE.search(c))
     seen, uniq = set(), []
     for t, o in out:
         k = " ".join(t.lower().split())

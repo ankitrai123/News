@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from ..debate.store import DebateStore
-from ..research.runner import model_client, selected_events
+from ..research.runner import learn_vocabulary, model_client, selected_events
 from ..research.store import ResearchStore
 from .service import ImpactService
 from .store import ImpactStore
@@ -19,6 +19,7 @@ def run_impact(pipe, ctx, refresh: bool = False) -> dict:
     notes: dict[str, str] = {}
     want = cfg.model_analysis and cfg.max_model_calls > 0
     llm = model_client(pipe, ctx, notes, "impact analysis") if want else None
+    learn_vocabulary(pipe, ctx)
     service = ImpactService(settings, ResearchStore(pipe.db), DebateStore(pipe.db), ImpactStore(pipe.db),
                             llm_client=llm)
     stats = service.run(ctx.run_id, events, ctx.now, skip_done=not refresh)

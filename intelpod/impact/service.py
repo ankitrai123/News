@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 from typing import Callable
 
 from ..config import Settings
-from ..debate.claims import FORECAST
+from ..debate.claims import ATTRIB, FORECAST
 from ..debate.models import Claim, DebatePackage
 from ..research.model_assist import safe_call
 from ..research.models import EventBrief, ResearchResult
@@ -196,13 +196,21 @@ class ImpactService:
             if c.kind != "forecast":
                 continue
             src = next((by_id[s] for s in c.source_ids if s in by_id), None)
+            when = timeframe(c.text)
+            # The ledger is for forecasts someone can later be held to: attributed to a speaker or
+            # an official source, or with a stated timeframe. Vague unattributed "could" sentences
+            # stay in the claim map only.
+            official = any(by_id[s].content_type == "primary" or by_id[s].source_type in ("official", "international_org")
+                           for s in c.source_ids if s in by_id)
+            if not (when or c.speaker or official or ATTRIB.search(c.text)):
+                continue
             m = FORECAST.search(c.text)
             out.append(Forecast(
-                forecast_id=stable_hash("forecast", brief.event_id, " ".join(c.text.lower().split())), text=c.text,
-                event_id=brief.event_id,
+                forecast_id=stable_hash("forecast", " ".join(c.text.lower().split())), text=c.text,
+                event_id=brief.event_id, event_ids=[brief.event_id],
                 event_title=brief.title, first_run_id=run_id, last_run_id=run_id, first_seen_at=now,
                 publisher=src.publisher if src else None, url=src.url if src else None, speaker=c.speaker,
-                published_at=src.published_at if src else None, timeframe=timeframe(c.text),
+                published_at=src.published_at if src else None, timeframe=when,
                 hedge=m.group(1) if m else None, source_ids=c.source_ids))
         return out
 

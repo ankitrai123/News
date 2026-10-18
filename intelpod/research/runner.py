@@ -161,3 +161,12 @@ def run_research(pipe, ctx, refresh: bool = False) -> dict:
         **{k: v for k, v in stats.items() if k != "provider_notes"},
         "attribution": "Discovery via The GDELT Project (https://www.gdeltproject.org/)" if "gdelt" in tk.providers else None,
     }
+
+
+def learn_vocabulary(pipe, ctx, days: int = 14) -> int:
+    """Teach the model-output checks which capitalised sentence-start words are ordinary English,
+    from the stored news text of the last `days` (see debate.analysis.register_vocabulary)."""
+    from ..debate.analysis import register_vocabulary
+    start = ctx.now - timedelta(days=days)
+    arts = pipe.repo.articles_in_window(start, ctx.now)
+    return register_vocabulary(f"{a.title} {a.description or ''}" for a in arts)

@@ -149,8 +149,9 @@ llm:
       # tried. These ids were reported live in Oct 2026 by third parties: confirm with
       # `intelpod llm models` and `intelpod llm test --model <id>`, then reorder or replace.
       models:
-        - {id: nvidia/nemotron-3.5-lightning-30b-a3b, extra_body: {chat_template_kwargs: {enable_thinking: false}}}
+        # gpt-oss-20b first: nemotron-3.5-lightning timed out on every call in the first live runs.
         - {id: openai/gpt-oss-20b, extra_body: {reasoning_effort: low}, max_tokens: 2000}
+        - {id: nvidia/nemotron-3.5-lightning-30b-a3b, extra_body: {chat_template_kwargs: {enable_thinking: false}}}
         - {id: google/gemma-4-31b-it, extra_body: {chat_template_kwargs: {enable_thinking: false}}}
         - {id: nvidia/nemotron-3-ultra-550b-a55b, extra_body: {chat_template_kwargs: {enable_thinking: false}}}
       temperature: 0.2

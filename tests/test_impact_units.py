@@ -324,3 +324,49 @@ def test_brief_markdown_escapes_untrusted_text():
     import re
     assert not re.search(r"(?<!\\)\]\(https://evil", md) and not re.search(r"(?<!\\)<img", md)
     assert "## Connections between events" in md and "evidenced" in md
+
+
+def test_months_and_day_wide_names_do_not_make_links():
+    drones = brief(event_id="d", title="Drones strike Black Sea port", entities=["Black Sea", "September"],
+                   countries=["Ukraine", "Russia"], centroid={"drones": 1.0})
+    crude = brief(event_id="c", title="India's crude imports from Russia rise", entities=["September", "Trump"],
+                  countries=["India", "Russia"], centroid={"crude": 1.0})
+    tariff = brief(event_id="t", title="Trump tariff threat on EU wine", entities=["Trump"], countries=["United States"])
+    waiver = brief(event_id="w", title="Trump waiver on sanctions criticised", entities=["Trump", "Rubio"],
+                   countries=["United States"])
+    srcs = {
+        "d": [res("d1", "AP", "Drone attack hits Black Sea port",
+                  extracts=["The attack in September followed a similar strike, officials said."])],
+        "c": [res("c1", "Mint", "Crude imports rise",
+                  extracts=["Refiners bought more Russian crude in September as Trump weighed new trade deal terms."])],
+        "t": [res("t1", "FT", "Trump tariff threat", extracts=["Trump said a trade deal was close."])],
+        "w": [res("w1", "NPR", "Waiver criticised", extracts=["Trump defended the waiver on Friday."])],
+    }
+    links = find_links("r", [(drones, srcs["d"]), (crude, srcs["c"]), (tariff, srcs["t"]), (waiver, srcs["w"])])
+    assert all(link.kind != "evidenced" for link in links), [(link.title_a, link.title_b, link.evidence) for link in links]
+
+
+def test_impact_tags_need_economic_context():
+    dims, _, _ = tag_dimensions([claim("n1", "A network slowdown hit mobile users on Tuesday."),
+                                 claim("n2", "Russia's energy revenues fell sharply in September.")])
+    keys = {d.key for d in dims}
+    assert "growth" not in keys and "corporate" not in keys and "fiscal_regulation" in keys
+
+
+def test_ledger_keeps_attributable_forecasts_once(tmp_path):
+    from intelpod.impact.service import ImpactService
+    from intelpod.config import Settings
+    store = ImpactStore(Database(tmp_path / "l.db"))
+    svc = ImpactService(Settings(), None, None, store)
+    vague = claim("v", "Prices could rise.", kind="forecast", confidence="speculative")
+    dated = claim("d", "Inflation will ease next year.", kind="forecast", confidence="speculative")
+    said = claim("s", "The rupee will weaken, analysts said.", kind="forecast", confidence="speculative")
+    said.speaker = "analysts"
+    srcs = [res("a", "Mint", "x")]
+    f1 = svc.forecasts("r1", brief(event_id="e1"), [vague, dated, said], srcs, NOW)
+    assert {f.text for f in f1} == {dated.text, said.text}             # vague, unattributed, undated: not ledgered
+    f2 = svc.forecasts("r1", brief(event_id="e2"), [dated], srcs, NOW)
+    store.upsert_forecasts(f1)
+    assert store.upsert_forecasts(f2) == []                             # same sentence under another event: one entry
+    entry = next(f for f in store.forecasts() if f.text == dated.text)
+    assert set(entry.event_ids) == {"e1", "e2"} and store.forecasts(event_id="e2")[0].text == dated.text

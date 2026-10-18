@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "intelpod"
 version = "0.1.0"
-description = "Local, zero-cost geopolitical & business intelligence podcast agent (Phase 1: ingestion, clustering, ranking)"
+description = "Local, zero-cost geopolitical & business intelligence podcast agent (Phases 1-4: news selection, research, viewpoints, impact)"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
