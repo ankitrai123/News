@@ -42,6 +42,7 @@ class AudioRender(BaseModel):
     speed: float = 1.0
     sample_rate: int = 0
     status: Literal["complete", "incomplete", "skipped", "failed"]
+    script_fp: str = ""                          # which version of the script this audio speaks
     files: dict[str, str] = Field(default_factory=dict)   # format -> path relative to the run directory
     duration_s: float = 0.0
     expected_s: float = 0.0

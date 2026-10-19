@@ -376,10 +376,14 @@ def create_app(settings: Settings | None = None, pipeline_factory=None,
             srcs = {x.result_id: x for eid in {s.event_id for s in ep.plan.stories}
                     for x in rstore.results(ep.run_id, eid)}
             cites, listed = citations(ep, srcs)
+        from ..audio.service import audio_matches
         audio = astore.render(ep.run_id) if ep else None
+        audio_stale = audio is not None and not audio_matches(audio, ep)
+        if audio_stale:
+            audio = None                 # never play audio of an older version of the script
         starts = {ln.line_id: ln.start_s for ln in audio.lines} if audio and audio.status == "complete" else {}
         return page(request, "episode.html", active="episode", ep=ep, cites=cites, sources_list=listed,
-                    audio=audio, starts=starts,
+                    audio=audio, starts=starts, audio_stale=audio_stale,
                     titles={s.event_id: s.title for s in ep.plan.stories} if ep else {},
                     history=estore.episodes(15))
 

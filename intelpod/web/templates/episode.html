@@ -1,18 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Episode · IntelPod{% if audio and audio.status == 'complete' %}
-<script>
-document.querySelectorAll('.seek').forEach(function (el) {
-  el.addEventListener('click', function (e) {
-    if (e.target.tagName === 'A' && !e.target.classList.contains('seek')) return;  // source links work as links
-    e.preventDefault();
-    var p = document.getElementById('player');
-    p.currentTime = parseFloat(el.getAttribute('data-t')) || 0;
-    p.play();
-  });
-});
-</script>
-{% endif %}
-{% endblock %}
+{% block title %}Episode · IntelPod{% endblock %}
 {% block content %}
 {% if not ep %}
 <h1>Episode</h1>
@@ -31,7 +18,8 @@ document.querySelectorAll('.seek').forEach(function (el) {
 {% if audio and audio.status == 'complete' %}
   {% set src = 'episode.mp3' if 'mp3' in audio.files else 'episode.wav' %}
   <audio id="player" controls preload="metadata" style="width:100%" src="/media/{{ ep.run_id }}/{{ src }}"></audio>
-  <p class="small muted">{{ (audio.duration_s // 60)|int }} min {{ (audio.duration_s % 60)|round|int }} s ·
+  {% set secs = audio.duration_s|round|int %}
+  <p class="small muted">{{ secs // 60 }} min {{ secs % 60 }} s ·
    voices: {{ ep.hosts.A }} = {{ audio.voices.A }}, {{ ep.hosts.B }} = {{ audio.voices.B }} ({{ audio.engine }}) ·
    <a href="/media/{{ ep.run_id }}/{{ src }}" download>download</a> · click a line below to jump to it</p>
   {% if audio.chapters %}<p class="small">{% for c in audio.chapters %}<a href="#" class="pill seek" data-t="{{ c.start_s }}">{{ (c.start_s // 60)|int }}:{{ '%02d'|format((c.start_s % 60)|int) }} {{ c.title }}</a>{% endfor %}</p>{% endif %}
@@ -39,6 +27,8 @@ document.querySelectorAll('.seek').forEach(function (el) {
   <p class="small">Audio checks: {% for c in audio.checks %}<span class="pill {{ '' if c.ok else 'warn' }}" title="{{ c.detail }}">{{ c.name }}{{ '' if c.ok else ' ⚠' }}</span>{% endfor %}</p>
 {% elif audio %}
   <b>Audio {{ audio.status }}.</b> <span class="small">{{ audio.limitations|join(' ') }}</span>
+{% elif audio_stale %}
+  <span class="small warn">The script changed since the audio was made; run <code>intelpod audio</code> to update it (unchanged lines come from the cache).</span>
 {% else %}
   <span class="small muted">No audio yet. Set up a voice engine (<code>intelpod tts list</code>, e.g. <code>intelpod tts setup kokoro</code>) and run <code>intelpod audio</code>.</span>
 {% endif %}

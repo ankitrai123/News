@@ -43,6 +43,10 @@ class Engine:
     def voices(self) -> list[str]:
         return []
 
+    def cache_tag(self) -> str:
+        """Part of each line's cache key: changing the model re-renders lines."""
+        return ""
+
     def synth(self, text: str, voice: str, speed: float, out: Path) -> None:
         raise NotImplementedError
 
@@ -69,9 +73,16 @@ class KokoroEngine(Engine):
 
     def _load(self):
         if self._k is None:
-            from kokoro_onnx import Kokoro
-            self._k = Kokoro(str(self.dir / self.cfg.kokoro_model), str(self.dir / self.cfg.kokoro_voices))
+            try:
+                from kokoro_onnx import Kokoro
+                self._k = Kokoro(str(self.dir / self.cfg.kokoro_model), str(self.dir / self.cfg.kokoro_voices))
+            except Exception as e:  # noqa: BLE001 - DLL load failure, corrupt model (onnxruntime Fail/InvalidProtobuf)
+                raise EngineError(f"Kokoro could not load ({type(e).__name__}: {str(e)[:200]}); re-run "
+                                  f"`intelpod tts setup kokoro` or check onnxruntime") from e
         return self._k
+
+    def cache_tag(self):
+        return self.cfg.kokoro_model
 
     def voices(self):
         try:
@@ -107,7 +118,13 @@ class PiperEngine(Engine):
         return True, "ok"
 
     def voices(self):
-        return sorted(p.stem for p in self.dir.glob("*.onnx")) if self.dir.exists() else []
+        """Voices with both files (model and its .onnx.json config): a partial download is not a voice."""
+        if not self.dir.exists():
+            return []
+        return sorted(p.stem for p in self.dir.glob("*.onnx") if p.with_suffix(".onnx.json").exists())
+
+    def cache_tag(self):
+        return "piper"
 
     def synth(self, text, voice, speed, out):
         from piper import PiperVoice, SynthesisConfig
@@ -115,10 +132,18 @@ class PiperEngine(Engine):
         if not model.exists():
             raise EngineError(f"Piper voice {voice} not found in {self.dir}")
         if voice not in self._voices:
-            self._voices[voice] = PiperVoice.load(model)
+            try:
+                self._voices[voice] = PiperVoice.load(model)
+            except Exception as e:  # noqa: BLE001
+                raise EngineError(f"Piper voice {voice} could not load ({type(e).__name__}); re-run setup") from e
+        v = self._voices[voice]
+        base = getattr(getattr(v, "config", None), "length_scale", None) or 1.0   # keep the voice's own pace
         out.parent.mkdir(parents=True, exist_ok=True)
         with wave.open(str(out), "wb") as w:
-            self._voices[voice].synthesize_wav(text, w, syn_config=SynthesisConfig(length_scale=1.0 / speed))
+            w.setnchannels(1)                     # header stays valid even if no audio chunk is produced
+            w.setsampwidth(2)
+            w.setframerate(22050)
+            v.synthesize_wav(text, w, syn_config=SynthesisConfig(length_scale=base / speed))
 
 
 class WindowsEngine(Engine):
@@ -134,12 +159,19 @@ class WindowsEngine(Engine):
         return True, "ok"
 
     def _ps(self, script: str, timeout: int = 120) -> subprocess.CompletedProcess:
-        return subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
-                              capture_output=True, text=True, timeout=timeout)
+        # Stop on the first error (a missing voice must fail, not fall back to the default voice) and
+        # report it with a non-zero exit code; UTF-8 both ways.
+        wrapped = ("$ErrorActionPreference = 'Stop'; [Console]::OutputEncoding = [Text.Encoding]::UTF8; "
+                   f"try {{ {script} }} catch {{ [Console]::Error.WriteLine($_.ToString()); exit 1 }}")
+        return subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", wrapped],
+                              capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout)
 
     def voices(self):
-        r = self._ps("Add-Type -AssemblyName System.Speech; (New-Object System.Speech.Synthesis.SpeechSynthesizer)"
-                     ".GetInstalledVoices() | ForEach-Object { $_.VoiceInfo.Name }", timeout=60)
+        try:
+            r = self._ps("Add-Type -AssemblyName System.Speech; (New-Object System.Speech.Synthesis.SpeechSynthesizer)"
+                         ".GetInstalledVoices() | ForEach-Object { $_.VoiceInfo.Name }", timeout=60)
+        except (OSError, subprocess.TimeoutExpired):
+            return []
         return [v.strip() for v in r.stdout.splitlines() if v.strip()]
 
     def synth(self, text, voice, speed, out):
@@ -147,7 +179,12 @@ class WindowsEngine(Engine):
         txt = out.with_suffix(".txt")
         txt.write_text(text, encoding="utf-8")       # text passed by file: never interpolated into the command
         rate = max(-10, min(10, round((speed - 1.0) * 10)))
-        q = lambda s: "'" + str(s).replace("'", "''") + "'"  # noqa: E731 - PowerShell single-quoted literal
+        def q(s) -> str:
+            # PowerShell single-quoted literal; it also treats curly single quotes as delimiters.
+            v = str(s)
+            for ch in ("'", "‘", "’", "‚", "‛"):
+                v = v.replace(ch, ch * 2)
+            return "'" + v + "'"
         script = ("Add-Type -AssemblyName System.Speech; $s = New-Object System.Speech.Synthesis.SpeechSynthesizer; "
                   f"$s.SelectVoice({q(voice)}); $s.Rate = {rate}; $s.SetOutputToWaveFile({q(out)}); "
                   f"$s.Speak([IO.File]::ReadAllText({q(txt)})); $s.Dispose()")

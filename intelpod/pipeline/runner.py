@@ -568,10 +568,12 @@ class Phase1Pipeline:
                                for x in store.results(ctx.run_id, eid)}
                 from ..audio.store import AudioStore
                 ar = AudioStore(self.db).render(ctx.run_id)
+                from ..audio.service import audio_matches
+                current = audio_matches(ar, ep)          # audio made for exactly this script
                 timings = ({ln.line_id: (ln.start_s, ln.duration_s) for ln in ar.lines}
-                           if ar is not None and ar.status == "complete" and ar.episode_id == ep.episode_id else None)
+                           if current and ar.status == "complete" else None)
                 paths.update(write_episode(out_dir, ep, all_sources, timings))
-                if ar is not None and ar.episode_id == ep.episode_id:
+                if current:
                     for fmt, rel in ar.files.items():
                         paths[f"audio_{fmt}"] = out_dir / rel
         except Exception as e:  # noqa: BLE001

@@ -73,6 +73,21 @@ Hardware and dependency notes:
    | speech rate per line | 0.12-1.2 s per word | warning (lists the lines) |
    | no clipping | under 0.1% of samples at full scale | warning |
 
+Safeguards:
+* **Each line is validated** before it is cached: a file that is empty, unreadable, shorter than
+  0.2 s or near-silent counts as a failure (it is retried, never cached). Lines are written to a
+  temporary file and moved into place, so an interrupted run never leaves a half-written line.
+* A **failed `--redo`** keeps the earlier recording of that line.
+* **Missing voices** stop the render with a clear message (e.g. a Windows voice that is not
+  installed, a Piper voice without its `.onnx.json`) instead of silently using a default voice.
+* **Engine load errors** (onnxruntime DLL problems, a corrupt model) are reported per line with a
+  hint to re-run `intelpod tts setup`.
+* **Stale audio.** The audio records a fingerprint of the script it spoke. If the script is
+  rewritten later, the Episode page and the report stop using the old audio and timings and say
+  to run `intelpod audio` again (unchanged lines come from the cache).
+* Model downloads (`intelpod tts setup`) go to a `.part` file first, so a broken download is
+  never mistaken for a model.
+
 ## Output
 
 In `data/runs/<run>/`:

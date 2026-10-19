@@ -9,6 +9,8 @@ hedge or a correction and change what the episode says. It is reported as incomp
 from __future__ import annotations
 
 import logging
+import os
+import wave
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -23,6 +25,32 @@ from .wavtools import (convert_with_ffmpeg, decode_with_ffmpeg, ffmpeg, probe_du
 log = logging.getLogger(__name__)
 
 
+MIN_LINE_S = 0.2        # a spoken line shorter than this is a failed synthesis, not speech
+MIN_LINE_RMS = 0.002    # below this the "speech" is silence
+
+
+def script_fingerprint(ep: Episode) -> str:
+    """Identifies exactly what is spoken: audio made for another version of the script is stale."""
+    return stable_hash(ep.episode_id, *[f"{x.line_id}|{x.speaker}|{x.text}" for x in ep.lines])
+
+
+def audio_matches(ar, ep) -> bool:
+    return ar is not None and ep is not None and ar.script_fp == script_fingerprint(ep)
+
+
+def _valid_line(path: Path) -> str | None:
+    """None if the file holds real speech, else why not (truncated, empty, silent, unreadable)."""
+    try:
+        samples, rate = read_wav(path)
+    except Exception as e:  # noqa: BLE001 - wave.Error, EOFError, ValueError, OSError...
+        return f"unreadable WAV ({type(e).__name__}: {str(e)[:80]})"
+    if len(samples) < MIN_LINE_S * rate:
+        return f"too short ({len(samples) / max(rate, 1):.2f} s)"
+    if stats(samples)["rms"] < MIN_LINE_RMS:
+        return "silent"
+    return None
+
+
 def render(ep: Episode, engine: Engine, cfg, run_dir: Path, redo: set[str] | None = None,
            wpm: int = 150) -> AudioRender:
     audio_dir = run_dir / "audio"
@@ -30,37 +58,59 @@ def render(ep: Episode, engine: Engine, cfg, run_dir: Path, redo: set[str] | Non
     defaults = AudioConfig().voices.get(engine.name, {})
     voices = {**defaults, **(cfg.voices.get(engine.name) or {})}   # a config missing an engine keeps its defaults
     ar = AudioRender(run_id=ep.run_id, episode_id=ep.episode_id, title=ep.title, engine=engine.name, voices=voices,
-                     speed=cfg.speed, status="complete", created_at=datetime.now(timezone.utc))
+                     speed=cfg.speed, status="complete", script_fp=script_fingerprint(ep),
+                     created_at=datetime.now(timezone.utc))
     if not ep.lines:
         ar.status = "skipped"
         ar.limitations.append("The episode has no verified script lines; nothing to speak.")
         return ar
     if voices.get("A") == voices.get("B"):
         ar.limitations.append("Both hosts use the same voice; set two different voices in audio.voices.")
+    try:
+        installed = engine.voices()
+    except Exception:  # noqa: BLE001
+        installed = []
+    missing = sorted({v for v in (voices.get("A"), voices.get("B")) if installed and v not in installed})
+    if missing or not voices.get("A") or not voices.get("B"):
+        ar.status = "failed"
+        ar.limitations.append(
+            (f"Voice(s) not installed for {engine.name}: {', '.join(missing)}. Installed: "
+             f"{', '.join(installed[:12])}. Set audio.voices.{engine.name} in config/config.yaml.")
+            if missing else f"No voice configured for one of the hosts (audio.voices.{engine.name}).")
+        return ar
     prons = {p.name: p.say for p in ep.pronunciations} if cfg.apply_pronunciations else {}
+    tag = engine.cache_tag()
 
-    # 1. per-line synthesis, cached
+    # 1. per-line synthesis, cached; a new file only replaces the old one once it is valid
     for x in ep.lines:
-        voice = voices.get(x.speaker) or ""
+        voice = voices[x.speaker]
         spoken = tts_text(x.text, prons)
-        key = stable_hash(engine.name, voice, f"{cfg.speed:.2f}", spoken)[:12]
+        key = stable_hash(engine.name, tag, voice, f"{cfg.speed:.2f}", spoken)[:12]
         rel = f"audio/lines/{x.line_id}-{key}.wav"
         line = AudioLine(line_id=x.line_id, speaker=x.speaker, voice=voice, text=spoken, file=rel)
         path = run_dir / rel
-        if path.exists() and path.stat().st_size > 44 and not (redo and x.line_id in redo):
+        have = path.exists() and _valid_line(path) is None
+        if have and not (redo and x.line_id in redo):
             line.status, line.cached = "ok", True
         else:
+            tmp = path.with_name(path.stem + ".part.wav")
             for attempt in range(1, cfg.max_retries + 2):
                 line.attempts = attempt
                 try:
-                    engine.synth(spoken, voice, cfg.speed, path)
-                    read_wav(path)                      # must be a readable 16-bit WAV
+                    engine.synth(spoken, voice, cfg.speed, tmp)
+                    problem = _valid_line(tmp)
+                    if problem:
+                        raise EngineError(f"synthesis produced unusable audio: {problem}")
+                    os.replace(tmp, path)
                     line.status, line.error = "ok", None
                     break
-                except (EngineError, OSError, ValueError, RuntimeError) as e:
+                except Exception as e:  # noqa: BLE001 - any engine failure is a per-line failure, retried
                     line.status, line.error = "failed", f"{type(e).__name__}: {str(e)[:200]}"
-                    path.unlink(missing_ok=True)
+                    tmp.unlink(missing_ok=True)
                     log.warning("TTS failed for %s (attempt %d): %s", x.line_id, attempt, e)
+            if line.status != "ok" and have:     # a failed --redo keeps the earlier good recording
+                line.status, line.cached = "ok", True
+                ar.limitations.append(f"{x.line_id}: re-recording failed ({line.error}); the earlier recording was kept")
         ar.lines.append(line)
 
     failed = [ln for ln in ar.lines if ln.status != "ok"]
@@ -109,9 +159,18 @@ def render(ep: Episode, engine: Engine, cfg, run_dir: Path, redo: set[str] | Non
     if 0 < st["peak"] < 0.5 or st["peak"] > 0.99:      # bring quiet or hot renders to a sane level
         out = scale(out, 0.89 / st["peak"])
     wav = audio_dir / "episode.wav"
-    write_wav(wav, out, rate)
+    tmpw = audio_dir / "episode.part.wav"
+    write_wav(tmpw, out, rate)
+    try:
+        os.replace(tmpw, wav)
+    except PermissionError:       # Windows: the file is open (e.g. playing in the dashboard)
+        tmpw.unlink(missing_ok=True)
+        ar.status = "failed"
+        ar.limitations.append("episode.wav is in use (playing?); close the player and run `intelpod audio` again")
+        return ar
     ar.files["wav"] = "audio/episode.wav"
     ar.duration_s = round(len(out) / rate, 1)
+    extra_s = (len(intro or []) + len(outro or [])) / rate
     if "mp3" in cfg.formats:
         if ffmpeg():
             err = convert_with_ffmpeg(wav, audio_dir / "episode.mp3", cfg.mp3_bitrate, cfg.loudness_lufs, ep.title)
@@ -121,10 +180,13 @@ def render(ep: Episode, engine: Engine, cfg, run_dir: Path, redo: set[str] | Non
                 ar.files["mp3"] = "audio/episode.mp3"
         else:
             ar.limitations.append("FFmpeg is not installed: WAV only (no MP3, no loudness normalisation).")
+    _checks(ar, ep, cfg, run_dir, wpm, extra_s)       # on the WAV, before it may be removed
     if "wav" not in cfg.formats and "mp3" in ar.files:
-        wav.unlink(missing_ok=True)
-        del ar.files["wav"]
-    _checks(ar, ep, cfg, run_dir, wpm)
+        try:
+            wav.unlink(missing_ok=True)
+            del ar.files["wav"]
+        except PermissionError:
+            ar.limitations.append("episode.wav could not be removed (in use); it was kept")
     return ar
 
 
@@ -136,25 +198,31 @@ def _extra(path: str | None, rate: int, audio_dir: Path, ar: AudioRender):
         ar.limitations.append(f"intro/outro file not found: {p}")
         return None
     try:
-        if p.suffix.lower() != ".wav":
-            tmp = audio_dir / f"_{p.stem}.wav"
-            err = decode_with_ffmpeg(p, tmp, rate)
-            if err:
-                ar.limitations.append(err)
-                return None
-            p = tmp
-        samples, r = read_wav(p)
+        if p.suffix.lower() == ".wav":
+            try:
+                samples, r = read_wav(p)
+                return resample(samples, r, rate)
+            except (wave.Error, ValueError, EOFError):
+                pass  # e.g. 24-bit or 32-bit float WAV: let FFmpeg convert it
+        tmp = audio_dir / f"_{p.stem}.wav"
+        err = decode_with_ffmpeg(p, tmp, rate)
+        if err:
+            ar.limitations.append(err)
+            return None
+        samples, r = read_wav(tmp)
         return resample(samples, r, rate)
-    except (OSError, ValueError, EOFError) as e:
-        ar.limitations.append(f"intro/outro file unreadable ({p.name}): {e}")
+    except Exception as e:  # noqa: BLE001 - a bad intro must never stop the episode
+        ar.limitations.append(f"intro/outro file unreadable ({p.name}): {type(e).__name__}: {e}")
         return None
 
 
-def _checks(ar: AudioRender, ep: Episode, cfg, run_dir: Path, wpm: int) -> None:
+def _checks(ar: AudioRender, ep: Episode, cfg, run_dir: Path, wpm: int, extra_s: float = 0.0) -> None:
     add = ar.checks.append
     add(Check(name="all lines rendered", ok=True, detail=f"{len(ar.lines)} lines"))
     words = sum(len(x.text.split()) for x in ep.lines)
-    ar.expected_s = round(words / (wpm * cfg.speed) * 60 + len(ar.lines) * cfg.line_pause_ms / 1000, 1)
+    segments = len(ar.chapters)
+    ar.expected_s = round(words / (wpm * cfg.speed) * 60 + len(ar.lines) * cfg.line_pause_ms / 1000
+                          + segments * cfg.segment_pause_ms / 1000 + extra_s, 1)
     lo, hi = 0.6 * ar.expected_s, 1.6 * ar.expected_s
     add(Check(name="duration plausible", ok=lo <= ar.duration_s <= hi, severity="warning",
               detail=f"{ar.duration_s:.0f} s for {words} words (expected about {ar.expected_s:.0f} s)"))

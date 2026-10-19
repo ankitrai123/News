@@ -181,6 +181,8 @@ def test_piper_adapter_uses_documented_api(tmp_path, monkeypatch):
     (tmp_path / "piper").mkdir()
     (tmp_path / "piper" / "en_US-amy-medium.onnx").write_bytes(b"x")
     eng = PiperEngine(AudioConfig(), tmp_path)
+    assert eng.available()[0] is False                      # model without its .onnx.json: partial download
+    (tmp_path / "piper" / "en_US-amy-medium.onnx.json").write_text("{}")
     assert eng.available() == (True, "ok")
     eng.synth("Hello", "en_US-amy-medium", 1.25, tmp_path / "p.wav")
     assert seen == {"model": "en_US-amy-medium.onnx", "length_scale": 0.8}
@@ -225,3 +227,90 @@ def test_engine_missing_from_config_keeps_default_voices(tmp_path):
     c = cfg(voices={"kokoro": {"A": "af_heart", "B": "am_michael"}})       # no "test" entry
     ar = render(episode(), ToneEngine(c, tmp_path), c, tmp_path)
     assert ar.voices == {"A": "low", "B": "high"}
+
+
+
+# -- review regressions ---------------------------------------------------------------------------
+class EmptyEngine(ToneEngine):
+    """Writes a header-only WAV for one line, or raises odd exception types."""
+    empty_for = "Inflation"
+    raise_type = None
+
+    def synth(self, text, voice, speed, out):
+        if self.raise_type and self.empty_for in text:
+            raise self.raise_type("boom")
+        if self.empty_for in text:
+            write_wav(out, silence(0, self.rate), self.rate)
+            return
+        super().synth(text, voice, speed, out)
+
+
+def test_empty_or_silent_line_is_a_failure_not_a_complete_episode(tmp_path):
+    ar = render(episode(), EmptyEngine(cfg(), tmp_path), cfg(max_retries=0), tmp_path)
+    assert ar.status == "incomplete" and "unusable audio" in next(ln for ln in ar.lines if ln.line_id == "L3").error
+
+
+@pytest.mark.parametrize("exc", [__import__("wave").Error, EOFError, ImportError, KeyError,
+                                 __import__("subprocess").TimeoutExpired])
+def test_any_engine_exception_is_a_per_line_failure(tmp_path, exc):
+    eng = EmptyEngine(cfg(), tmp_path)
+    eng.raise_type = (lambda m: exc("cmd", 1)) if exc.__name__ == "TimeoutExpired" else exc
+    ar = render(episode(), eng, cfg(max_retries=1), tmp_path)
+    assert ar.status == "incomplete" and [ln.line_id for ln in ar.lines if ln.status == "failed"] == ["L3"]
+
+
+def test_truncated_cached_line_is_rerendered_and_failed_redo_keeps_old(tmp_path):
+    ep = episode()
+    ar = render(ep, ToneEngine(cfg(), tmp_path), cfg(), tmp_path)
+    l2 = tmp_path / ar.lines[1].file
+    write_wav(l2, silence(0, 16000), 16000)                 # killed mid-write: header only
+    again = render(ep, ToneEngine(cfg(), tmp_path), cfg(), tmp_path)
+    assert again.status == "complete" and not again.lines[1].cached
+    eng = EmptyEngine(cfg(), tmp_path)
+    eng.empty_for = "Reserve Bank"
+    redo = render(ep, eng, cfg(max_retries=0), tmp_path, redo={"L2"})
+    assert redo.status == "complete" and redo.lines[1].cached and any("earlier recording" in x for x in redo.limitations)
+
+
+def test_missing_voice_fails_clearly(tmp_path, monkeypatch):
+    monkeypatch.setattr(ToneEngine, "voices", lambda self: ["low"])
+    ar = render(episode(), ToneEngine(cfg(), tmp_path), cfg(), tmp_path)
+    assert ar.status == "failed" and "not installed" in ar.limitations[0] and "high" in ar.limitations[0]
+
+
+@pytest.mark.skipif(ffmpeg() is None, reason="FFmpeg not installed")
+def test_float_intro_is_converted_and_mp3_only_still_checked(tmp_path):
+    import subprocess
+    intro = tmp_path / "intro.wav"
+    subprocess.run([ffmpeg(), "-y", "-loglevel", "error", "-f", "lavfi", "-i", "sine=f=440:d=1", "-c:a", "pcm_f32le",
+                    str(intro)], check=True)
+    c = cfg(intro_file=str(intro), formats=["mp3"])
+    ar = render(episode(), ToneEngine(c, tmp_path), c, tmp_path)
+    assert ar.status == "complete" and ar.lines[0].start_s >= 1.4 and "wav" not in ar.files
+    assert {ch.name for ch in ar.checks} >= {"final file readable", "not silent", "MP3 duration matches"}
+
+
+def test_numbers_spoken_without_changing_them():
+    assert tts_text("1,200,000 tonnes, $1.2bn, ₹500cr") == "1200000 tonnes, 1.2 billion dollars, 500 crore rupees"
+
+
+def test_stale_audio_never_shown_or_timed_for_a_changed_script(tmp_path):
+    from intelpod.audio.service import audio_matches
+    ep = episode()
+    ar = render(ep, ToneEngine(cfg(), tmp_path), cfg(), tmp_path)
+    assert audio_matches(ar, ep)
+    ep.lines[0].text = "Welcome back to IntelPod."
+    assert not audio_matches(ar, ep)
+
+
+def test_windows_quoting_handles_all_single_quote_styles(monkeypatch, tmp_path):
+    from intelpod.audio.engines import WindowsEngine
+    seen = {}
+
+    def fake_ps(self, script, timeout=120):
+        seen["script"] = script
+        (tmp_path / "w.wav").write_bytes(b"x")
+        return types.SimpleNamespace(returncode=0, stderr="", stdout="")
+    monkeypatch.setattr(WindowsEngine, "_ps", fake_ps)
+    WindowsEngine(AudioConfig(), tmp_path).synth("Hi", "Voice ’Odd' Name", 1.0, tmp_path / "w.wav")
+    assert "'Voice ’’Odd'' Name'" in seen["script"]

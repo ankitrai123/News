@@ -611,8 +611,14 @@ def cmd_tts_test(args) -> int:
     for host, text in (("A", f"Hello, I'm {s.script.host_a}, the anchor."),
                        ("B", f"And I'm {s.script.host_b}. The Reserve Bank of India cut rates by 25 basis points.")):
         p = tmp / f"{host}.wav"
-        eng.synth(text, voices.get(host, ""), s.audio.speed, p)
-        samples, r = read_wav(p)
+        try:
+            eng.synth(text, voices.get(host, ""), s.audio.speed, p)
+            samples, r = read_wav(p)
+        except Exception as e:  # noqa: BLE001
+            print(f"{eng.name} failed for host {host} (voice {voices.get(host)}): {type(e).__name__}: {e}",
+                  file=sys.stderr)
+            print("installed voices: " + ", ".join(eng.voices()[:15]), file=sys.stderr)
+            return 1
         rate = rate or r
         out.extend(samples)
         out.extend(silence(0.4, rate))
