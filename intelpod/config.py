@@ -382,15 +382,21 @@ class ScriptConfig(BaseModel):
     """Phase 5: two-host script, citation-linked transcript, fact verification (docs/SCRIPT.md)."""
 
     enabled: bool = True
-    target_words: int = Field(1800, ge=400, le=4000)   # 12-15 minutes at ~130-150 spoken words/minute
+    target_words: int = Field(2700, ge=400, le=8000)   # ~19 minutes at 140 spoken words/minute
+    target_minutes: float | None = Field(None, ge=3, le=60)  # if set, overrides target_words
     words_per_minute: int = Field(140, ge=80, le=220)
-    max_stories: int = Field(4, ge=1, le=8)             # fewer stories, more depth
+    max_stories: int = Field(5, ge=1, le=10)            # the word budget may allow fewer: depth over breadth
     min_story_words: int = Field(300, ge=100)
     host_a: str = "Maya"                                # anchor: timeline, questions, challenges claims
     host_b: str = "Arjun"                               # analyst: interpretations, business, uncertainty
     model_writing: bool = True                          # off = template script from verified statements only
     revise: bool = True                                 # one model revision pass for lines that fail checks
-    max_model_calls: int = Field(14, ge=0)
+    max_model_calls: int = Field(24, ge=0)              # writing + one "go deeper" pass per story + revision
+
+    @property
+    def words(self) -> int:
+        """Target spoken words: from target_minutes when set, else target_words."""
+        return int(self.target_minutes * self.words_per_minute) if self.target_minutes else self.target_words
 
 
 class AudioConfig(BaseModel):

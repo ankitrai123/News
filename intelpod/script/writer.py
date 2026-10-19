@@ -38,12 +38,46 @@ Return {{"lines": [{{"speaker": "A", "kind": "fact|analysis|question|transition|
 "text": "...", "cites": ["F1"]}}],
 "pronunciations": [{{"name": "...", "say": "simple respelling"}}],
 "glossary": [{{"term": "...", "explanation": "one plain sentence, no numbers"}}]}}
+Go into depth rather than summarising: set out what happened and the background the items give;
+for each position, its strongest argument, which items support it and which cut against it; walk
+through effect chains step by step (saying which steps are reporting and which are inference);
+what it means for India and for business; what remains uncertain and what would settle it. Use
+follow-up questions between the hosts. Depth must come from the items: never add facts.
 Rules: kind "fact" and "uncertainty" lines must cite; "analysis" lines cite the positions or
 effect chains they discuss; "question" and "transition" lines may cite nothing but then must not
 contain numbers or names absent from the fact sheet. Cover: what happened, why it matters, where
 sources disagree (if positions are listed), business impact and India (if listed), what is
 uncertain. Use quotation marks only for exact words from an item. Pronunciations only for
 difficult names that appear in your lines; glossary only for unfamiliar terms you use."""
+
+DEEPEN = """The segment below is shorter than planned. Continue the same conversation between {a} (A) and
+{b} (B) for about {words} more spoken words, discussing the fact-sheet items it has NOT used yet
+(listed first), in depth: what each says, how it relates to what was already said, which items
+agree or cut against each other, and what remains uncertain. Same rules: cite items, never add
+names, numbers or facts that are not in them, keep each item's confidence.
+
+Items not yet discussed:
+{unused}
+
+All items of this story:
+{facts}
+
+Segment so far:
+{so_far}
+
+Return {{"lines": [{{"speaker": "A", "kind": "fact|analysis|question|transition|uncertainty", "text": "...",
+"cites": ["F1"]}}]}} with only the NEW lines."""
+
+
+def deepen_messages(story: StoryPlan, items: list[FactItem], lines: list[ScriptLine], hosts: dict[str, str],
+                    missing_words: int) -> list[dict]:
+    used = {f for x in lines for f in x.cites}
+    unused = [it for it in items if it.fid not in used]
+    so_far = "\n".join(f"{hosts[x.speaker]}: {x.text}" for x in lines)
+    user = DEEPEN.format(a=hosts["A"], b=hosts["B"], words=missing_words, unused=fact_lines(unused) or "(none)",
+                         facts=fact_lines(items), so_far=so_far)
+    return [{"role": "system", "content": SYSTEM}, {"role": "user", "content": user}]
+
 
 FRAME = """Hosts: {a} (A, anchor) and {b} (B, analyst).
 Write three short parts of today's episode, using ONLY these items:
@@ -163,7 +197,10 @@ def extras(out: SegmentOut, text: str) -> tuple[list[Pronunciation], list[Glossa
 
 # -- template fallback (no model) ---------------------------------------------------------------
 def template_story(story: StoryPlan, items: list[FactItem], n: int, start: int) -> list[ScriptLine]:
-    """Plain but verifiable: quotes verified statements with their sources, no paraphrase."""
+    """Plain but verifiable: every verified item of the story, quoted with its sources (model
+    summaries labelled as IntelPod's), in a fixed order: facts, disputes, positions, effect
+    chains, India, forecasts and open questions."""
+    import re as _re
     lines: list[ScriptLine] = []
 
     def add(speaker, kind, text, cites):
@@ -173,26 +210,32 @@ def template_story(story: StoryPlan, items: list[FactItem], n: int, start: int) 
     def src(it):
         return ", ".join(it.publishers[:2]) or "the sources"
 
-    facts = [it for it in items if it.kind == "fact"]
+    by = lambda k: [i for i in items if i.kind == k]  # noqa: E731
+    facts = by("fact")
     lead = facts[0] if facts else items[0]
     add("A", "transition", f"{'First' if n == 1 else 'Next'}: {story.title}.", [])
     add("A", "fact", f"According to {src(lead)}: “{lead.text}”", [lead.fid])
-    for it in facts[1:3]:
-        add("B", "fact", f"According to {src(it)}: “{it.text}”", [it.fid])
-    for it in [i for i in items if i.kind == "contested"][:1]:
+    for i, it in enumerate(facts[1:]):
+        add("B" if i % 2 == 0 else "A", "fact", f"According to {src(it)}: “{it.text}”", [it.fid])
+    for it in by("contested"):
         add("A", "uncertainty", f"Accounts differ. A disputed claim, according to {src(it)}: “{it.text}”", [it.fid])
-    positions = [i for i in items if i.kind == "position"]
+    positions = by("position")
     if len(positions) >= 2:
         add("A", "question", "Do the sources agree on what this means?", [])
-        for it in positions[:2]:
-            # Positions are IntelPod's checked summaries (or quoted statements), never a publisher's words.
+        for it in positions:
             add("B", "analysis", f"One position in the sources, as summarised by IntelPod: {it.text}", [it.fid])
-    for it in [i for i in items if i.kind == "india"][:1]:
+    for it in by("chain"):
+        steps = _re.sub(r"\s*\[(?:sourced|inference)\]", "", it.text)
+        add("A", "question", "How could this play out for business?", [])
+        add("B", "analysis", f"One possible chain of effects, as worked out by IntelPod, could run like this: {steps}",
+            [it.fid])
+    for it in by("india")[:2]:
         if it.basis == "sourced":
             add("B", "fact", f"For India, according to {src(it)}: “{it.text}”", [it.fid])
         else:
             add("B", "analysis", f"For India, IntelPod's reading of the sources: {it.text}", [it.fid])
-    for it in [i for i in items if i.kind in ("forecast", "uncertainty")][:1]:
-        add("B", "uncertainty", f"What is still uncertain, according to {src(it)}: “{it.text}”"
-            if it.publishers else f"What is still uncertain: {it.text}", [it.fid])
+    for it in by("forecast"):
+        add("B", "uncertainty", f"Looking ahead, according to {src(it)}: “{it.text}”", [it.fid])
+    for it in by("uncertainty"):
+        add("A", "uncertainty", f"What is still uncertain: {it.text}", [it.fid])
     return lines

@@ -111,7 +111,7 @@ or removed and listed. Output: `script.md`, `transcript.json` (source-linked), `
 `evidence_report.md`, and the dashboard's **Episode** page. Details: [docs/SCRIPT.md](docs/SCRIPT.md).
 
 ```bash
-intelpod script                    # Phase 5 on the latest run (or --run-id)
+intelpod script                    # Phase 5 on the latest run (or --run-id); --minutes 25 for a longer episode
 ```
 
 ## What Phase 6 adds: a playable episode

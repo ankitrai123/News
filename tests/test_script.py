@@ -104,8 +104,8 @@ def test_plan_selects_supported_stories_and_orders_connected_ones():
     assert "thin" not in ids and any("Minor event" in d for d in plan.dropped)
     rbi_kinds = {book.get(f).kind for f in plan.stories[1].facts}
     assert {"fact", "position", "forecast"} <= rbi_kinds
-    # budget = share of the target, capped at ~150 words per fact-sheet item (no padding)
-    assert all(s.word_budget == min((1800 - 300) // 2, 150 * len(s.facts)) for s in plan.stories)
+    # budget = share of the target, capped at ~180 words per fact-sheet item (no padding)
+    assert all(s.word_budget == min((2700 - 300) // 2, 180 * len(s.facts)) for s in plan.stories)
 
 
 def test_word_budget_caps_number_of_stories():
@@ -381,3 +381,54 @@ def test_episode_rebuilt_when_mode_or_evidence_changes_and_stale_files_removed(s
     pipe.stage_report(RunContext(run_id=run_id, now=row.params and NOW, params=row.params,
                                  outputs={k: v.output or {} for k, v in pipe.repo.stages(run_id).items()}))
     assert not (d / "script.md").exists()
+
+
+
+def test_minutes_option_sets_the_word_target():
+    c = ScriptConfig(target_minutes=20, words_per_minute=140)
+    assert c.words == 2800 and ScriptConfig().words == 2700
+
+
+def test_short_segment_gets_one_deeper_pass_on_unused_items():
+    class ShortModel(ScriptModel):
+        def __init__(self):
+            super().__init__()
+            self.deepened = 0
+
+        def chat_json(self, task, messages, schema):
+            user = messages[-1]["content"]
+            if "shorter than planned" in user:
+                self.deepened += 1
+                assert "Items not yet discussed" in user
+                fid = re.search(r"Items not yet discussed:\n\s*(F\d+) \[", user).group(1)
+                text = re.search(r"^\s*" + fid + r" \[[^\]]*\] (.+)$", user, re.M).group(1)
+                return schema.model_validate({"lines": [{"speaker": "B", "kind": "fact", "text": text,
+                                                          "cites": [fid]}]}), "fake-writer"
+            if "Segment" in user and "Fact sheet" in user:
+                facts = dict(re.findall(r"^\s*(F\d+) \[fact;[^\]]*\] (.+)$", user, re.M))
+                fid, text = next(iter(facts.items()))
+                return schema.model_validate({"lines": [{"speaker": "A", "kind": "fact", "text": text,
+                                                          "cites": [fid]}]}), "fake-writer"
+            return super().chat_json(task, messages, schema)
+    m = ShortModel()
+    ep = build(m)
+    assert m.deepened == len(ep.plan.stories)
+    per_story = {s.event_id: [x for x in ep.lines if x.event_id == s.event_id] for s in ep.plan.stories}
+    assert all(len(v) >= 2 for v in per_story.values())
+
+
+def test_template_discusses_every_verified_item():
+    from intelpod.script.models import StoryPlan
+    from intelpod.script.writer import template_story
+    items = [FactItem(fid=f"F{i}", kind="fact", text=f"Fact number {i} was reported.", confidence="confirmed",
+                      event_id="e", claim_ids=["c"], publishers=["Mint"]) for i in range(1, 7)]
+    items.append(FactItem(fid="F7", kind="chain", text="Rate cut: Loans get cheaper [sourced] → Demand rises [inference]",
+                          confidence="plausible", event_id="e", basis="inference"))
+    lines = template_story(StoryPlan(event_id="e", title="T", facts=[i.fid for i in items]), items, 1, 0)
+    cited = {f for x in lines for f in x.cites}
+    assert cited == {i.fid for i in items}
+    chain_line = next(x for x in lines if "F7" in x.cites)
+    assert "[inference]" not in chain_line.text and "could" in chain_line.text
+    facts = {i.fid: i for i in items}
+    for x in lines:
+        assert check_line(x, facts, set(facts), HOSTS, "T")[0].status in ("supported", "fixed"), x.text

@@ -59,14 +59,14 @@ def story_facts(book: FactBook, r: RankedEvent, dp: DebatePackage | None, a: Imp
         fids.append(book.add(kind=kind, text=c.text, confidence=c.confidence, event_id=r.event_id,
                              claim_ids=[cid], source_ids=c.source_ids, publishers=_pubs(c.source_ids, sources)))
 
-    for cid in dp.consensus[:5]:
+    for cid in dp.consensus[:8]:
         claim_item(cid, "fact")
     singles = [cid for cid in dp.unverified if claims.get(cid) and claims[cid].kind in ("factual", "attributed")]
-    for cid in singles[:3]:
+    for cid in singles[:5]:
         claim_item(cid, "fact")
-    for cid in dp.contested[:2]:
+    for cid in dp.contested[:3]:
         claim_item(cid, "contested")
-    for q in dp.questions[:2]:
+    for q in dp.questions[:3]:
         for p in q.positions:
             if not p.found:
                 continue
@@ -75,7 +75,7 @@ def story_facts(book: FactBook, r: RankedEvent, dp: DebatePackage | None, a: Imp
                                  source_ids=p.source_ids, publishers=_pubs(p.source_ids, sources),
                                  basis="quoted statements" if q.basis == "quoted statements" else "model, checked"))
     if a is not None:
-        for ch in a.chains[:2]:
+        for ch in a.chains[:3]:
             steps = " → ".join(f"{s.text} [{'sourced' if s.basis == 'reported' else 'inference'}]" for s in ch.steps)
             cids = list(dict.fromkeys(c for s in ch.steps for c in s.claim_ids))
             srcs = list(dict.fromkeys(x for c in cids if c in claims for x in claims[c].source_ids))
@@ -83,7 +83,7 @@ def story_facts(book: FactBook, r: RankedEvent, dp: DebatePackage | None, a: Imp
                                  event_id=r.event_id, claim_ids=cids, source_ids=srcs, publishers=_pubs(srcs, sources),
                                  basis="inference" if any(s.basis == "inferred" for s in ch.steps) else "sourced"))
         if a.india:
-            for cid in a.india.claim_ids[:2]:
+            for cid in a.india.claim_ids[:3]:
                 if cid in used:   # already a fact item: mark that it concerns India rather than repeating it
                     continue
                 claim_item(cid, "india")
@@ -91,10 +91,10 @@ def story_facts(book: FactBook, r: RankedEvent, dp: DebatePackage | None, a: Imp
                 fids.append(book.add(kind="india", text=a.india_summary, confidence="plausible", event_id=r.event_id,
                                      claim_ids=list(a.india.claim_ids[:3]), source_ids=a.india.source_ids,
                                      publishers=_pubs(a.india.source_ids, sources), basis="model, checked"))
-    for cid in dp.forecasts[:2]:
+    for cid in dp.forecasts[:3]:
         claim_item(cid, "forecast")
     # Phase 3's own tallies ("2 statement(s) are forecasts ...") are bookkeeping, not podcast material.
-    for u in [x for x in dp.uncertainties if not re.match(r"^\d+ (?:well-supported )?statement", x)][:2]:
+    for u in [x for x in dp.uncertainties if not re.match(r"^\d+ (?:well-supported )?statement", x)][:3]:
         fids.append(book.add(kind="uncertainty", text=u, confidence="speculative", event_id=r.event_id,
                              basis="IntelPod"))
     return fids
@@ -103,7 +103,7 @@ def story_facts(book: FactBook, r: RankedEvent, dp: DebatePackage | None, a: Imp
 def plan_episode(book: FactBook, ranked: list[RankedEvent], debates: dict[str, DebatePackage],
                  impacts: dict[str, ImpactAnalysis], sources: dict[str, dict[str, ResearchResult]],
                  links: list[EventLink], cfg) -> EpisodePlan:
-    plan = EpisodePlan(target_words=cfg.target_words)
+    plan = EpisodePlan(target_words=cfg.words)
     evidenced = [link for link in links if link.kind == "evidenced"]
     cands: list[tuple[float, StoryPlan]] = []
     for r in ranked:
@@ -126,11 +126,11 @@ def plan_episode(book: FactBook, ranked: list[RankedEvent], debates: dict[str, D
                                        connects_to=linked, india=india, why=", ".join(why))))
     if not cands:
         return plan
-    n = max(1, min(cfg.max_stories, (cfg.target_words - OPEN_CLOSE_WORDS) // cfg.min_story_words))
+    n = max(1, min(cfg.max_stories, (cfg.words - OPEN_CLOSE_WORDS) // cfg.min_story_words))
     cands.sort(key=lambda x: -x[0])
     chosen = [c for _, c in cands[:n]]
     for _, c in cands[n:]:
-        plan.dropped.append(f"{c.title}: left out to keep depth within the {cfg.target_words}-word target")
+        plan.dropped.append(f"{c.title}: left out to keep depth within the {cfg.words}-word target")
     ordered = [chosen.pop(0)]
     while chosen:
         last = ordered[-1]
@@ -139,9 +139,9 @@ def plan_episode(book: FactBook, ranked: list[RankedEvent], debates: dict[str, D
             nxt.why += "; placed after a connected story"
         chosen.remove(nxt)
         ordered.append(nxt)
-    budget = max(0, cfg.target_words - OPEN_CLOSE_WORDS) // len(ordered)
+    budget = max(0, cfg.words - OPEN_CLOSE_WORDS) // len(ordered)
     for s in ordered:
-        # Never ask for more words than the material supports (~150 per item): padding invites invention.
-        s.word_budget = max(80, min(budget, 150 * len(s.facts)))
+        # Never ask for more words than the material supports (~180 per item): padding invites invention.
+        s.word_budget = max(80, min(budget, 180 * len(s.facts)))
     plan.stories = ordered
     return plan

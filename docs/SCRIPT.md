@@ -38,11 +38,17 @@ Names are configurable (`script.host_a`, `script.host_b`).
 2. **Fact sheet per story.** Numbered items: verbatim confirmed and single-source statements,
    disputed statements, debate positions, effect chains (each step marked sourced or inference),
    India statements, forecasts and uncertainties, each with its confidence and publishers.
-3. **Writing.** With a model: one call per story (dialogue that cites fact-sheet items, plus
+3. **Length.** Default about 19 minutes (`target_words: 2700`); `intelpod run --minutes 25` or
+   `intelpod script --minutes 25 --refresh` changes it. Each story's share is capped at ~180 words
+   per fact-sheet item, because a longer episode must come from more evidence discussed, not
+   padding (padding would only be removed by the checks). If a story's dialogue comes out under
+   75% of its share while fact-sheet items are still undiscussed, the model gets one "go deeper"
+   pass on exactly those items. If the day's material is thin, the episode is shorter and says so.
+4. **Writing.** With a model: one call per story (dialogue that cites fact-sheet items, plus
    pronunciation suggestions and short term explanations), one call for the opening, "what to
    watch" and closing. Without a model: a template that quotes verified statements with their
    sources — accurate, not conversational.
-4. **Verification (no model)**, line by line, against the items the line cites:
+5. **Verification (no model)**, line by line, against the items the line cites:
 
    | Check | Rule |
    |---|---|
@@ -56,11 +62,11 @@ Names are configurable (`script.host_a`, `script.host_b`).
    | Causality | causal wording ("led to", "because", "sparked", "fuelled", "pushed") needs a cited effect chain or a cited statement that itself makes the causal link |
    | Questions | a line labelled a question that does not end in "?" is checked as a statement |
 
-5. **Revision.** Lines that fail go back to the model once, with their problems and cited items;
+6. **Revision.** Lines that fail go back to the model once, with their problems and cited items;
    the rewrite is checked again. Lines that still fail are **removed** and listed, with the reason,
    in the evidence report. If every model line of a story fails, that story falls back to the
    template segment (the episode is then marked `partial`), so a previewed story never vanishes.
-6. **Reuse.** A stored episode is reused only if it was written from exactly the same research,
+7. **Reuse.** A stored episode is reused only if it was written from exactly the same research,
    debate and impact material, settings and writing mode; otherwise it is rewritten. If a rewrite
    produces no script, the old script files are deleted.
 
@@ -81,14 +87,15 @@ Names are configurable (`script.host_a`, `script.host_b`).
 | Key | Default | Meaning |
 |---|---|---|
 | `enabled` | true | run the stage |
-| `target_words` | 1800 | 12–15 minutes ≈ 1,600–2,000 words |
+| `target_words` | 2700 | ≈ 19 minutes at 140 words/minute |
+| `target_minutes` | none | set (or `--minutes 20`) to target minutes instead of words |
 | `words_per_minute` | 140 | for the duration estimate |
-| `max_stories` | 4 | upper limit; the word budget may allow fewer |
+| `max_stories` | 5 | upper limit; the word budget may allow fewer |
 | `min_story_words` | 300 | depth per story |
 | `host_a`, `host_b` | Maya, Arjun | host names |
 | `model_writing` | true | false = template script |
 | `revise` | true | one model revision pass for failing lines |
-| `max_model_calls` | 14 | per run |
+| `max_model_calls` | 24 | per run (writing, one "go deeper" pass per story, revision) |
 
 ## Known limitations
 

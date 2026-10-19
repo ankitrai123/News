@@ -12,7 +12,7 @@
   intelpod sources [--gaps]       the source registry (config/sources.yaml) and what it lacks
   intelpod impact [--run-id ID] [--refresh]     Phase 4 (context, impact, connections) -> intelligence brief
   intelpod forecasts [--status open]            the forecast ledger
-  intelpod script [--run-id ID] [--refresh]     Phase 5: verified two-host podcast script
+  intelpod script [--run-id ID] [--refresh] [--minutes 20]   Phase 5: verified two-host podcast script
   intelpod audio [--run-id ID] [--engine E] [--redo L3,L7]   Phase 6: speak the script locally
   intelpod tts list | setup kokoro [--small] | setup piper VOICE... | test   text-to-speech engines
   intelpod forecasts resolve ID --verdict correct|incorrect|partly|unresolvable --outcome "..."
@@ -62,6 +62,8 @@ def _settings(args) -> Settings:
         overrides["script.enabled"] = False
     if getattr(args, "no_audio", False):
         overrides["audio.enabled"] = False
+    if getattr(args, "minutes", None):
+        overrides["script.target_minutes"] = args.minutes
     if getattr(args, "lookback_hours", None):
         overrides["ingestion.lookback_hours"] = args.lookback_hours
     s = load_settings(args.config, overrides)
@@ -856,6 +858,7 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--no-impact", action="store_true", help="skip Phase 4 impact analysis")
     run.add_argument("--no-script", action="store_true", help="skip Phase 5 script writing")
     run.add_argument("--no-audio", action="store_true", help="skip Phase 6 audio")
+    run.add_argument("--minutes", type=float, help="target episode length in minutes (default ~19)")
     run.set_defaults(fn=cmd_run)
 
     rs = sub.add_parser("research", help="Phase 2: research the selected events of an existing run")
@@ -880,6 +883,7 @@ def build_parser() -> argparse.ArgumentParser:
     sc.add_argument("--run-id", help="run id (default: latest run)")
     sc.add_argument("--refresh", action="store_true", help="write the script again")
     sc.add_argument("--no-llm", action="store_true", help="template script from verified statements only")
+    sc.add_argument("--minutes", type=float, help="target episode length in minutes (default ~19)")
     sc.set_defaults(fn=cmd_script)
 
     au = sub.add_parser("audio", help="Phase 6: speak a run's verified script with local text-to-speech")

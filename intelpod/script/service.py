@@ -115,6 +115,7 @@ class ScriptService:
                     ep.pronunciations += prons
                     ep.glossary += gloss
                     self.models_used.append(model)
+                    seg = self._deepen(story, items, seg, hosts, len(lines))
             if not seg:
                 seg = writer.template_story(story, items, n, len(lines))
                 if self.llm is not None:
@@ -170,8 +171,8 @@ class ScriptService:
         if ep.written_by == "template":
             ep.limitations.append("No model available: the script quotes verified statements with their sources "
                                   "(template); it is accurate but not conversational.")
-        if ep.word_count < 0.6 * self.cfg.target_words:
-            ep.limitations.append(f"Script is {ep.word_count} words, short of the {self.cfg.target_words}-word target: "
+        if ep.word_count < 0.6 * self.cfg.words:
+            ep.limitations.append(f"Script is {ep.word_count} words, short of the {self.cfg.words}-word target: "
                                   f"there was not enough verified material for a longer episode.")
         if removed:
             ep.limitations.append(f"{len(removed)} line(s) were removed because they could not be supported "
@@ -183,6 +184,20 @@ class ScriptService:
         return ep
 
     # -- steps ---------------------------------------------------------------------------------
+    def _deepen(self, story, items, seg: list[ScriptLine], hosts, start: int) -> list[ScriptLine]:
+        """One extra pass when a segment came out well short of its budget and fact-sheet items are
+        still undiscussed: longer episodes come from more evidence discussed, not from padding."""
+        words = sum(len(x.text.split()) for x in seg)
+        used = {f for x in seg for f in x.cites}
+        if not seg or words >= 0.75 * story.word_budget or all(it.fid in used for it in items):
+            return seg
+        msgs = writer.deepen_messages(story, items, seg, hosts, story.word_budget - words)
+        res = self._call(lambda: self.llm.chat_json("script_writing", msgs, writer.SegmentOut))
+        if res is None:
+            return seg
+        out, _ = res
+        more = writer.to_lines(out, "story", story.event_id, start + len(seg))
+        return seg + more
     def _write_story(self, story, items, n, total, prev, hosts):
         out, model = self.llm.chat_json("script_writing", writer.story_messages(story, items, n, total, prev, hosts),
                                         writer.SegmentOut)

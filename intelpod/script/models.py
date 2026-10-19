@@ -50,7 +50,7 @@ class StoryPlan(BaseModel):
 class EpisodePlan(BaseModel):
     stories: list[StoryPlan] = Field(default_factory=list)
     dropped: list[str] = Field(default_factory=list)      # events not used, with reasons
-    target_words: int = 1800
+    target_words: int = 2700
 
 
 class LineCheck(BaseModel):
