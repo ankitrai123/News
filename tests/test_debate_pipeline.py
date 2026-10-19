@@ -162,7 +162,7 @@ def test_debate_stage_runs_in_pipeline_and_reports(settings, tmp_path):
     settings.llm.enabled = False
     pipe, run_id = run_pipeline(settings, tmp_path)
     stages = pipe.repo.stages(run_id)
-    assert list(stages) == ["ingest", "cluster", "rank", "review", "research", "debate", "impact", "script", "report"]
+    assert list(stages) == ["ingest", "cluster", "rank", "review", "research", "debate", "impact", "script", "audio", "report"]
     out = stages["debate"].output
     assert out["status"] == "completed" and out["registry_sources"] >= 20
     pkgs = DebateStore(pipe.db).packages(run_id)

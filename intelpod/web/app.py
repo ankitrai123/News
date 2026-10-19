@@ -9,7 +9,7 @@ from urllib.parse import quote, urlsplit
 
 from fastapi import FastAPI, Form, HTTPException, Query, Request
 from fastapi.exception_handlers import http_exception_handler
-from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.trustedhost import TrustedHostMiddleware
@@ -29,6 +29,7 @@ from ..debate.store import DebateStore
 from ..impact.models import DIMENSIONS, SECTORS
 from ..impact.store import ImpactStore
 from ..script.store import EpisodeStore
+from ..audio.store import AudioStore
 
 log = logging.getLogger(__name__)
 TEMPLATES = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
@@ -63,6 +64,7 @@ def create_app(settings: Settings | None = None, pipeline_factory=None,
     dstore = DebateStore(db)
     istore = ImpactStore(db)
     estore = EpisodeStore(db)
+    astore = AudioStore(db)
     app = FastAPI(title="IntelPod", version=__version__,
                   description="Local API for the geopolitical & business intelligence podcast agent (Phase 1).")
     hosts = list(allowed_hosts or []) + LOCAL_HOSTS
@@ -374,9 +376,30 @@ def create_app(settings: Settings | None = None, pipeline_factory=None,
             srcs = {x.result_id: x for eid in {s.event_id for s in ep.plan.stories}
                     for x in rstore.results(ep.run_id, eid)}
             cites, listed = citations(ep, srcs)
+        audio = astore.render(ep.run_id) if ep else None
+        starts = {ln.line_id: ln.start_s for ln in audio.lines} if audio and audio.status == "complete" else {}
         return page(request, "episode.html", active="episode", ep=ep, cites=cites, sources_list=listed,
+                    audio=audio, starts=starts,
                     titles={s.event_id: s.title for s in ep.plan.stories} if ep else {},
                     history=estore.episodes(15))
+
+    @app.get("/media/{run_id}/{name}")
+    def media(run_id: str, name: str):
+        """Serve a run's final episode audio (only these two file names; nothing else on disk)."""
+        if not RUN_ID_RE.fullmatch(run_id) or name not in ("episode.mp3", "episode.wav"):
+            raise HTTPException(404, "not found")
+        path = settings.data_path / "runs" / run_id / "audio" / name
+        if not path.is_file():
+            raise HTTPException(404, "not found")
+        return FileResponse(path, media_type="audio/mpeg" if name.endswith(".mp3") else "audio/wav")
+
+    @app.get("/api/runs/{run_id}/audio")
+    def api_run_audio(run_id: str):
+        run_or_404(run_id)
+        ar = astore.render(run_id)
+        if ar is None:
+            raise HTTPException(404, "no audio for this run")
+        return ar.model_dump(mode="json")
 
     @app.get("/forecasts", response_class=HTMLResponse)
     def forecasts_page(request: Request, status: str | None = Query(None, pattern="^(open|resolved)$")):

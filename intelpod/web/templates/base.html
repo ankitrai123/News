@@ -51,7 +51,7 @@ pre{white-space:pre-wrap;word-break:break-word;font-size:12px;background:var(--b
 <a href="/feeds" {% if active == 'feeds' %}aria-current="page"{% endif %}>Sources</a>
 <a href="/settings" {% if active == 'settings' %}aria-current="page"{% endif %}>Settings</a>
 </nav>
-<span class="muted small" style="margin-left:auto">v{{ version }} · Phases 1–5{% if running %} · <span class="warn">run in progress{% if active_stage %} ({{ active_stage }}){% endif %}…</span>{% endif %}</span></header>
+<span class="muted small" style="margin-left:auto">v{{ version }} · Phases 1–6{% if running %} · <span class="warn">run in progress{% if active_stage %} ({{ active_stage }}){% endif %}…</span>{% endif %}</span></header>
 <main>
 {% if message %}<div class="banner info" role="status">{{ message }}</div>{% endif %}
 {% if last_error %}<div class="banner" role="alert">Last run failed: {{ last_error }}</div>{% endif %}

@@ -53,6 +53,11 @@ to `data/logs/intelpod.log` (set `app.log_json: true` for JSON lines).
 | Script: "Script is N words, short of the target" | not enough verified material (few stories passed Phases 3–4) | by design: IntelPod does not pad. More sources (Guardian key, research feeds) give more material |
 | Script: many lines removed | the model named people/numbers not in the fact sheet, or stated forecasts as fact | see `evidence_report.md`; try another model (`llm.tasks.script_writing.models`) |
 | Script: "template" instead of dialogue | no model, `--no-llm`, or the model failed | configure NVIDIA or Ollama and run `intelpod script --refresh` |
+| Audio: "no text-to-speech engine available" | no engine set up | `intelpod tts list` shows why each is unavailable; `pip install -e ".[audio]"` then `intelpod tts setup kokoro` |
+| `pip install -e ".[audio]"` fails on onnxruntime | no onnxruntime wheel for your Python version | create the venv with Python 3.12/3.13, or use the Windows voices (no install) |
+| Audio "incomplete" | a line failed to synthesise after retries | run `intelpod audio` again: only missing lines are rendered; see the failed line ids |
+| Only WAV, no MP3 | FFmpeg not installed | install FFmpeg (winget install ffmpeg / brew install ffmpeg / apt install ffmpeg) and run `intelpod audio` again (lines come from the cache) |
+| A name is mispronounced | the engine guessed | add or fix a respelling in the script's pronunciation notes, or turn off `audio.apply_pronunciations` if a suggestion is wrong; `intelpod audio --redo L5` |
 | `database is locked` | two processes writing at once | let the running job finish; SQLite WAL mode and a 5 s busy timeout are already set |
 
 ## Resetting

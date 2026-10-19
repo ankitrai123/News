@@ -63,7 +63,8 @@ tests/                 offline tests + fixtures; test_live.py for real network
 | `debate` (Phase 3) | research packages + `config/sources.yaml` | claim map, diversity, viewpoint searches (new sources join the research package), checked model questions/positions; `debate_packages` and `claims` tables | **never fails the run**: one event's failure marks only its package; no model → claim map only (`partial`); resumable per event. See docs/DEBATE.md |
 | `impact` (Phase 4) | debate packages + research sources + earlier events | context, impact evidence, checked effect chains, event links, forecast ledger, brief; `impact_analyses`, `event_links`, `forecasts`, `intelligence_briefs` tables | **never fails the run**; no model → evidence tables only (`partial`); resumable per event. See docs/IMPACT.md |
 | `script` (Phase 5) | debate + impact packages, research sources, event links | story plan, fact sheets, two-host script verified line by line; `episodes` table | **never fails the run**; no model → template script; see docs/SCRIPT.md |
-| `report` | ranked events + research + debate + impact + episode | `data/runs/<run_id>/phase1_events.{md,json}` and `research.json` | retried once |
+| `audio` (Phase 6) | verified episode | per-line WAVs (cached), `audio/episode.wav` (+ `.mp3` with FFmpeg), `episode.json`; `audio_renders` table | **never fails the run**; no engine → skipped with the reason; a missing line → incomplete, not assembled. See docs/AUDIO.md |
+| `report` | ranked events + research + debate + impact + episode + audio | `data/runs/<run_id>/phase1_events.{md,json}` and `research.json` | retried once |
 
 Runs record their `now` timestamp, so a resumed run uses the identical time window.
 A run in progress blocks a second run (`--force` overrides a stale lock).

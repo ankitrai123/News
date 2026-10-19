@@ -55,6 +55,7 @@ def settings(tmp_path):
         "ingestion.providers.gdelt.queries": [{"topic": "trade_policy", "query": "(tariff OR \"export controls\")"}],
         "research.feeds.feeds_file": str(tmp_path / "research_feeds.yaml"),  # none unless a test writes one
         "research.search_cache_hours": 0,
+        "audio.enabled": False,          # audio tests enable it with the deterministic "test" engine
     })
 
 

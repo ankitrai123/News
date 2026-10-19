@@ -393,6 +393,34 @@ class ScriptConfig(BaseModel):
     max_model_calls: int = Field(14, ge=0)
 
 
+class AudioConfig(BaseModel):
+    """Phase 6: local text-to-speech for the two hosts, assembly and checks (docs/AUDIO.md)."""
+
+    enabled: bool = True
+    engine: str = Field("auto", pattern="^(auto|kokoro|piper|windows|espeak|test)$")  # auto: first available
+    speed: float = Field(1.0, ge=0.6, le=1.6)            # 1.0 = engine default; >1 faster
+    models_dir: str = "data/models/tts"
+    # Voices per engine and host (A = anchor, B = analyst). Two different voices keep speakers distinct.
+    voices: dict[str, dict[str, str]] = Field(default_factory=lambda: {
+        "kokoro": {"A": "af_heart", "B": "am_michael"},
+        "piper": {"A": "en_US-amy-medium", "B": "en_US-ryan-medium"},
+        "windows": {"A": "Microsoft Zira Desktop", "B": "Microsoft David Desktop"},
+        "espeak": {"A": "en-us+f3", "B": "en-us+m3"},
+        "test": {"A": "low", "B": "high"},
+    })
+    kokoro_model: str = "kokoro-v1.0.onnx"               # in models_dir/kokoro (int8 variant: kokoro-v1.0.int8.onnx)
+    kokoro_voices: str = "voices-v1.0.bin"
+    apply_pronunciations: bool = True                    # use the script's respellings for difficult names
+    line_pause_ms: int = Field(350, ge=0, le=3000)
+    segment_pause_ms: int = Field(900, ge=0, le=5000)
+    intro_file: str | None = None                        # optional WAV (MP3/other formats need FFmpeg)
+    outro_file: str | None = None
+    formats: list[str] = Field(default_factory=lambda: ["wav", "mp3"])  # mp3 only when FFmpeg is installed
+    mp3_bitrate: str = "128k"
+    loudness_lufs: float = -16.0                         # podcast loudness target (FFmpeg loudnorm)
+    max_retries: int = Field(2, ge=0, le=5)              # per line
+
+
 class Settings(BaseModel):
     app: AppConfig = Field(default_factory=AppConfig)
     http: HttpConfig = Field(default_factory=HttpConfig)
@@ -404,6 +432,7 @@ class Settings(BaseModel):
     debate: DebateConfig = Field(default_factory=DebateConfig)
     impact: ImpactConfig = Field(default_factory=ImpactConfig)
     script: ScriptConfig = Field(default_factory=ScriptConfig)
+    audio: AudioConfig = Field(default_factory=AudioConfig)
     taxonomy_file: str = "config/taxonomy.yaml"
 
     def resolve(self, path: str) -> Path:

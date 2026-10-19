@@ -9,8 +9,8 @@
 | 3 | Source registry with evidence-backed editorial metadata, viewpoint discovery, claim-level evidence map, agreement/disagreement, uncertainty (docs/DEBATE.md) | **Done** — running live; first-run quality fixes applied |
 | 4 | Historical context, event relationships, causal business/economic chains, India impact, forecast ledger (docs/IMPACT.md) | **Done** — running live; first-run quality fixes applied |
 | 5 | Story selection and order, two-host script, citation-linked transcript, line-by-line fact verification, episode notes, evidence report (docs/SCRIPT.md) | **Done** — tested offline with a scripted model; awaiting a live run |
-| 6 | Local TTS (Piper/Kokoro evaluated), two voices, FFmpeg assembly, audio checks | next |
-| 7 | Scheduling (APScheduler; optional n8n export), notifications, retry policies, quota tracking, end-to-end tests | planned |
+| 6 | Local TTS (Kokoro default, Piper, Windows, espeak-ng), two voices, per-line cache and retries, assembly with or without FFmpeg, audio checks, player (docs/AUDIO.md) | **Done** — tested with a synthetic engine and the engines' documented APIs; real voices not yet heard |
+| 7 | Scheduling (APScheduler; optional n8n export), notifications, retry policies, quota tracking, end-to-end tests | next |
 
 ## Final acceptance criteria — where the project stands
 
@@ -28,7 +28,8 @@
 | Ideological and analytical diversity | Phase 3 done (offline tests): source registry with referenced facts, verbatim claim map with calibrated confidence, diversity gaps, viewpoint searches, model questions/positions checked against cited sources, honest "no disagreement" and limitations |
 | Business impact and context | Phase 4 done (offline tests): intelligence brief with context and timeline, impact evidence by dimension/sector/India, quoted figures, checked effect chains (sourced vs inference), evidenced event connections, forecast ledger |
 | Script and fact verification | Phase 5 done (offline tests): verified two-host script, source-linked transcript, episode notes, evidence report |
-| Audio, sample episode | Phase 6 |
+| Local audio | Phase 6 done (offline tests): two-voice local TTS, playable episode, checks |
+| Automation, sample episode | Phase 7 |
 
 ## Known limitations (Phase 1)
 
@@ -95,11 +96,19 @@
   local Ollama model).
 * **Template script without a model** is accurate but list-like and often short of the target.
 
+## Known limitations (Phase 6)
+
+* **Real voices not heard in development**: the build environment could not download TTS models.
+  Run `intelpod tts setup kokoro` and `intelpod tts test` first and listen.
+* **onnxruntime availability** depends on your Python version; Windows' built-in voices work everywhere
+  on Windows.
+* **Pronunciation notes** are model suggestions; a wrong respelling is spoken as written.
+
 ## Exact next step
 
-Phase 6, step 1: local text-to-speech for the two hosts (evaluate Piper and Kokoro on your
-machine: licence, voice quality, speed on CPU), synthesise `transcript.json` line by line with
-pronunciation notes applied, and assemble the episode with FFmpeg.
+Phase 7, step 1: a scheduler (daily run at a chosen time, with retries and a lock so runs never
+overlap), run notifications, quota tracking across providers, and an end-to-end test that runs the
+whole pipeline on recorded data.
 
-Before that: run Phases 1–5 live (`intelpod run`), read `script.md` and `evidence_report.md`, and
-check whether removed lines and revisions look right.
+Before that: install Kokoro (`pip install -e ".[audio]"`, `intelpod tts setup kokoro`), run
+`intelpod tts test`, then `intelpod audio` on your latest run and listen to the episode.

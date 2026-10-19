@@ -3,7 +3,7 @@
   intelpod doctor                 inspect hardware, tools, Ollama and source reachability
   intelpod init                   create config/config.yaml and the database
   intelpod feeds check            fetch every feed once and record its health
-  intelpod run                    full pipeline (ingest -> cluster -> rank -> review -> research -> debate -> impact -> script -> report)
+  intelpod run                    full pipeline (ingest -> cluster -> rank -> review -> research -> debate -> impact -> script -> audio -> report)
   intelpod run --stop-after review   Phase 1 only (then `intelpod run --resume` or `intelpod research`)
   intelpod run --no-research      Phase 1 and the report, without Phase 2
   intelpod research [--run-id ID] [--refresh]   Phase 2 on an existing run's selected events
@@ -13,6 +13,8 @@
   intelpod impact [--run-id ID] [--refresh]     Phase 4 (context, impact, connections) -> intelligence brief
   intelpod forecasts [--status open]            the forecast ledger
   intelpod script [--run-id ID] [--refresh]     Phase 5: verified two-host podcast script
+  intelpod audio [--run-id ID] [--engine E] [--redo L3,L7]   Phase 6: speak the script locally
+  intelpod tts list | setup kokoro [--small] | setup piper VOICE... | test   text-to-speech engines
   intelpod forecasts resolve ID --verdict correct|incorrect|partly|unresolvable --outcome "..."
   intelpod run --resume [--run-id ID]  continue an interrupted/paused run
   intelpod events [--run ID] [--all]
@@ -58,6 +60,8 @@ def _settings(args) -> Settings:
         overrides["impact.enabled"] = False
     if getattr(args, "no_script", False):
         overrides["script.enabled"] = False
+    if getattr(args, "no_audio", False):
+        overrides["audio.enabled"] = False
     if getattr(args, "lookback_hours", None):
         overrides["ingestion.lookback_hours"] = args.lookback_hours
     s = load_settings(args.config, overrides)
@@ -143,6 +147,9 @@ def cmd_doctor(args) -> int:
             report["network"][name] = f"HTTP {r.status_code}, {len(r.content)} bytes"
         except Exception as e:  # noqa: BLE001
             report["network"][name] = f"FAILED: {type(e).__name__}: {str(e)[:120]}"
+    from .audio.engines import AUTO_ORDER, ENGINES
+    report["tts"] = {name: ("available" if ok else why) for name in AUTO_ORDER
+                     for ok, why in [ENGINES[name](s.audio, s.resolve(s.audio.models_dir)).available()]}
     report["api_keys"] = {
         "NEWSDATA_API_KEY": "set" if read_secret(s.ingestion.providers.newsdata.api_key_env) else "not set (or malformed)",
         "NVIDIA_API_KEY": "set" if read_secret("NVIDIA_API_KEY") else "not set (or malformed)",
@@ -485,6 +492,134 @@ def cmd_script(args) -> int:
     return 0
 
 
+def cmd_audio(args) -> int:
+    """Phase 6 on its own: speak a run's verified script (only missing/changed lines are rendered)."""
+    import time
+
+    from .audio.runner import run_audio
+    from .pipeline.runner import Phase1Pipeline, RunContext
+
+    s = _settings(args)
+    pipe = Phase1Pipeline(s)
+    found, code = _existing_run(pipe, args.run_id, "rank")
+    if found is None:
+        return code
+    row, stages = found
+    s.audio.enabled = True
+    ctx = RunContext(run_id=row.run_id, now=datetime.fromisoformat(row.params["now"]), params=row.params,
+                     outputs={k: v.output or {} for k, v in stages.items() if v.status == "completed"})
+    redo = {x.strip().upper() for x in (args.redo or "").split(",") if x.strip()}
+    pipe.repo.stage_start(row.run_id, "audio")
+    t0 = time.monotonic()
+    try:
+        out = run_audio(pipe, ctx, engine_name=args.engine, redo=redo or None)
+    except Exception as e:  # noqa: BLE001
+        pipe.repo.stage_finish(row.run_id, "audio", "failed", error=f"{type(e).__name__}: {e}")
+        print(f"audio failed: {e}", file=sys.stderr)
+        return 2
+    out["duration_s_stage"] = round(time.monotonic() - t0, 1)
+    pipe.repo.stage_finish(row.run_id, "audio", "completed", output=out)
+    ctx.outputs["audio"] = out
+    pipe.repo.stage_start(row.run_id, "report")
+    rep = pipe.stage_report(ctx)
+    pipe.repo.stage_finish(row.run_id, "report", "completed", output=rep)
+    print(f"run: {row.run_id}")
+    if out.get("status") != "completed":
+        print(f"audio not produced: {out.get('reason')}")
+        for name, why in (out.get("engines") or {}).items():
+            print(f"  {name}: {why}")
+        print("set up an engine: `intelpod tts list`, then e.g. `intelpod tts setup kokoro`")
+        return 1
+    print(f"{out['audio_status']}: {out['duration_s']:.0f} s with {out['engine']} ({out['voices'].get('A')} / "
+          f"{out['voices'].get('B')}); {out['rendered']} line(s) rendered, {out['cached']} from cache")
+    if out["failed"]:
+        print(f"lines that failed: {', '.join(out['failed'])} (run again to retry only these)")
+    if out["checks_failed"]:
+        print(f"checks needing attention: {', '.join(out['checks_failed'])}")
+    run_dir = s.data_path / "runs" / row.run_id
+    for fmt, rel in out["files"].items():
+        print(f"{fmt}: {run_dir / rel}")
+    return 0 if out["audio_status"] == "complete" else 1
+
+
+def cmd_tts_list(args) -> int:
+    from .audio.engines import AUTO_ORDER, ENGINES
+    s = _settings(args)
+    models = s.resolve(s.audio.models_dir)
+    print(f"audio.engine = {s.audio.engine} (auto tries: {', '.join(AUTO_ORDER)})\n")
+    for name in AUTO_ORDER:
+        eng = ENGINES[name](s.audio, models)
+        ok, why = eng.available()
+        want = s.audio.voices.get(name, {})
+        print(f"{name:8} {'available' if ok else 'not available'}: {why}")
+        print(f"         licence: {eng.licence}")
+        print(f"         configured voices: A={want.get('A')}  B={want.get('B')}")
+        if ok:
+            vs = eng.voices()
+            if vs:
+                print(f"         installed voices ({len(vs)}): {', '.join(vs[:12])}{' ...' if len(vs) > 12 else ''}")
+    return 0
+
+
+def cmd_tts_setup(args) -> int:
+    from .audio.setup import setup_kokoro, setup_piper
+    s = _settings(args)
+    models = s.resolve(s.audio.models_dir)
+    try:
+        if args.engine == "kokoro":
+            print("Kokoro-82M (Apache-2.0) from github.com/thewh1teagle/kokoro-onnx releases:")
+            path = setup_kokoro(models, small=args.small)
+            if args.small:
+                print(f"set `audio.kokoro_model: {path.name}` in config/config.yaml to use the small model")
+        else:
+            voices = args.voices or list(s.audio.voices.get("piper", {}).values())
+            print("Piper voices from huggingface.co/rhasspy/piper-voices. Each voice has its own licence: read its "
+                  "MODEL_CARD there before publishing audio.")
+            setup_piper(models, voices)
+    except Exception as e:  # noqa: BLE001
+        print(f"download failed: {type(e).__name__}: {e}", file=sys.stderr)
+        return 2
+    print("done. Check with `intelpod tts test`.")
+    return 0
+
+
+def cmd_tts_test(args) -> int:
+    from .audio.engines import ENGINES, choose
+    from .audio.wavtools import read_wav, silence, write_wav
+    import array
+    s = _settings(args)
+    models = s.resolve(s.audio.models_dir)
+    if args.engine:
+        eng = ENGINES[args.engine](s.audio, models)
+        ok, why = eng.available()
+        if not ok:
+            print(f"{args.engine}: {why}", file=sys.stderr)
+            return 1
+    else:
+        eng, notes = choose(s.audio, models)
+        if eng is None:
+            for name, why in notes.items():
+                print(f"{name}: {why}", file=sys.stderr)
+            return 1
+    from .config import AudioConfig
+    voices = {**AudioConfig().voices.get(eng.name, {}), **(s.audio.voices.get(eng.name) or {})}
+    tmp = s.data_path / "tts_test"
+    out = array.array("h")
+    rate = 0
+    for host, text in (("A", f"Hello, I'm {s.script.host_a}, the anchor."),
+                       ("B", f"And I'm {s.script.host_b}. The Reserve Bank of India cut rates by 25 basis points.")):
+        p = tmp / f"{host}.wav"
+        eng.synth(text, voices.get(host, ""), s.audio.speed, p)
+        samples, r = read_wav(p)
+        rate = rate or r
+        out.extend(samples)
+        out.extend(silence(0.4, rate))
+    final = s.data_path / "tts_test.wav"
+    write_wav(final, out, rate)
+    print(f"{eng.name}: {final} ({len(out) / rate:.1f} s) - play it to check both voices")
+    return 0
+
+
 def cmd_forecasts(args) -> int:
     from .impact.store import ImpactStore
 
@@ -709,7 +844,7 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--resume", action="store_true", help="resume the given (or latest) run")
     run.add_argument("--run-id", help="run id to resume")
     run.add_argument("--stop-after", choices=["ingest", "cluster", "rank", "review", "research", "debate", "impact",
-                                              "script", "report"])
+                                              "script", "audio", "report"])
     run.add_argument("--force", action="store_true", help="start even if another run looks active")
     run.add_argument("--no-gdelt", action="store_true")
     run.add_argument("--no-rss", action="store_true")
@@ -720,6 +855,7 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--no-debate", action="store_true", help="skip Phase 3 viewpoint and claim analysis")
     run.add_argument("--no-impact", action="store_true", help="skip Phase 4 impact analysis")
     run.add_argument("--no-script", action="store_true", help="skip Phase 5 script writing")
+    run.add_argument("--no-audio", action="store_true", help="skip Phase 6 audio")
     run.set_defaults(fn=cmd_run)
 
     rs = sub.add_parser("research", help="Phase 2: research the selected events of an existing run")
@@ -745,6 +881,24 @@ def build_parser() -> argparse.ArgumentParser:
     sc.add_argument("--refresh", action="store_true", help="write the script again")
     sc.add_argument("--no-llm", action="store_true", help="template script from verified statements only")
     sc.set_defaults(fn=cmd_script)
+
+    au = sub.add_parser("audio", help="Phase 6: speak a run's verified script with local text-to-speech")
+    au.add_argument("--run-id", help="run id (default: latest run)")
+    au.add_argument("--engine", choices=["kokoro", "piper", "windows", "espeak"], help="override audio.engine")
+    au.add_argument("--redo", help="comma-separated line ids to re-render (e.g. L3,L7); others come from the cache")
+    au.set_defaults(fn=cmd_audio)
+
+    tts = sub.add_parser("tts", help="text-to-speech engines: list, set up, test")
+    tsub = tts.add_subparsers(dest="tts_cmd", required=True)
+    tsub.add_parser("list", help="engines, availability and voices").set_defaults(fn=cmd_tts_list)
+    ts = tsub.add_parser("setup", help="download model files for an engine")
+    ts.add_argument("engine", choices=["kokoro", "piper"])
+    ts.add_argument("voices", nargs="*", help="Piper voices, e.g. en_US-amy-medium en_US-ryan-medium")
+    ts.add_argument("--small", action="store_true", help="Kokoro: the int8 model (~88 MB instead of ~310 MB)")
+    ts.set_defaults(fn=cmd_tts_setup)
+    tt = tsub.add_parser("test", help="speak one sentence per host into data/tts_test.wav")
+    tt.add_argument("--engine", choices=["kokoro", "piper", "windows", "espeak"])
+    tt.set_defaults(fn=cmd_tts_test)
 
     fc = sub.add_parser("forecasts", help="the forecast ledger (list, or resolve one)")
     fc.add_argument("action", nargs="?", choices=["list", "resolve"], default="list")

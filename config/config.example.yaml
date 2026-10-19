@@ -246,3 +246,27 @@ script:
   model_writing: true           # false = template script quoting verified statements
   revise: true                  # one model revision pass for lines that fail checks
   max_model_calls: 14
+
+audio:
+  # Phase 6: speak the verified script with two local voices. Nothing leaves your machine.
+  # Set up an engine once: `intelpod tts list`, then `intelpod tts setup kokoro` (see docs/AUDIO.md).
+  enabled: true
+  engine: auto                  # auto | kokoro | piper | windows | espeak  (auto = first available, in that order)
+  speed: 1.0                    # 0.6-1.6; above 1 is faster
+  models_dir: data/models/tts
+  voices:                       # A = anchor (host_a), B = analyst (host_b); use two different voices
+    kokoro: {A: af_heart, B: am_michael}          # British: bf_emma / bm_george
+    piper: {A: en_US-amy-medium, B: en_US-ryan-medium}
+    windows: {A: Microsoft Zira Desktop, B: Microsoft David Desktop}
+    espeak: {A: en-us+f3, B: en-us+m3}
+  kokoro_model: kokoro-v1.0.onnx                  # or kokoro-v1.0.int8.onnx (`intelpod tts setup kokoro --small`)
+  kokoro_voices: voices-v1.0.bin
+  apply_pronunciations: true    # use the script's respellings for difficult names
+  line_pause_ms: 350
+  segment_pause_ms: 900
+  intro_file: null              # optional WAV (other formats need FFmpeg)
+  outro_file: null
+  formats: [wav, mp3]           # MP3 (with podcast loudness -16 LUFS) only when FFmpeg is installed
+  mp3_bitrate: 128k
+  loudness_lufs: -16
+  max_retries: 2                # per line; a failed line is retried on the next run without redoing others

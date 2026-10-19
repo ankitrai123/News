@@ -115,7 +115,7 @@ def render_evidence(ep: Episode) -> str:
     return "\n".join(lines) + "\n"
 
 
-def write_episode(out_dir: Path, ep: Episode, sources: dict) -> dict[str, Path]:
+def write_episode(out_dir: Path, ep: Episode, sources: dict, timings: dict | None = None) -> dict[str, Path]:
     out_dir.mkdir(parents=True, exist_ok=True)
     paths = {"script": out_dir / "script.md", "episode_notes": out_dir / "episode_notes.md",
              "evidence_report": out_dir / "evidence_report.md", "transcript": out_dir / "transcript.json"}
@@ -126,7 +126,9 @@ def write_episode(out_dir: Path, ep: Episode, sources: dict) -> dict[str, Path]:
     paths["transcript"].write_text(json.dumps({
         "episode_id": ep.episode_id, "title": ep.title, "hosts": ep.hosts, "written_by": ep.written_by,
         "lines": [{"id": x.line_id, "speaker": ep.hosts[x.speaker], "role": x.speaker, "segment": x.segment,
-                   "kind": x.kind, "text": x.text, "sources": per_line.get(x.line_id, []), "check": x.check.status}
+                   "kind": x.kind, "text": x.text, "sources": per_line.get(x.line_id, []), "check": x.check.status,
+                   **({"start_s": timings[x.line_id][0], "duration_s": timings[x.line_id][1]}
+                      if timings and x.line_id in timings else {})}
                   for x in ep.lines],
         "sources": listed, "pronunciations": [p.model_dump() for p in ep.pronunciations],
         "verification": ep.verification.model_dump()}, indent=2, ensure_ascii=False), encoding="utf-8")

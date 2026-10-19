@@ -17,7 +17,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 from sqlalchemy.types import TypeDecorator
 
-SCHEMA_VERSION = 6  # v2: llm; v3: research; v4: claims/debate; v5: impact; v6: episodes (Phase 5)
+SCHEMA_VERSION = 7  # v2 llm; v3 research; v4 debate; v5 impact; v6 episodes; v7 audio (Phase 6)
 
 
 def utcnow() -> datetime:
@@ -386,6 +386,16 @@ class EpisodeRow(Base):
     __tablename__ = "episodes"
     run_id: Mapped[str] = mapped_column(String(40), primary_key=True)
     episode_id: Mapped[str] = mapped_column(String(60), index=True)
+    status: Mapped[str] = mapped_column(String(20))
+    payload: Mapped[dict] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, index=True)
+
+
+class AudioRenderRow(Base):
+    """Phase 6: the latest audio render of a run's episode (re-rendering replaces it)."""
+
+    __tablename__ = "audio_renders"
+    run_id: Mapped[str] = mapped_column(String(40), primary_key=True)
     status: Mapped[str] = mapped_column(String(20))
     payload: Mapped[dict] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, index=True)

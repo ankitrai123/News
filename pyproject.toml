@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "intelpod"
 version = "0.1.0"
-description = "Local, zero-cost geopolitical & business intelligence podcast agent (Phases 1-4: news selection, research, viewpoints, impact)"
+description = "Local, zero-cost geopolitical & business intelligence podcast agent (Phases 1-6: news selection, research, viewpoints, impact, script, audio)"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
@@ -27,6 +27,8 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "respx>=0.21"]
+audio = ["kokoro-onnx>=0.5"]          # Phase 6, recommended voice engine (model Apache-2.0, package MIT)
+piper = ["piper-tts>=1.6"]             # Phase 6, alternative engine (GPL-3.0; voice licences vary)
 
 [project.scripts]
 intelpod = "intelpod.cli:main"

@@ -17,6 +17,7 @@ IntelPod is a single-user local application. It has no telemetry, accounts or cl
 | Debate (Phase 3) | `debate_packages`, `claims` | claims: the same short verbatim statements already stored with research results (headlines, extracts, attributed sentences), with source ids; model-written position summaries checked against the cited sources; no new page text is stored |
 | Impact (Phase 4) | `impact_analyses`, `event_links`, `forecasts`, `intelligence_briefs` | references to stored claims, short quotes already stored, checked model-written chains/summaries, forecast ledger entries (verbatim forecast, source, date, your recorded outcome) |
 | Script (Phase 5) | `episodes` | the script, its fact sheet (statements already stored), checks and removed lines |
+| Audio (Phase 6) | `audio_renders`; `data/runs/<run>/audio/` | render metadata and checks; per-line WAVs and the episode audio; TTS models in `data/models/tts/` |
 | Research caches | `search_cache`, `page_cache` | search answers (metadata) for 12 h; page metadata and fetch outcome (never page text) for 7 days |
 | Reports | `data/runs/<run_id>/` | Markdown/JSON reports linking to the original articles; `research.json`, `debate.json`, `intelligence_brief.{md,json}` |
 | Logs | `data/logs/` | rotating, 3 × 5 MB; API keys and `token=`/`apikey=` parameters are redacted |
@@ -51,6 +52,8 @@ opt out (`noai`, `noarchive`, `nosnippet`, TDM reservation) or are paywalled con
 * **Script (Phase 5):** with a model configured, each story's fact sheet (stored statements with
   publisher names) is sent to NVIDIA/Ollama to write dialogue. Remember NVIDIA's trial terms
   before publishing model-written text; Ollama keeps everything local.
+* **Audio (Phase 6):** speech is synthesised on your machine; nothing is sent. `intelpod tts setup`
+  downloads model files once from GitHub (Kokoro) or Hugging Face (Piper), only when you run it.
 * **Ollama** runs on your machine; nothing leaves it.
 
 API keys live only in your environment or `.env` (git-ignored). They are never written to the

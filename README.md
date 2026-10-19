@@ -7,12 +7,12 @@ open-source software, keyless public data sources, and two optional free tiers:
 and embeddings (or local models through Ollama). No paid service is required; without any
 keys IntelPod still runs end to end on RSS + GDELT with keyword-based analysis.
 
-> **Status: Phases 1–5 of 7 are complete.** IntelPod ingests news, groups it into events and
+> **Status: Phases 1–6 of 7 are complete.** IntelPod ingests news, groups it into events and
 > ranks them (Phase 1), researches each selected event (Phase 2), maps claims, viewpoints and
 > disagreement (Phase 3), writes an intelligence brief with context, business impact and
-> connections (Phase 4), and writes a two-host podcast script verified line by line against the
-> sources (Phase 5), shown in a CLI, Markdown/JSON files and a local dashboard. Audio and
-> automation come in Phases 6–7 (see [docs/ROADMAP.md](docs/ROADMAP.md)).
+> connections (Phase 4), writes a two-host podcast script verified line by line (Phase 5), and
+> speaks it with two local voices into a playable episode (Phase 6). Automation comes in Phase 7
+> (see [docs/ROADMAP.md](docs/ROADMAP.md)).
 
 ## What Phase 1 does
 
@@ -61,7 +61,7 @@ help proposes search keywords and writes notes that are rejected if they name an
 from the source's own extracts. Details: [docs/RESEARCH.md](docs/RESEARCH.md).
 
 ```bash
-intelpod run                       # Phases 1-5 + reports
+intelpod run                       # Phases 1-6 + reports
 intelpod run --stop-after review   # Phase 1 only
 intelpod research                  # Phase 2 on the latest run (or --run-id)
 ```
@@ -114,6 +114,20 @@ or removed and listed. Output: `script.md`, `transcript.json` (source-linked), `
 intelpod script                    # Phase 5 on the latest run (or --run-id)
 ```
 
+## What Phase 6 adds: a playable episode
+
+The `audio` stage speaks the verified script locally with two distinct voices — Kokoro (natural,
+Apache-2.0) by default, or Piper, or Windows' built-in voices with no setup — one cached file per
+line, so a retry re-renders only what failed. Lines are joined with natural pauses and optional
+intro/outro, converted to MP3 at podcast loudness when FFmpeg is installed, and checked (every line
+present, not silent, sensible speech rate and duration, file integrity). An episode with a missing
+line is never assembled. Details: [docs/AUDIO.md](docs/AUDIO.md).
+
+```bash
+pip install -e ".[audio]" && intelpod tts setup kokoro && intelpod tts test
+intelpod audio                     # Phase 6 on the latest run; then the Episode page has a player
+```
+
 ## Quick start
 
 Requirements: Python 3.11+ (developed on 3.13), internet access. Works on Linux, macOS and
@@ -134,7 +148,7 @@ intelpod feeds check               # fetch every feed once; disable any that fai
 intelpod newsdata test             # optional: 1 request with your NewsData key (1 credit)
 intelpod llm models                # optional: models your NVIDIA key can use
 intelpod llm test                  # optional: one small call to check key + model
-intelpod run                       # full pipeline, Phases 1–5 (~5–25 minutes with a model)
+intelpod run                       # full pipeline, Phases 1–6 (~5–30 minutes with a model)
 intelpod serve                     # dashboard at http://127.0.0.1:8000
 ```
 
@@ -202,6 +216,7 @@ separated from the real-network tests in `tests/test_live.py`. Clustering qualit
 * [docs/PROVIDERS.md](docs/PROVIDERS.md) — every external dependency, free-tier limits, licences,
   and the NVIDIA trial terms ("internal testing and evaluation, not production"; don't publish
   model-written text from it — use Ollama for ongoing or shared use)
+* [docs/AUDIO.md](docs/AUDIO.md) — Phase 6: voice engines (licences, hardware), rendering, checks, outputs
 * [docs/SCRIPT.md](docs/SCRIPT.md) — Phase 5: story selection, two-host script, line-by-line verification, outputs
 * [docs/IMPACT.md](docs/IMPACT.md) — Phase 4: context, impact evidence, effect chains, connections, forecast ledger
 * [docs/DEBATE.md](docs/DEBATE.md) — Phase 3: claim map, confidence labels, diversity, viewpoint searches, model checks

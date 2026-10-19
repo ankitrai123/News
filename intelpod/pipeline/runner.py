@@ -38,7 +38,7 @@ from .report import write_report
 
 log = logging.getLogger(__name__)
 
-STAGES = ("ingest", "cluster", "rank", "review", "research", "debate", "impact", "script", "report")
+STAGES = ("ingest", "cluster", "rank", "review", "research", "debate", "impact", "script", "audio", "report")
 PHASE1_STAGES = STAGES  # name kept for callers written before Phase 2
 DEDUP_MEMORY = timedelta(days=4)
 API_USER_AGENT = f"IntelPod/{__version__}"  # keyed APIs get no contact details (privacy)
@@ -103,7 +103,7 @@ class Phase1Pipeline:
             "ingest": self.stage_ingest, "cluster": self.stage_cluster,
             "rank": self.stage_rank, "review": self.stage_review, "research": self.stage_research,
             "debate": self.stage_debate, "impact": self.stage_impact,
-            "script": self.stage_script, "report": self.stage_report,
+            "script": self.stage_script, "audio": self.stage_audio, "report": self.stage_report,
         }
 
     # -- orchestration ------------------------------------------------------
@@ -513,6 +513,15 @@ class Phase1Pipeline:
             log.exception("[%s] script stage failed", ctx.run_id)
             return {"status": "failed", "reason": f"{type(e).__name__}: {str(e)[:300]}"}
 
+    def stage_audio(self, ctx: RunContext) -> dict:
+        """Phase 6: speak the verified script with two local voices (see intelpod.audio)."""
+        from ..audio.runner import run_audio
+        try:
+            return run_audio(self, ctx)
+        except Exception as e:  # noqa: BLE001 - the briefing and script must still be written
+            log.exception("[%s] audio stage failed", ctx.run_id)
+            return {"status": "failed", "reason": f"{type(e).__name__}: {str(e)[:300]}"}
+
     def stage_report(self, ctx: RunContext) -> dict:
         ranked = self.repo.scores_for_run(ctx.run_id)
         selected = [r for r in ranked if r.selected]
@@ -557,7 +566,14 @@ class Phase1Pipeline:
             if ep is not None and ep.lines:
                 all_sources = {x.result_id: x for eid in {s.event_id for s in ep.plan.stories}
                                for x in store.results(ctx.run_id, eid)}
-                paths.update(write_episode(out_dir, ep, all_sources))
+                from ..audio.store import AudioStore
+                ar = AudioStore(self.db).render(ctx.run_id)
+                timings = ({ln.line_id: (ln.start_s, ln.duration_s) for ln in ar.lines}
+                           if ar is not None and ar.status == "complete" and ar.episode_id == ep.episode_id else None)
+                paths.update(write_episode(out_dir, ep, all_sources, timings))
+                if ar is not None and ar.episode_id == ep.episode_id:
+                    for fmt, rel in ar.files.items():
+                        paths[f"audio_{fmt}"] = out_dir / rel
         except Exception as e:  # noqa: BLE001
             log.exception("[%s] episode files could not be written", ctx.run_id)
             brief_error = (brief_error + "; " if brief_error else "") + f"episode: {type(e).__name__}: {str(e)[:200]}"

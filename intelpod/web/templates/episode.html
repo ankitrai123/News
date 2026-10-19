@@ -1,5 +1,18 @@
 {% extends "base.html" %}
-{% block title %}Episode · IntelPod{% endblock %}
+{% block title %}Episode · IntelPod{% if audio and audio.status == 'complete' %}
+<script>
+document.querySelectorAll('.seek').forEach(function (el) {
+  el.addEventListener('click', function (e) {
+    if (e.target.tagName === 'A' && !e.target.classList.contains('seek')) return;  // source links work as links
+    e.preventDefault();
+    var p = document.getElementById('player');
+    p.currentTime = parseFloat(el.getAttribute('data-t')) || 0;
+    p.play();
+  });
+});
+</script>
+{% endif %}
+{% endblock %}
 {% block content %}
 {% if not ep %}
 <h1>Episode</h1>
@@ -13,14 +26,30 @@
 <div class="card"><b>Fact check:</b> {{ v.lines }} lines checked against the statements they cite —
  {{ v.supported }} supported, {{ v.fixed }} fixed automatically, {{ v.revised }} revised and re-checked,
  <span class="{{ 'warn' if v.removed else '' }}">{{ v.removed }} removed</span>.
- <span class="small muted">Numbers in brackets are sources (listed below). Audio comes in Phase 6.</span></div>
+ <span class="small muted">Numbers in brackets are sources (listed below).</span></div>
+<div class="card" id="audio">
+{% if audio and audio.status == 'complete' %}
+  {% set src = 'episode.mp3' if 'mp3' in audio.files else 'episode.wav' %}
+  <audio id="player" controls preload="metadata" style="width:100%" src="/media/{{ ep.run_id }}/{{ src }}"></audio>
+  <p class="small muted">{{ (audio.duration_s // 60)|int }} min {{ (audio.duration_s % 60)|round|int }} s ·
+   voices: {{ ep.hosts.A }} = {{ audio.voices.A }}, {{ ep.hosts.B }} = {{ audio.voices.B }} ({{ audio.engine }}) ·
+   <a href="/media/{{ ep.run_id }}/{{ src }}" download>download</a> · click a line below to jump to it</p>
+  {% if audio.chapters %}<p class="small">{% for c in audio.chapters %}<a href="#" class="pill seek" data-t="{{ c.start_s }}">{{ (c.start_s // 60)|int }}:{{ '%02d'|format((c.start_s % 60)|int) }} {{ c.title }}</a>{% endfor %}</p>{% endif %}
+  {% set bad = audio.checks|selectattr('ok', 'equalto', false)|list %}
+  <p class="small">Audio checks: {% for c in audio.checks %}<span class="pill {{ '' if c.ok else 'warn' }}" title="{{ c.detail }}">{{ c.name }}{{ '' if c.ok else ' ⚠' }}</span>{% endfor %}</p>
+{% elif audio %}
+  <b>Audio {{ audio.status }}.</b> <span class="small">{{ audio.limitations|join(' ') }}</span>
+{% else %}
+  <span class="small muted">No audio yet. Set up a voice engine (<code>intelpod tts list</code>, e.g. <code>intelpod tts setup kokoro</code>) and run <code>intelpod audio</code>.</span>
+{% endif %}
+</div>
 {% if ep.limitations %}<div class="banner"><ul class="small">{% for l in ep.limitations %}<li>{{ l }}</li>{% endfor %}</ul></div>{% endif %}
 <div class="card scroll" id="script">
 {% set ns = namespace(seg=None) %}
 {% for x in ep.lines %}
   {% set key = x.segment ~ (x.event_id or '') %}
   {% if key != ns.seg %}{% set ns.seg = key %}<h3>{{ titles.get(x.event_id) if x.segment == 'story' else x.segment|capitalize }}</h3>{% endif %}
-  <p><b>{{ ep.hosts[x.speaker] }}:</b> {{ x.text }}
+  <p{% if starts.get(x.line_id) is not none %} class="seek" data-t="{{ starts[x.line_id] }}" style="cursor:pointer"{% endif %}><b>{{ ep.hosts[x.speaker] }}:</b> {{ x.text }}
    {% for n in cites.get(x.line_id, []) %}<a href="#src{{ n }}" class="small">[{{ n }}]</a>{% endfor %}
    {% if x.kind in ('analysis', 'uncertainty', 'explainer') %}<span class="pill">{{ x.kind }}</span>{% endif %}
    {% if x.check.status in ('fixed', 'revised') %}<span class="pill" title="{{ x.check.problems|join('; ') }} — before: {{ x.check.original }}">{{ x.check.status }}</span>{% endif %}</p>
@@ -37,4 +66,17 @@
 {% if ep.plan.dropped %}<p class="small muted">Not covered: {{ ep.plan.dropped|join('; ') }}</p>{% endif %}</div>
 {% endif %}
 {% if history|length > 1 %}<div class="card"><h3>Earlier episodes</h3><ul class="small">{% for h in history %}<li><a href="/episode?run={{ h.run_id }}">{{ h.title }}</a> — {{ h.word_count }} words, {{ h.status }}</li>{% endfor %}</ul></div>{% endif %}
+{% if audio and audio.status == 'complete' %}
+<script>
+document.querySelectorAll('.seek').forEach(function (el) {
+  el.addEventListener('click', function (e) {
+    if (e.target.tagName === 'A' && !e.target.classList.contains('seek')) return;  // source links work as links
+    e.preventDefault();
+    var p = document.getElementById('player');
+    p.currentTime = parseFloat(el.getAttribute('data-t')) || 0;
+    p.play();
+  });
+});
+</script>
+{% endif %}
 {% endblock %}
